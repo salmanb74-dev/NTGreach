@@ -1,0 +1,46 @@
+.card {
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid;
+}
+
+.lost {
+  background: var(--color-error-bg);
+  border-color: var(--color-primary-border);
+}
+
+.disqualified {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.lost .header { color: var(--color-error); }
+.disqualified .header { color: var(--color-text-3); }
+
+.title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.date {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-3);
+}
+
+.reason {
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.5;
+}

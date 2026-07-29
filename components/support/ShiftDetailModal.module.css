@@ -1,0 +1,159 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.meta dt {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-3);
+  margin: 0 0 2px;
+}
+
+.meta dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.transferBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.transferActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+.overlapBox {
+  padding: 10px 12px;
+  border: 1px solid var(--stage-demo-border, #f0d9a8);
+  background: var(--stage-demo-bg, #fff8eb);
+  border-radius: var(--radius-md);
+}
+
+.overlapTitle {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--stage-demo-text, #8a5a00);
+}
+
+.overlapList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overlapList li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.overlapList strong {
+  font-weight: 650;
+}
+
+.overlapList span {
+  color: var(--color-text-3);
+  font-size: 11px;
+}
+
+.deleteGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.matchingBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.matchingTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.matchingTitle span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-3);
+}
+
+.scopeOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, #fff);
+  cursor: pointer;
+}
+
+.scopeOption:has(input:checked) {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.scopeOption input {
+  margin-top: 3px;
+}
+
+.scopeOption span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.scopeOption strong {
+  font-weight: 650;
+}
+
+.scopeOption em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--color-text-3);
+}

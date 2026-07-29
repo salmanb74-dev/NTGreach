@@ -1,0 +1,126 @@
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.logoMark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-inverse);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: 12px;
+  width: 100%;
+  border-radius: 0;
+}
+
+.navList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.navItem {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sidebar-icon);
+  transition: background 0.15s, color 0.15s;
+}
+
+.navItem:hover {
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-icon-active);
+}
+
+.navItem.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-icon-active);
+}
+
+.navMonogram {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  line-height: 1;
+  user-select: none;
+}
+
+.clockDot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  border: 1.5px solid var(--sidebar-bg);
+  box-sizing: border-box;
+  animation: clockPulse 1.2s ease-in-out infinite;
+}
+
+.chatBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1.5px solid var(--sidebar-bg);
+  box-sizing: border-box;
+}
+
+@keyframes clockPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.bottomSection {
+  display: flex;
+  flex-direction: column;  /* ← add this */
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 8px;
+}

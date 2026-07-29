@@ -1,0 +1,144 @@
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Date group ─────────────────────────────────────────────── */
+.group { display: flex; flex-direction: column; gap: 8px; }
+
+.dateLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-3);
+  padding-left: 2px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* ─── Row ────────────────────────────────────────────────────── */
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+}
+
+.rowBorder {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ─── Icon ───────────────────────────────────────────────────── */
+.iconWrap {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.icon { font-size: 14px; }
+
+/* ─── Content ────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.activityType {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+.direction {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
+  color: var(--color-text-3);
+  text-transform: capitalize;
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--color-text-3);
+}
+
+.leadLink {
+  font-size: 12px;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.leadLink:hover { opacity: 0.75; }
+
+.subject {
+  font-size: 12px;
+  color: var(--color-text-2);
+  font-weight: 500;
+}
+
+.body {
+  font-size: 12px;
+  color: var(--color-text-2);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.outcome {
+  font-size: 11px;
+  color: var(--color-text-3);
+  font-style: italic;
+}
+
+/* ─── Time ───────────────────────────────────────────────────── */
+.time {
+  font-size: 11px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+/* ─── Empty state ────────────────────────────────────────────── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  gap: 8px;
+  text-align: center;
+}
+
+.emptyIcon { color: var(--color-text-3); margin-bottom: 4px; }
+.emptyText { font-size: 14px; font-weight: 600; color: var(--color-text-2); }
+.emptyHint { font-size: 13px; color: var(--color-text-3); }

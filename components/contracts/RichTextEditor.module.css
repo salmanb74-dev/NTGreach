@@ -1,0 +1,122 @@
+.wrap {
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.wrap:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+/* ─── Toolbar ────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.toolBtn {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-2);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, color 0.1s;
+}
+
+.toolBtn:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+.toolBtnActive {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border);
+  margin: 0 4px;
+}
+
+/* ─── Editor content ─────────────────────────────────────────── */
+.editorWrap {
+  min-height: 400px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.editorContent {
+  outline: none;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* TipTap content styles */
+.editorContent h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--color-text);
+}
+
+.editorContent h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  color: var(--color-text);
+}
+
+.editorContent p {
+  margin: 0 0 10px;
+}
+
+.editorContent ul, .editorContent ol {
+  padding-left: 20px;
+  margin: 0 0 10px;
+}
+
+.editorContent li { margin-bottom: 4px; }
+
+.editorContent table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.editorContent td {
+  padding: 4px 8px;
+  vertical-align: top;
+}
+
+.editorContent strong { font-weight: 700; }
+.editorContent em { font-style: italic; }
+.editorContent u { text-decoration: underline; }
+
+/* Placeholder */
+.editorContent p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-3);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}

@@ -1,0 +1,53 @@
+.bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-2);
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+}
+
+.bell:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  background: #ef4444;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+.onDutyDot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  border: 1.5px solid var(--color-surface);
+  box-sizing: border-box;
+}
+
+/* Keep reminder badge readable when both indicators show */
+.bell:has(.onDutyDot) .badge {
+  top: 2px;
+  right: 2px;
+}

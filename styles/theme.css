@@ -1,0 +1,119 @@
+/*
+ * NTG Reach — Theme
+ * Single source of truth for all colors, typography, and spacing.
+ * NEVER hardcode hex values anywhere else in the project.
+ * Always reference a variable from this file.
+ */
+
+:root {
+  /* ─── Brand Primary ─────────────────────────────────────────── */
+  --color-primary:        #d10707;   /* main red */
+  --color-primary-dark:   #a30505;   /* hover states, pressed */
+  --color-primary-darker: #7a0404;   /* active / deep shadows */
+  --color-primary-light:  #e85555;   /* icons on dark bg, soft accents */
+  --color-primary-subtle: #fde8e8;   /* backgrounds, hover fills */
+  --color-primary-border: #f5b0b0;   /* borders on subtle bg */
+
+  /* ─── Pipeline Stage Colors ─────────────────────────────────── */
+  /* Each stage has: bg (subtle fill), text, border */
+  --stage-new-bg:             #f3f4f6;
+  --stage-new-text:           #374151;
+  --stage-new-border:         #9ca3af;
+  --stage-new-bar:            #6b7280;
+
+  --stage-contacted-bg:       var(--color-primary-subtle);
+  --stage-contacted-text:     var(--color-primary-dark);
+  --stage-contacted-border:   var(--color-primary-border);
+  --stage-contacted-bar:      var(--color-primary);
+
+  --stage-demo-bg:            #fef3e2;
+  --stage-demo-text:          #92400e;
+  --stage-demo-border:        #fcd38a;
+  --stage-demo-bar:           #e07b00;
+
+  --stage-proposal-bg:        #f3f0fd;
+  --stage-proposal-text:      #5b21b6;
+  --stage-proposal-border:    #c4b5fd;
+  --stage-proposal-bar:       #7c3aed;
+
+  --stage-negotiation-bg:     #e0f2fe;
+  --stage-negotiation-text:   #075985;
+  --stage-negotiation-border: #7dd3fc;
+  --stage-negotiation-bar:    #0369a1;
+
+  --stage-won-bg:             #dcfce7;
+  --stage-won-text:           #14532d;
+  --stage-won-border:         #86efac;
+  --stage-won-bar:            #15803d;
+
+  --stage-lost-bg:            #f9fafb;
+  --stage-lost-text:          #6b7280;
+  --stage-lost-border:        #d1d5db;
+  --stage-lost-bar:           #9ca3af;
+
+  /* ─── Neutral Surface ────────────────────────────────────────── */
+  --color-bg:               #f7f6f3;
+  --color-surface:          #ffffff;
+  --color-surface-2:        #f0ede8;
+  --color-surface-3:        #e8e5e0;
+
+  /* ─── Borders ────────────────────────────────────────────────── */
+  --color-border:           rgba(0, 0, 0, 0.10);
+  --color-border-medium:    rgba(0, 0, 0, 0.20);
+  --color-border-strong:    rgba(0, 0, 0, 0.35);
+
+  /* ─── Text ───────────────────────────────────────────────────── */
+  --color-text:             #1a1a18;
+  --color-text-2:           #6b6960;
+  --color-text-3:           #9b9890;
+  --color-text-inverse:     #ffffff;
+
+  /* ─── Semantic ───────────────────────────────────────────────── */
+  --color-success:          #15803d;
+  --color-success-bg:       #dcfce7;
+  --color-warning:          #b45309;
+  --color-warning-bg:       #fef3c7;
+  --color-error:            #b91c1c;
+  --color-error-bg:         #fee2e2;
+  --color-info:             #0369a1;
+  --color-info-bg:          #e0f2fe;
+
+  /* ─── Activity Type Colors ───────────────────────────────────── */
+  --activity-email-bg:      var(--color-primary-subtle);
+  --activity-email-color:   var(--color-primary-dark);
+  --activity-whatsapp-bg:   #dcfce7;
+  --activity-whatsapp-color:#15803d;
+  --activity-meeting-bg:    #fef3e2;
+  --activity-meeting-color: #e07b00;
+  --activity-call-bg:       #e0f2fe;
+  --activity-call-color:    #0369a1;
+  --activity-note-bg:       #f3f4f6;
+  --activity-note-color:    #374151;
+
+  /* ─── Sidebar ────────────────────────────────────────────────── */
+  --sidebar-bg:             var(--color-primary);
+  --sidebar-icon:           rgba(255, 255, 255, 0.60);
+  --sidebar-icon-active:    #ffffff;
+  --sidebar-active-bg:      rgba(255, 255, 255, 0.18);
+  --sidebar-hover-bg:       rgba(255, 255, 255, 0.10);
+  --sidebar-width:          52px;
+
+  /* ─── Typography ─────────────────────────────────────────────── */
+  --font-sans:    -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --font-mono:    'SF Mono', 'Fira Code', monospace;
+
+  /* ─── Spacing & Radius ───────────────────────────────────────── */
+  --radius-sm:    4px;
+  --radius-md:    8px;
+  --radius-lg:    12px;
+  --radius-xl:    16px;
+  --radius-full:  9999px;
+
+  /* ─── Shadows ────────────────────────────────────────────────── */
+  --shadow-sm:    0 1px 4px rgba(0, 0, 0, 0.07);
+  --shadow-md:    0 2px 12px rgba(0, 0, 0, 0.09);
+  --shadow-lg:    0 4px 24px rgba(0, 0, 0, 0.13);
+
+  /* ─── Topbar ─────────────────────────────────────────────────── */
+  --topbar-height: 48px;
+}

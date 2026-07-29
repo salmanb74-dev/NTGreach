@@ -1,0 +1,88 @@
+.page {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── Stat Cards ─────────────────────────────────────────────── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.statCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-3);
+  margin-bottom: 6px;
+}
+
+.statValue {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.statSub {
+  font-size: 11px;
+  color: var(--color-text-3);
+}
+
+/* ─── Chart rows ─────────────────────────────────────────────── */
+.row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.chartCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+
+.chartTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-3);
+  margin-bottom: 16px;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+  .row { flex-direction: column; }
+}
+
+@media (max-width: 600px) {
+  .page { padding: 14px 16px; }
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── Stat value modifiers ───────────────────────────────────── */
+.statSuccess { color: var(--color-success); }
+.statWarning { color: var(--color-warning); }
+.statLarge   { font-size: 20px; }
+
+/* ─── Chart flex variants ────────────────────────────────────── */
+.chartFlex1  { flex: 1; }
+.chartFlex14 { flex: 1.4; }

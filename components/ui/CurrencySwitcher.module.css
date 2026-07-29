@@ -1,0 +1,46 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--color-text-2);
+  font-weight: 500;
+}
+
+.pills {
+  display: flex;
+  gap: 4px;
+}
+
+.pill {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--color-border-medium);
+  background: var(--color-surface);
+  color: var(--color-text-2);
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+
+.pill:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.pill.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.updated {
+  font-size: 10px;
+  color: var(--color-text-3);
+}

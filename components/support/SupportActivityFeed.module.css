@@ -1,0 +1,62 @@
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-3);
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.tagRep {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+
+.tagCustomer {
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+}
+
+.breakdown {
+  min-width: 0;
+}
+
+.none {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.clockSessions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.clockSession {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-2);
+}
+
+.clockDuration {
+  color: var(--color-text-3);
+}

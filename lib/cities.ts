@@ -1,0 +1,23 @@
+// Top cities of Pakistan — Karachi first, rest alphabetical
+export const PAKISTAN_CITIES = [
+  'Karachi',
+  'Lahore',
+  'Faisalabad',
+  'Rawalpindi',
+  'Gujranwala',
+  'Peshawar',
+  'Multan',
+  'Hyderabad',
+  'Islamabad',
+  'Quetta',
+  'Bahawalpur',
+  'Sargodha',
+  'Sialkot',
+  'Sukkur',
+  'Larkana',
+  'Sheikhupura',
+  'Rahim Yar Khan',
+  'Jhang',
+  'Okara',
+  'Gujrat',
+]

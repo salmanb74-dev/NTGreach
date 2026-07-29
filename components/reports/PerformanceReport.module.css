@@ -1,0 +1,203 @@
+.wrap { display: flex; flex-direction: column; gap: 16px; }
+
+/* ─── Rep card ───────────────────────────────────────────────── */
+.repCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.repAvatar {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.repName { font-size: 15px; font-weight: 700; color: var(--color-text); }
+.repEmail { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+
+.repStats {
+  display: flex;
+  gap: 24px;
+  margin-left: auto;
+}
+
+.repStat { text-align: right; }
+.repStatNum { font-size: 20px; font-weight: 700; color: var(--color-text); line-height: 1; }
+.repStatLbl { font-size: 10px; color: var(--color-text-3); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+
+/* ─── Target card ────────────────────────────────────────────── */
+.targetCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activeTarget { border-color: var(--color-primary); }
+
+.targetHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.targetLabel { font-size: 15px; font-weight: 700; color: var(--color-text); }
+.targetDates { font-size: 12px; color: var(--color-text-3); margin-top: 3px; }
+
+.periodBadge {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+.activeBadge { background: var(--color-primary-subtle); color: var(--color-primary); }
+.pastBadge { background: var(--color-surface-2); color: var(--color-text-3); }
+.futureBadge { background: var(--color-info-bg); color: var(--color-info); }
+
+/* ─── Metrics ────────────────────────────────────────────────── */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metricHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.metricLabel { font-size: 11px; color: var(--color-text-2); font-weight: 500; }
+.metricValues { font-size: 12px; color: var(--color-text-3); }
+.metricValues strong { color: var(--color-text); font-weight: 700; }
+
+/* ─── Progress bar ───────────────────────────────────────────── */
+.progressWrap { display: flex; align-items: center; gap: 8px; }
+
+.progressTrack {
+  flex: 1;
+  height: 8px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.progressPct { font-size: 11px; font-weight: 600; min-width: 32px; text-align: right; }
+
+/* ─── Closed list ────────────────────────────────────────────── */
+.closedList {
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.closedListTitle {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-3);
+  margin-bottom: 4px;
+}
+
+.closedRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closedDot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  flex-shrink: 0;
+}
+
+.closedAmt {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-2);
+  white-space: nowrap;
+}
+
+/* ─── No targets ─────────────────────────────────────────────── */
+.noTargets {
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border-medium);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-2);
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .repStats { gap: 14px; }
+  .repStatNum { font-size: 16px; }
+}
+
+.currencyBadge {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  border: 1px solid var(--color-border);
+  letter-spacing: 0.5px;
+}
+
+.historyWarning {
+  font-size: 11px;
+  color: var(--color-warning, #92400e);
+  background: #fef3c7;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid #fcd34d;
+}
+
+.progressBarSuccess { background: var(--color-success) !important; }
+.progressPctSuccess { color: var(--color-success); }
+
+.targetBadges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.closedRepId {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-text-2);
+}

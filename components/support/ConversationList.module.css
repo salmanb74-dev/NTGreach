@@ -1,0 +1,284 @@
+.shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.listPanel {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  min-height: 0;
+  z-index: 20;
+}
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.listHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.listTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.closeListBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.closeListBtn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.backdrop {
+  display: none;
+}
+
+.error {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.listScroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.empty {
+  padding: 20px 14px;
+  font-size: 13px;
+  color: var(--color-text-3);
+  margin: 0;
+}
+
+.tenantGroup + .tenantGroup {
+  border-top: 1px solid var(--color-border);
+}
+
+.tenantHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-3);
+}
+
+.tenantHeader:hover {
+  color: var(--color-text-2);
+}
+
+.tenantChevron {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.tenantChevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.tenantName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenantCount {
+  flex-shrink: 0;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.tenantUnread {
+  flex-shrink: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.convList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+}
+
+.convItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.convItem:hover {
+  background: var(--color-surface-2);
+}
+
+.convActive {
+  background: var(--color-primary-subtle);
+}
+
+.convActive:hover {
+  background: var(--color-primary-subtle);
+}
+
+.convTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.convTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.convUnread .convTitle {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.unreadDot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+.badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.badgeOpen {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.badgeClosed {
+  background: var(--color-surface-2);
+  color: var(--color-text-3);
+}
+
+.convMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-text-3);
+}
+
+.chatPanel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .listPanel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(300px, 88vw);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-lg);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .listOpen {
+    transform: translateX(0);
+  }
+
+  .closeListBtn {
+    display: flex;
+  }
+
+  .backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    border: none;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+  }
+}

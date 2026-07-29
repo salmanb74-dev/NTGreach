@@ -1,0 +1,146 @@
+/* ─── Empty state ────────────────────────────────────────────── */
+.empty {
+  font-size: 13px;
+  color: var(--color-text-3);
+  text-align: center;
+  padding: 32px 0;
+}
+
+/* ─── Funnel ─────────────────────────────────────────────────── */
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.funnelRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.funnelLabel {
+  font-size: 11px;
+  color: var(--color-text-2);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.funnelBarWrap {
+  flex: 1;
+  height: 22px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.funnelBar {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 0.5s ease;
+}
+
+.funnelCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ─── Donut / legend ─────────────────────────────────────────── */
+.donutWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.legendName {
+  flex: 1;
+  color: var(--color-text-2);
+  text-transform: capitalize;
+}
+
+.legendVal {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* ─── Conversion / stage table ───────────────────────────────── */
+.conversionList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.convRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.convMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.convBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid;
+  flex: 1;
+}
+
+.convCount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 24px;
+  text-align: right;
+}
+
+.convPct {
+  font-size: 11px;
+  color: var(--color-text-3);
+  min-width: 32px;
+  text-align: right;
+}
+
+.convBarWrap {
+  height: 4px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.convBar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s ease;
+}
