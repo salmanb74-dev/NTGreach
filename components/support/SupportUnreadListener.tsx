@@ -6,14 +6,10 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { usePathname } from 'next/navigation'
 import { createClient, ensureRealtimeAuth } from '@/lib/supabase/client'
 import { markSupportCustomerMessage } from '@/lib/support/unreadStore'
 
 export default function SupportUnreadListener() {
-  const pathname = usePathname()
-  const pathnameRef = useRef(pathname)
-  pathnameRef.current = pathname
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const lastSoundAtRef = useRef(0)
 
@@ -47,14 +43,10 @@ export default function SupportUnreadListener() {
     const supabase = createClient()
     let channel: ReturnType<typeof supabase.channel> | null = null
     let cancelled = false
-    let currentUserId: string | null = null
 
     async function setup() {
       await ensureRealtimeAuth(supabase)
       if (cancelled) return
-
-      const { data: { user } } = await supabase.auth.getUser()
-      currentUserId = user?.id ?? null
 
       channel = supabase
         .channel('support-unread-global')
@@ -73,15 +65,6 @@ export default function SupportUnreadListener() {
               content?: string | null
             }
             if (row.sender_type !== 'customer' || !row.conversation_id) return
-
-            // Same tab: you sent this from the customer simulator — do not badge this tab.
-            if (
-              currentUserId &&
-              row.sender_id === currentUserId &&
-              pathnameRef.current.startsWith('/support/simulator')
-            ) {
-              return
-            }
 
             markSupportCustomerMessage(row.conversation_id)
 

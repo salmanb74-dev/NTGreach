@@ -22,7 +22,7 @@ interface Props {
   onActiveChange?: (active: boolean) => void
 }
 
-type Phase = 'idle' | 'recording' | 'preview' | 'uploading'
+type Phase = 'idle' | 'recording' | 'uploading'
 
 function pickMimeType() {
   if (typeof MediaRecorder === 'undefined') return ''
@@ -52,7 +52,6 @@ export default function VoiceRecorder({
 }: Props) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [seconds, setSeconds] = useState(0)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [localError, setLocalError] = useState<string | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -60,6 +59,7 @@ export default function VoiceRecorder({
   const streamRef = useRef<MediaStream | null>(null)
   const blobRef = useRef<Blob | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sendAfterStopRef = useRef(false)
 
   function clearTimer() {
     if (timerRef.current) {
@@ -73,18 +73,13 @@ export default function VoiceRecorder({
     streamRef.current = null
   }
 
-  function revokePreview() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
-    blobRef.current = null
-  }
-
   function resetToIdle() {
     clearTimer()
     stopStream()
-    revokePreview()
     mediaRecorderRef.current = null
     chunksRef.current = []
+    blobRef.current = null
+    sendAfterStopRef.current = false
     setSeconds(0)
     setPhase('idle')
     setLocalError(null)
@@ -95,12 +90,11 @@ export default function VoiceRecorder({
     return () => {
       clearTimer()
       stopStream()
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function cancelRecording() {
+    sendAfterStopRef.current = false
     const recorder = mediaRecorderRef.current
     if (recorder && recorder.state !== 'inactive') {
       recorder.ondataavailable = null
@@ -124,6 +118,44 @@ export default function VoiceRecorder({
     resetToIdle()
   }
 
+  async function uploadAndSend(blob: Blob) {
+    setPhase('uploading')
+    setLocalError(null)
+    onActiveChange?.(true)
+
+    const path = voiceStoragePath(conversationId)
+    const upload = await uploadSupportFile({
+      path,
+      file: blob,
+      contentType: blob.type || 'audio/webm',
+    })
+
+    if ('error' in upload) {
+      setLocalError(upload.error)
+      onError?.(upload.error)
+      resetToIdle()
+      return
+    }
+
+    const inserted = await insertMediaMessage({
+      conversationId,
+      senderId,
+      senderType,
+      messageType: 'voice',
+      fileUrl: upload.publicUrl,
+    })
+
+    if ('error' in inserted) {
+      setLocalError(inserted.error)
+      onError?.(inserted.error)
+      resetToIdle()
+      return
+    }
+
+    onSent(inserted.row)
+    resetToIdle()
+  }
+
   async function startRecording() {
     if (disabled || phase !== 'idle') return
     setLocalError(null)
@@ -136,7 +168,6 @@ export default function VoiceRecorder({
     }
 
     try {
-      // Mono + echo cancel keeps Opus speech files small
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount:      1,
@@ -155,6 +186,7 @@ export default function VoiceRecorder({
       const recorder = new MediaRecorder(stream, recorderOptions)
 
       chunksRef.current = []
+      sendAfterStopRef.current = false
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data)
       }
@@ -164,10 +196,26 @@ export default function VoiceRecorder({
         const type = recorder.mimeType || 'audio/webm'
         const blob = new Blob(chunksRef.current, { type })
         blobRef.current = blob
-        const url = URL.createObjectURL(blob)
-        setPreviewUrl(url)
-        setPhase('preview')
-        onActiveChange?.(true)
+        mediaRecorderRef.current = null
+
+        if (!sendAfterStopRef.current) {
+          chunksRef.current = []
+          blobRef.current = null
+          setPhase('idle')
+          setSeconds(0)
+          onActiveChange?.(false)
+          return
+        }
+
+        sendAfterStopRef.current = false
+        if (blob.size <= 0) {
+          const msg = 'Recording was empty'
+          setLocalError(msg)
+          onError?.(msg)
+          resetToIdle()
+          return
+        }
+        void uploadAndSend(blob)
       }
 
       mediaRecorderRef.current = recorder
@@ -179,9 +227,17 @@ export default function VoiceRecorder({
         setSeconds(s => {
           const next = s + 1
           if (next >= VOICE_MAX_SECONDS) {
-            // Auto-stop at cap — keeps notes lightweight
+            // Auto-stop at cap and send
             const r = mediaRecorderRef.current
-            if (r && r.state !== 'inactive') r.stop()
+            if (r && r.state !== 'inactive') {
+              sendAfterStopRef.current = true
+              setPhase('uploading')
+              try {
+                r.stop()
+              } catch {
+                // reset handled below if stop fails
+              }
+            }
           }
           return next
         })
@@ -194,51 +250,19 @@ export default function VoiceRecorder({
     }
   }
 
-  function stopRecording() {
+  function finishAndSend() {
     const recorder = mediaRecorderRef.current
-    if (!recorder || recorder.state === 'inactive') return
-    recorder.stop()
-  }
-
-  async function sendRecording() {
-    if (!blobRef.current || phase === 'uploading') return
+    if (!recorder || recorder.state === 'inactive' || phase === 'uploading') return
+    sendAfterStopRef.current = true
     setPhase('uploading')
-    setLocalError(null)
-
-    const path = voiceStoragePath(conversationId)
-    const upload = await uploadSupportFile({
-      path,
-      file: blobRef.current,
-      contentType: blobRef.current.type || 'audio/webm',
-    })
-
-    if ('error' in upload) {
-      setLocalError(upload.error)
-      onError?.(upload.error)
-      setPhase('preview')
-      return
+    try {
+      recorder.stop()
+    } catch {
+      resetToIdle()
     }
-
-    const inserted = await insertMediaMessage({
-      conversationId,
-      senderId,
-      senderType,
-      messageType: 'voice',
-      fileUrl: upload.publicUrl,
-    })
-
-    if ('error' in inserted) {
-      setLocalError(inserted.error)
-      onError?.(inserted.error)
-      setPhase('preview')
-      return
-    }
-
-    onSent(inserted.row)
-    resetToIdle()
   }
 
-  if (phase === 'recording') {
+  if (phase === 'recording' || phase === 'uploading') {
     return (
       <div className={styles.wrap}>
         <div className={styles.recordingBar}>
@@ -253,39 +277,8 @@ export default function VoiceRecorder({
           </span>
           <button
             type="button"
-            className={styles.stopBtn}
-            onClick={stopRecording}
-          >
-            Stop
-          </button>
-          <button
-            type="button"
-            className={styles.cancelBtn}
-            onClick={cancelRecording}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (phase === 'preview' || phase === 'uploading') {
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.previewBar}>
-          {previewUrl && (
-            <audio
-              className={styles.previewAudio}
-              controls
-              src={previewUrl}
-              preload="metadata"
-            />
-          )}
-          <button
-            type="button"
             className={styles.sendBtn}
-            onClick={() => void sendRecording()}
+            onClick={finishAndSend}
             disabled={phase === 'uploading'}
           >
             {phase === 'uploading' ? '…' : 'Send'}
@@ -293,7 +286,7 @@ export default function VoiceRecorder({
           <button
             type="button"
             className={styles.cancelBtn}
-            onClick={resetToIdle}
+            onClick={cancelRecording}
             disabled={phase === 'uploading'}
           >
             Cancel

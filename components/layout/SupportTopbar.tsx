@@ -11,9 +11,6 @@ import styles from '@/components/layout/Topbar.module.css'
 const TITLES: { match: string; title: string }[] = [
   { match: '/support/calendar',  title: 'Roster' },
   { match: '/support/chats',     title: 'Chats' },
-  { match: '/support/simulator/abbott-pizza', title: 'Abbott Pizza' },
-  { match: '/support/simulator/clay-handi',   title: 'Clay Handi' },
-  { match: '/support/simulator', title: 'Simulator' },
   { match: '/support/activity',  title: 'Activity' },
   { match: '/support/time',      title: 'Time Logging' },
   { match: '/support/reports',   title: 'Hours' },

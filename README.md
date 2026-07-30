@@ -2,6 +2,8 @@
 
 Sales CRM for NTG Reach — built with Next.js 14, Supabase, Mailjet, and Netlify.
 
+For the **Resto Support HTTP API** (Nest BFF), see [`docs/SUPPORT_API_CONTRACT.md`](docs/SUPPORT_API_CONTRACT.md).
+
 ---
 
 ## Phase 1 Setup — Do this once

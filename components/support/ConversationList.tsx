@@ -258,16 +258,25 @@ export default function ConversationList({
 
     setError(null)
     setDeletingId(id)
-    const supabase = createClient()
-    const { error: deleteError } = await supabase
-      .from('support_conversations')
-      .delete()
-      .eq('id', id)
+    let deleteError: string | null = null
+
+    try {
+      const response = await fetch(
+        `/api/support/conversations/${encodeURIComponent(id)}`,
+        { method: 'DELETE' }
+      )
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        deleteError = result.error ?? 'Failed to delete conversation'
+      }
+    } catch {
+      deleteError = 'Failed to delete conversation'
+    }
 
     setDeletingId(null)
 
     if (deleteError) {
-      setError(deleteError.message)
+      setError(deleteError)
       return
     }
 
@@ -300,7 +309,7 @@ export default function ConversationList({
       {pendingDelete && (
         <ConfirmModal
           title="Delete conversation"
-          message={`Delete “${pendingDelete.label}”? All messages in this chat will be removed. This cannot be undone.`}
+          message={`Delete “${pendingDelete.label}”? All messages and uploaded files in this chat will be permanently removed. This cannot be undone.`}
           confirmLabel="Delete"
           danger
           loading={deletingId === pendingDelete.id}

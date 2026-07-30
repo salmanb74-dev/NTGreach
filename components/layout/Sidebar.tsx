@@ -14,8 +14,7 @@ import styles from './Sidebar.module.css'
 interface NavItem {
   href:         string
   label:        string
-  svgPath?:     string
-  navMonogram?: string
+  svgPath:      string
   adminOnly?:   boolean
   csAdminOnly?: boolean
   modules:      Module[]  // which modules show this item
@@ -91,18 +90,6 @@ const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     modules: ['cs_resto', 'cs_alma'],
   },
-  {
-    href: '/support/simulator/clay-handi', label: 'Clay Handi (simulator)',
-    navMonogram: 'CH',
-    csAdminOnly: true,
-    modules: ['cs_resto', 'cs_alma'],
-  },
-  {
-    href: '/support/simulator/abbott-pizza', label: 'Abbott Pizza (simulator)',
-    navMonogram: 'AB',
-    csAdminOnly: true,
-    modules: ['cs_resto', 'cs_alma'],
-  },
 ]
 
 interface Props {
@@ -164,24 +151,18 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
                       : item.label
                 }
               >
-                {item.navMonogram ? (
-                  <span className={styles.navMonogram} aria-hidden="true">
-                    {item.navMonogram}
-                  </span>
-                ) : (
-                  <svg
-                    width="20" height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d={item.svgPath!} />
-                  </svg>
-                )}
+                <svg
+                  width="20" height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d={item.svgPath} />
+                </svg>
                 {showClockDot && (
                   <span className={styles.clockDot} aria-hidden="true" />
                 )}

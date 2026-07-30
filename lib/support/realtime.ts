@@ -20,6 +20,7 @@ export type SupportMessageRow = {
   conversation_id: string
   sender_id: string
   sender_type: 'agent' | 'customer'
+  sender_display_name?: string | null
   message_type: 'text' | 'image' | 'voice' | 'video'
   content: string | null
   file_url: string | null
@@ -41,7 +42,7 @@ export function rowToChatMessage(
     conversation_id: row.conversation_id,
     sender_id:       row.sender_id,
     sender_type:     row.sender_type,
-    sender_name:     senderName,
+    sender_name:     row.sender_display_name?.trim() || senderName,
     message_type:    row.message_type,
     content:         row.content,
     file_url:        row.file_url,
@@ -60,8 +61,7 @@ function readBroadcastPayload<T>(msg: unknown): T | null {
 
 /**
  * Subscribe to new/deleted messages for a conversation.
- * Uses postgres_changes + broadcast on a stable topic so Chats +
- * Simulator (separate tabs) stay in sync.
+ * Uses postgres_changes + broadcast on a stable topic so Chats stays in sync.
  */
 export async function subscribeToConversationMessages(opts: {
   conversationId: string
@@ -278,7 +278,7 @@ export function subscribeToConversationMeta(listener: MetaListener) {
   }
 }
 
-/** Notify Chats + Simulator lists of title / activity changes. */
+/** Notify chat lists of title / activity changes. */
 export async function broadcastConversationMeta(row: ConversationMetaUpdate) {
   const channel = await ensureMetaChannel()
   if (!channel) return

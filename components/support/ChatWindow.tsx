@@ -112,7 +112,9 @@ export default function ChatWindow({
     }
 
     async function handleIncoming(row: SupportMessageRow) {
-      const senderName = await resolveSenderName(row.sender_id, row.sender_type)
+      const senderName =
+        row.sender_display_name?.trim() ||
+        (await resolveSenderName(row.sender_id, row.sender_type))
       const msg: ChatMessage = {
         id:              row.id,
         conversation_id: row.conversation_id,
@@ -182,7 +184,10 @@ export default function ChatWindow({
           conversation_id: r.conversation_id,
           sender_id:       r.sender_id,
           sender_type:     r.sender_type,
-          sender_name:     nameCache.current[r.sender_id] ?? 'Unknown',
+          sender_name:
+            r.sender_display_name?.trim() ||
+            nameCache.current[r.sender_id] ||
+            'Unknown',
           message_type:    r.message_type,
           content:         r.content,
           file_url:        r.file_url,
@@ -328,7 +333,7 @@ export default function ChatWindow({
           conversation_id: row.conversation_id,
           sender_id:       row.sender_id,
           sender_type:     row.sender_type,
-          sender_name:     senderName,
+          sender_name:     row.sender_display_name?.trim() || senderName,
           message_type:    row.message_type,
           content:         row.content,
           file_url:        row.file_url,

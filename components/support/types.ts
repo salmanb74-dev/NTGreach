@@ -125,38 +125,6 @@ export interface ChatMessage {
   expires_at?:     string | null
 }
 
-export interface SimulatorTenant {
-  id:                  string
-  name:                string
-  slug:                string
-  navMonogram:         string
-  customerSenderName:  string
-}
-
-export const SIMULATOR_TENANTS: Record<string, SimulatorTenant> = {
-  'clay-handi': {
-    id:                 'clay_handi',
-    name:               'Clay Handi',
-    slug:               'clay-handi',
-    navMonogram:        'CH',
-    customerSenderName: 'Clay Handi',
-  },
-  'abbott-pizza': {
-    id:                 'abbott_pizza',
-    name:               'Abbott Pizza',
-    slug:               'abbott-pizza',
-    navMonogram:        'AB',
-    customerSenderName: 'Abbott Pizza',
-  },
-}
-
-export function getSimulatorTenant(slug: string): SimulatorTenant | null {
-  return SIMULATOR_TENANTS[slug] ?? null
-}
-
-export const TEST_TENANT_ID   = SIMULATOR_TENANTS['clay-handi'].id
-export const TEST_TENANT_NAME = SIMULATOR_TENANTS['clay-handi'].name
-
 export function conversationActivityAt(c: ConversationItem): number {
   return new Date(c.last_message_at ?? c.created_at).getTime()
 }

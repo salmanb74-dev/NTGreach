@@ -77,20 +77,18 @@ export default function NotificationBell() {
     return () => clearInterval(interval)
   }, [])
 
-  const hideSupportBadge = pathname.startsWith('/support/simulator')
-  const visibleSupportUnread = hideSupportBadge ? 0 : supportUnread
-  const total = reminderCount + visibleSupportUnread
+  const total = reminderCount + supportUnread
   const titleParts = [
     onDuty ? 'On duty' : null,
-    visibleSupportUnread > 0
-      ? `${visibleSupportUnread} new support message${visibleSupportUnread === 1 ? '' : 's'}`
+    supportUnread > 0
+      ? `${supportUnread} new support message${supportUnread === 1 ? '' : 's'}`
       : null,
     reminderCount > 0 ? `${reminderCount} reminder${reminderCount === 1 ? '' : 's'}` : null,
   ].filter(Boolean)
 
   return (
     <Link
-      href={visibleSupportUnread > 0 ? '/support/chats' : '/notifications'}
+      href={supportUnread > 0 ? '/support/chats' : '/notifications'}
       className={styles.bell}
       title={titleParts.length ? titleParts.join(' · ') : 'Notifications'}
     >

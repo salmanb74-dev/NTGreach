@@ -2,49 +2,42 @@
 
 import { createClient } from '@/lib/supabase/client'
 import type { SupportMessageRow } from '@/lib/support/realtime'
+import {
+  IMAGE_JPEG_QUALITY,
+  IMAGE_MAX_EDGE,
+  SCREENSHOT_JPEG_QUALITY,
+  SCREENSHOT_MAX_EDGE,
+  SCREENSHOT_PNG_MAX_BYTES,
+  SCREEN_MAX_BYTES,
+  SCREEN_MAX_SECONDS,
+  SCREEN_RETENTION_DAYS,
+  SCREEN_VIDEO_BITS_PER_SECOND,
+  SCREEN_WARN_SECONDS,
+  SUPPORT_FILES_BUCKET,
+  VOICE_BITS_PER_SECOND,
+  VOICE_MAX_SECONDS,
+  VOICE_WARN_SECONDS,
+  screenRecordingExpiresAt,
+} from '@/lib/support/media-limits'
 
-const BUCKET = 'support-files'
-
-/** Max long edge for chat images (keeps thumbs small). */
-export const IMAGE_MAX_EDGE = 1280
-/** JPEG quality 0–1 — good balance for chat screenshots. */
-export const IMAGE_JPEG_QUALITY = 0.72
-/** Soft warning in the UI after this many seconds (recording continues). */
-export const VOICE_WARN_SECONDS = 120
-/**
- * Hard safety cap — at 24kbps, 5 min ≈ 900KB.
- * Recording auto-stops and goes to preview so notes can't grow unboundedly.
- */
-export const VOICE_MAX_SECONDS = 5 * 60
-/** Target voice bitrate (Opus speech is fine at 24 kbps). */
-export const VOICE_BITS_PER_SECOND = 24_000
-
-/**
- * Screenshots are pictures of UI text, so they keep far more detail than chat
- * photos: no downscale until this edge, and lossless PNG where size allows.
- */
-export const SCREENSHOT_MAX_EDGE = 2560
-/** Above this, fall back to high-quality JPEG instead of PNG. */
-export const SCREENSHOT_PNG_MAX_BYTES = 3 * 1024 * 1024
-/** Near-lossless fallback — still readable on small text. */
-export const SCREENSHOT_JPEG_QUALITY = 0.95
-
-/** Hard cap for customer screen recordings. */
-export const SCREEN_MAX_SECONDS = 15
-/** Shown in the UI while recording (auto-stop at SCREEN_MAX_SECONDS). */
-export const SCREEN_WARN_SECONDS = 10
-/** Screen recordings are deleted after this many days. */
-export const SCREEN_RETENTION_DAYS = 7
-/** Target video bitrate (~1 Mbps → ~2MB for 15s). */
-export const SCREEN_VIDEO_BITS_PER_SECOND = 1_000_000
-/** Reject oversized recordings before upload. */
-export const SCREEN_MAX_BYTES = 12 * 1024 * 1024
-
-export function screenRecordingExpiresAt(from = new Date()): string {
-  const d = new Date(from)
-  d.setDate(d.getDate() + SCREEN_RETENTION_DAYS)
-  return d.toISOString()
+export {
+  IMAGE_JPEG_QUALITY,
+  IMAGE_MAX_EDGE,
+  SCREENSHOT_JPEG_QUALITY,
+  SCREENSHOT_MAX_EDGE,
+  SCREENSHOT_PNG_MAX_BYTES,
+  SCREEN_MAX_BYTES,
+  SCREEN_MAX_SECONDS,
+  SCREEN_RETENTION_DAYS,
+  SCREEN_VIDEO_BITS_PER_SECOND,
+  SCREEN_WARN_SECONDS,
+  VOICE_BITS_PER_SECOND,
+  VOICE_MAX_SECONDS,
+  VOICE_WARN_SECONDS,
+  screenRecordingExpiresAt,
 }
+
+const BUCKET = SUPPORT_FILES_BUCKET
 
 export async function uploadSupportFile(opts: {
   path: string

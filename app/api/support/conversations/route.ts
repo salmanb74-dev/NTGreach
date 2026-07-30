@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from 'next/server'
+import {
+  assertSupportApiKey,
+  clampLimit,
+  getSupportAdmin,
+  getSupportApiActorUserId,
+  requireTenantId,
+  serializeConversation,
+  supportApiError,
+} from '@/lib/support/api'
+
+export async function GET(request: NextRequest) {
+  const authError = assertSupportApiKey(request)
+  if (authError) return authError
+
+  const tenantId = requireTenantId(request.nextUrl.searchParams.get('tenant_id'))
+  if (!tenantId) return supportApiError('tenant_id is required')
+
+  const status = request.nextUrl.searchParams.get('status')
+  if (status && status !== 'open' && status !== 'closed') {
+    return supportApiError('status must be open or closed')
+  }
+
+  const limit = clampLimit(request.nextUrl.searchParams.get('limit'), 50, 200)
+
+  try {
+    const admin = getSupportAdmin()
+    let query = admin
+      .from('support_conversations')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(limit)
+
+    if (status) query = query.eq('status', status)
+
+    const { data, error } = await query
+    if (error) return supportApiError(error.message, 500)
+
+    return NextResponse.json({
+      conversations: (data ?? []).map((row) =>
+        serializeConversation(row as Record<string, unknown>)
+      ),
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Server error'
+    return supportApiError(message, 500)
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const authError = assertSupportApiKey(request)
+  if (authError) return authError
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return supportApiError('Invalid JSON body')
+  }
+
+  const tenantId = requireTenantId(body.tenant_id)
+  const tenantName =
+    typeof body.tenant_name === 'string' ? body.tenant_name.trim() : ''
+  if (!tenantId) return supportApiError('tenant_id is required')
+  if (!tenantName) return supportApiError('tenant_name is required')
+
+  const title =
+    body.title === null || body.title === undefined
+      ? null
+      : typeof body.title === 'string'
+        ? body.title.trim() || null
+        : null
+
+  const product =
+    typeof body.product === 'string' && body.product.trim()
+      ? body.product.trim()
+      : 'resto'
+
+  try {
+    const admin = getSupportAdmin()
+    const actorId = getSupportApiActorUserId()
+
+    const { data, error } = await admin
+      .from('support_conversations')
+      .insert({
+        tenant_id: tenantId,
+        tenant_name: tenantName,
+        title,
+        status: 'open',
+        created_by: actorId,
+        product,
+      })
+      .select('*')
+      .single()
+
+    if (error || !data) {
+      return supportApiError(error?.message ?? 'Failed to create conversation', 500)
+    }
+
+    return NextResponse.json(
+      { conversation: serializeConversation(data as Record<string, unknown>) },
+      { status: 201 }
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Server error'
+    return supportApiError(message, 500)
+  }
+}

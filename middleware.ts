@@ -29,6 +29,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // API routes handle their own auth (session, webhooks, Support API key).
+  // Do not HTML-redirect Nest/webhook callers to /login.
+  if (pathname.startsWith('/api/')) {
+    return supabaseResponse
+  }
+
   // Redirect unauthenticated users to login
   if (!user && pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url))
