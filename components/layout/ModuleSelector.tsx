@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MODULE_LABELS, type Module } from '@/lib/modules'
+import { MODULE_LABELS, getModuleHomePath, type Module } from '@/lib/modules'
 import styles from './ModuleSelector.module.css'
 
 interface Props {
@@ -18,10 +18,7 @@ export default function ModuleSelector({ modules, activeModule }: Props) {
     setOpen(false)
     // Store in cookie so server layout can read it
     document.cookie = `ntg-active-module=${mod};path=/;max-age=31536000`
-    // Navigate to the root of the selected module
-    if (mod.startsWith('crm_'))   router.push('/dashboard')
-    if (mod.startsWith('cs_'))    router.push('/support')
-    if (mod.startsWith('admin_')) router.push('/admin')
+    router.push(getModuleHomePath(mod))
     router.refresh()
   }
 

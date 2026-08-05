@@ -12,8 +12,7 @@ export const ALL_ROLES = [
   { value: 'cs_admin',       label: 'CS Admin',      group: 'Support' },
   { value: 'cs_manager',     label: 'CS Manager',    group: 'Support' },
   { value: 'cs_support_rep', label: 'Support Rep',   group: 'Support' },
-  { value: 'admin_resto',    label: 'Resto Admin',   group: 'Admin' },
-  { value: 'admin_alma',     label: 'Alma Admin',    group: 'Admin' },
+  { value: 'ops_admin',      label: 'Ops Admin',     group: 'Ops' },
 ]
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -23,8 +22,7 @@ export const ROLE_LABELS: Record<string, string> = {
   cs_admin:       'CS Admin',
   cs_manager:     'CS Manager',
   cs_support_rep: 'Support Rep',
-  admin_resto:    'Resto Admin',
-  admin_alma:     'Alma Admin',
+  ops_admin:      'Ops Admin',
 }
 
 interface User {

@@ -274,11 +274,20 @@ Rules (same as Reach reports):
 ```json
 {
   "on_duty": true,
-  "offline_message": "Our support team is currently offline. …"
+  "offline_message": "Our support team is currently offline. …",
+  "next_available_at": null,
+  "coverage_ends_at": "2026-07-30T12:00:00.000Z"
 }
 ```
 
-`on_duty` is true when any support shift covers “now”.
+| Field | When | Notes |
+|-------|------|--------|
+| `on_duty` | always | `true` when any support shift covers “now” |
+| `offline_message` | always | Configurable fallback copy for offline banner |
+| `next_available_at` | offline | ISO start of next shift within ~7 days, else `null` |
+| `coverage_ends_at` | on duty | ISO end of the continuous on-duty block (≤1 min gaps merge), else `null` |
+
+Resto may show a short “back at …” when offline, and “ends in N min” when `coverage_ends_at` is within 30 minutes.
 
 ---
 

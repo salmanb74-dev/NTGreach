@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Topbar from '@/components/layout/Topbar'
 import { PIPELINE_STAGES, STAGE_LABELS, STAGE_CSS, type PipelineStage } from '@/lib/types'
@@ -8,6 +10,8 @@ import ConversionStats from '@/components/analytics/ConversionStats'
 import CurrencySwitcher from '@/components/ui/CurrencySwitcher'
 import { convertAmount, formatCurrency } from '@/lib/currency'
 import { getAppSettings, getCurrentRates, getCachedProfile } from '@/lib/dataCache'
+import { getModuleHomePath, type Module } from '@/lib/modules'
+import { getAccessibleModules } from '@/lib/roles'
 import styles from './dashboard.module.css'
 
 export default async function DashboardPage({
@@ -15,13 +19,23 @@ export default async function DashboardPage({
 }: {
   searchParams: { currency?: string }
 }) {
+  const profile = await getCachedProfile()
+  const accessible = getAccessibleModules(profile)
+  const saved = cookies().get('ntg-active-module')?.value as Module | undefined
+  const activeModule =
+    saved && accessible.includes(saved) ? saved : accessible[0]
+
+  // CRM dashboard must not render under Support/Ops module selection
+  if (activeModule && !activeModule.startsWith('crm_')) {
+    redirect(getModuleHomePath(activeModule))
+  }
+
   const supabase      = createClient()
   const eightWeeksAgo = new Date()
   eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56)
 
   // ── Parallel fetch — user/settings/rates from cache ──────────
   const [
-    profile,
     settingsMap,
     ratesList,
     { data: allLeads },
@@ -29,7 +43,6 @@ export default async function DashboardPage({
     { count: meetingCount },
     { count: emailCount },
   ] = await Promise.all([
-    getCachedProfile(),
     getAppSettings(),
     getCurrentRates(),
     supabase.from('leads').select(

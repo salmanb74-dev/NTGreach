@@ -14,8 +14,7 @@ export const ROLE_LABELS: Record<string, string> = {
   cs_admin:       'CS Admin',
   cs_manager:     'CS Manager',
   cs_support_rep: 'Support Rep',
-  admin_resto:    'Resto Admin',
-  admin_alma:     'Alma Admin',
+  ops_admin:      'Ops Admin',
 }
 
 interface Profile {

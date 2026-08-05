@@ -4,6 +4,8 @@ Sales CRM for NTG Reach — built with Next.js 14, Supabase, Mailjet, and Netlif
 
 For the **Resto Support HTTP API** (Nest BFF), see [`docs/SUPPORT_API_CONTRACT.md`](docs/SUPPORT_API_CONTRACT.md).
 
+For the **Resto Ops portal** (Reach → Nest tenant list), see [`docs/RESTO_OPS.md`](docs/RESTO_OPS.md).
+
 ---
 
 ## Phase 1 Setup — Do this once

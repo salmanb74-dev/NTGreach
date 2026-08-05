@@ -10,8 +10,7 @@ export type UserRole =
   | 'cs_admin'
   | 'cs_manager'
   | 'cs_support_rep'
-  | 'admin_resto'
-  | 'admin_alma'
+  | 'ops_admin'
 
 export type Product = 'resto' | 'alma'
 
@@ -22,8 +21,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   cs_admin:       'CS Admin',
   cs_manager:     'CS Manager',
   cs_support_rep: 'Support Rep',
-  admin_resto:    'Resto Admin',
-  admin_alma:     'Alma Admin',
+  ops_admin:      'Ops Admin',
 }
 
 export interface UserProfile {
@@ -62,9 +60,12 @@ export function hasCsAccess(profile: UserProfile | null): boolean {
   return !!profile?.roles?.some(r => r.startsWith('cs_'))
 }
 
-// ─── Admin portal checks ──────────────────────────────────────
-export function hasAdminAccess(profile: UserProfile | null): boolean {
-  return !!profile?.roles?.some(r => r.startsWith('admin_'))
+// ─── Ops portal checks ────────────────────────────────────────
+export function isOpsAdmin(profile: UserProfile | null): boolean {
+  return !!profile?.roles?.includes('ops_admin')
+}
+export function hasOpsAccess(profile: UserProfile | null): boolean {
+  return !!profile?.roles?.some(r => r.startsWith('ops_'))
 }
 
 // ─── Generic helpers (backwards compat) ──────────────────────
@@ -83,9 +84,9 @@ export function getAccessibleModules(profile: UserProfile | null): Module[] {
   const modules: Module[] = []
 
   for (const product of products) {
-    if (roles.some(r => r.startsWith('crm_')))              modules.push(`crm_${product}`   as Module)
-    if (roles.some(r => r.startsWith('cs_')))               modules.push(`cs_${product}`    as Module)
-    if (roles.includes(`admin_${product}` as UserRole))     modules.push(`admin_${product}` as Module)
+    if (roles.some(r => r.startsWith('crm_')))  modules.push(`crm_${product}` as Module)
+    if (roles.some(r => r.startsWith('cs_')))   modules.push(`cs_${product}` as Module)
+    if (roles.some(r => r.startsWith('ops_')))  modules.push(`ops_${product}` as Module)
   }
 
   return modules
