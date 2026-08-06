@@ -12,7 +12,6 @@ import styles from './ops.module.css'
 
 export default async function OpsLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCachedProfile()
-  // Nest tenants (Ops Resto) or platform Ops users (home + Users elsewhere)
   if (!hasOpsAccess(profile) && !hasPlatformOpsAccess(profile)) {
     redirect('/login')
   }

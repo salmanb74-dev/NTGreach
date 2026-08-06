@@ -7,9 +7,10 @@ product on their profile, e.g. `resto` → **Ops Resto**).
 
 - Sidebar: **Home** (blank), **Tenants**
 - **Tenants:** Staging/Production toggle; searchable tenant list; open a tenant for Overview, Subscription, Logs, Delete (tabs)
+- Tenant **Delete** tab: Nest hard-delete (`DELETE /api/v1/admin/tenants/:id`) with name + id confirmation
 - Global Reports / Logs / Subscription nav items removed — those actions belong on the tenant detail page
 - Tenant **Logs** tab: Nest `api_hits` via `GET /api/v1/admin/logs` (~24h HTTP traffic)
-- Contract: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md)
+- Contracts: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md), [`RESTO_ADMIN_DELETE_CONTRACT.md`](./RESTO_ADMIN_DELETE_CONTRACT.md)
 
 Reach never talks to Resto Supabase for this. The browser never sees Resto API keys.
 
@@ -56,9 +57,22 @@ Authenticated Reach ops users call:
 | Reach | Nest |
 |---|---|
 | `GET /api/ops/tenants?env=staging\|production` | `GET /api/v1/admin/tenants` |
+| `DELETE /api/ops/tenants/:id?env=…` body `{ confirmTenantId }` | `DELETE /api/v1/admin/tenants/:tenantId` |
 | `GET /api/ops/logs?env=…&tenantId=&method=&statusCode=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` (`api_hits`) |
 
 Those routes check the Reach session (`ops_admin`), then call Nest with the matching env key.
+
+### Delete tenant (Ops → Nest)
+
+Hard-delete is **irreversible**. Nest wipes users/auth, catalog, orders, api_hits, audit_logs, translations, subscriptions, tenant row (see Resto `ADMIN_REACH.md`).
+
+Reach UI (tenant detail → **Delete** tab):
+
+1. Operator must type the restaurant **name** and **tenant ID**, plus acknowledge the checkbox.
+2. Reach proxies `DELETE` with body `{ "confirmTenantId": "<same uuid>" }` (Nest rejects mismatch).
+3. Success shows Nest summary counts / `warnings`; then return to the tenants list.
+
+Proxy timeout for delete is **120s** (wipes can be slow).
 
 If env vars are missing, the UI shows **Resto admin API not configured** (HTTP 503).
 

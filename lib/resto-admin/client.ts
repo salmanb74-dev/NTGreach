@@ -5,6 +5,8 @@ import type {
   RestoLogsPage,
   RestoLogsQuery,
   RestoTenant,
+  RestoTenantDeleteResult,
+  RestoTenantDeleteSummary,
 } from '@/lib/resto-admin/types'
 
 export class RestoAdminConfigError extends Error {
@@ -82,27 +84,42 @@ function nestErrorMessage(body: unknown, fallback: string): string {
 
 async function fetchAdminJson(
   env: RestoAdminEnv,
-  pathWithQuery: string
+  pathWithQuery: string,
+  init: {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+    body?: unknown
+    /** Override default 15s (deletes can run long). */
+    timeoutMs?: number
+  } = {}
 ): Promise<{ status: number; body: unknown }> {
   const config = requireConfig(env)
   const url = `${config.baseUrl}${pathWithQuery}`
+  const method = init.method ?? 'GET'
+  const timeoutMs = init.timeoutMs ?? 15_000
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'x-api-key': config.apiKey,
+  }
+  let body: string | undefined
+  if (init.body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify(init.body)
+  }
 
   let response: Response
   try {
     response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'x-api-key': config.apiKey,
-      },
+      method,
+      headers,
+      body,
       cache: 'no-store',
-      // Nest hang should not pin Reach API/UI forever
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {
     if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
       throw new RestoAdminApiError(
-        `Resto (${env}) timed out after 15s — is Nest running at the configured base URL?`,
+        `Resto (${env}) timed out after ${Math.round(timeoutMs / 1000)}s — is Nest running at the configured base URL?`,
         504
       )
     }
@@ -111,23 +128,23 @@ async function fetchAdminJson(
   }
 
   const text = await response.text()
-  let body: unknown = null
+  let parsed: unknown = null
   if (text) {
     try {
-      body = JSON.parse(text)
+      parsed = JSON.parse(text)
     } catch {
-      body = null
+      parsed = null
     }
   }
 
   if (!response.ok) {
     throw new RestoAdminApiError(
-      nestErrorMessage(body, `Resto admin API returned ${response.status}`),
+      nestErrorMessage(parsed, `Resto admin API returned ${response.status}`),
       response.status
     )
   }
 
-  return { status: response.status, body }
+  return { status: response.status, body: parsed }
 }
 
 function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
@@ -269,4 +286,93 @@ export async function fetchRestoLogs(
       : null
 
   return { logs, nextCursor }
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value)
+  }
+  return null
+}
+
+function normalizeDeletionSummary(
+  raw: Record<string, unknown> | null | undefined
+): RestoTenantDeleteSummary | null {
+  if (!raw) return null
+  const warnings = Array.isArray(raw.warnings)
+    ? raw.warnings.filter((w): w is string => typeof w === 'string' && w.trim().length > 0)
+    : []
+  const steps = Array.isArray(raw.steps)
+    ? raw.steps.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+    : []
+
+  return {
+    tenantId:
+      asTrimmedString(raw.tenantId) ?? asTrimmedString(raw.tenant_id),
+    tenantName:
+      asTrimmedString(raw.tenantName) ?? asTrimmedString(raw.tenant_name),
+    tenantEmail:
+      asTrimmedString(raw.tenantEmail) ?? asTrimmedString(raw.tenant_email),
+    usersDeleted: asNumber(raw.usersDeleted) ?? asNumber(raw.users_deleted),
+    authUsersDeleted:
+      asNumber(raw.authUsersDeleted) ?? asNumber(raw.auth_users_deleted),
+    authUsersFailed:
+      asNumber(raw.authUsersFailed) ?? asNumber(raw.auth_users_failed),
+    ordersDeleted: asNumber(raw.ordersDeleted) ?? asNumber(raw.orders_deleted),
+    branchesDeleted:
+      asNumber(raw.branchesDeleted) ?? asNumber(raw.branches_deleted),
+    apiHitsDeleted:
+      asNumber(raw.apiHitsDeleted) ?? asNumber(raw.api_hits_deleted),
+    warnings,
+    steps,
+  }
+}
+
+/**
+ * Server-only: hard-delete a Resto tenant via Nest DELETE /api/v1/admin/tenants/:id.
+ * Body confirmTenantId must match the path id (Nest safety check).
+ * Never import this into client components.
+ */
+export async function deleteRestoTenant(
+  env: RestoAdminEnv,
+  tenantId: string
+): Promise<RestoTenantDeleteResult> {
+  const id = tenantId.trim()
+  if (!id) {
+    throw new RestoAdminApiError('Missing tenant id', 400)
+  }
+
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/tenants/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      body: { confirmTenantId: id, confirm: true },
+      // Full tenant wipe can take a while (api_hits, catalog, auth users)
+      timeoutMs: 120_000,
+    }
+  )
+
+  if (!body || typeof body !== 'object') {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  const record = body as Record<string, unknown>
+  const summaryRaw =
+    record.summary && typeof record.summary === 'object'
+      ? (record.summary as Record<string, unknown>)
+      : null
+
+  return {
+    deleted: record.deleted === true || record.deleted === 'true',
+    tenantId:
+      asTrimmedString(record.tenantId) ??
+      asTrimmedString(record.tenant_id) ??
+      id,
+    tenantName:
+      asTrimmedString(record.tenantName) ??
+      asTrimmedString(record.tenant_name),
+    summary: normalizeDeletionSummary(summaryRaw),
+  }
 }

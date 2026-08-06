@@ -86,9 +86,19 @@ export default function NotificationBell() {
     reminderCount > 0 ? `${reminderCount} reminder${reminderCount === 1 ? '' : 's'}` : null,
   ].filter(Boolean)
 
+  const pathMod = pathname.split('/').filter(Boolean)[0]
+  const csChats =
+    pathMod && pathMod.startsWith('cs_')
+      ? `/${pathMod}/chats`
+      : '/cs_resto/chats'
+  const notifPath =
+    pathMod && pathMod.startsWith('crm_')
+      ? `/${pathMod}/notifications`
+      : '/notifications'
+
   return (
     <Link
-      href={supportUnread > 0 ? '/support/chats' : '/notifications'}
+      href={supportUnread > 0 ? csChats : notifPath}
       className={styles.bell}
       title={titleParts.length ? titleParts.join(' · ') : 'Notifications'}
     >

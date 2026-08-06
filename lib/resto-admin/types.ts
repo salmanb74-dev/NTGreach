@@ -53,6 +53,28 @@ export type RestoLogsPage = {
   nextCursor: string | null
 }
 
+/** Nest DELETE /api/v1/admin/tenants/:id summary fields (flexible). */
+export type RestoTenantDeleteSummary = {
+  tenantId: string | null
+  tenantName: string | null
+  tenantEmail: string | null
+  usersDeleted: number | null
+  authUsersDeleted: number | null
+  authUsersFailed: number | null
+  ordersDeleted: number | null
+  branchesDeleted: number | null
+  apiHitsDeleted: number | null
+  warnings: string[]
+  steps: string[]
+}
+
+export type RestoTenantDeleteResult = {
+  deleted: boolean
+  tenantId: string
+  tenantName: string | null
+  summary: RestoTenantDeleteSummary | null
+}
+
 export type RestoAdminTenantTab =
   | 'overview'
   | 'reports'

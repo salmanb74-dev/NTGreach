@@ -164,6 +164,199 @@
   color: var(--color-text-3);
 }
 
+/* Delete tenant panel */
+.deletePanel {
+  border-color: #fecaca;
+}
+
+.deleteProdBanner {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.deleteTarget {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.deleteTarget dt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-3);
+}
+
+.deleteTarget dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.deleteForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.deleteField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deleteInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.deleteInput:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+.deleteCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.deleteCheck input {
+  margin-top: 2px;
+}
+
+.deleteError {
+  margin: 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.deleteActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.dangerBtn,
+.secondaryBtn {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.dangerBtn {
+  background: #b91c1c;
+  color: #fff;
+  border-color: #b91c1c;
+}
+
+.dangerBtn:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondaryBtn {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border-medium);
+}
+
+.secondaryBtn:hover:not(:disabled) {
+  background: var(--color-surface-2);
+}
+
+.deleteSummary {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.deleteSummaryTitle {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deleteStatGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.deleteStat {
+  padding: 10px 12px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+}
+
+.deleteStatLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--color-text-3);
+}
+
+.deleteStatValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.deleteWarnings {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: #92400e;
+}
+
+.deleteWarningsTitle {
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+
+.deleteWarnings ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .loadingBox,
 .errorBox {
   padding: 40px 16px;

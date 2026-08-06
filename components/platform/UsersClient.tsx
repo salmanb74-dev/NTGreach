@@ -83,7 +83,7 @@ export default function UsersClient({
           moduleRoles,
         })
         setShowAdd(false)
-        router.push(`/platform/users/${id}`)
+        router.push(`/ops/users/${id}`)
         router.refresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not create user')
@@ -161,11 +161,11 @@ export default function UsersClient({
                 <tr
                   key={user.id}
                   className={styles.rowLink}
-                  onClick={() => router.push(`/platform/users/${user.id}`)}
+                  onClick={() => router.push(`/ops/users/${user.id}`)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      router.push(`/platform/users/${user.id}`)
+                      router.push(`/ops/users/${user.id}`)
                     }
                   }}
                   tabIndex={0}

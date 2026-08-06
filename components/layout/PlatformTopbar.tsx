@@ -6,23 +6,16 @@ import ModuleSelector from '@/components/layout/ModuleSelector'
 import type { Module } from '@/lib/roles'
 import styles from '@/components/layout/Topbar.module.css'
 
-const TITLES: { match: string; title: string; exact?: boolean }[] = [
-  { match: '/platform/users', title: 'Users' },
-  { match: '/ops',            title: 'Home', exact: true },
-  { match: '/platform',       title: 'Home', exact: true },
-]
-
 interface Props {
-  modules:      Module[]
+  modules: Module[]
   activeModule: Module
 }
 
+/** Platform Ops topbar (Users). Same chrome as product Ops. */
 export default function PlatformTopbar({ modules, activeModule }: Props) {
   const pathname = usePathname()
   const title =
-    TITLES.find(t =>
-      t.exact ? pathname === t.match : pathname.startsWith(t.match)
-    )?.title ?? 'Ops'
+    pathname.includes('/users') ? 'Users' : 'Home'
 
   return (
     <header className={styles.topbar}>

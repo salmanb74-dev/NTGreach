@@ -62,11 +62,22 @@ export function pickDefaultModule(modules: Module[]): Module | undefined {
   return modules[0]
 }
 
-/** Landing path for a module (used by module switcher + post-login redirect). */
+/**
+ * Canonical landing URL for a module: `/{module}` or `/{module}/{section}`.
+ * @see lib/module-routing.ts for full path builders
+ */
 export function getModuleHomePath(mod: Module): string {
   if (mod === 'ops') return '/ops'
-  if (mod.startsWith('crm_')) return '/dashboard'
-  if (mod.startsWith('cs_')) return '/support/dashboard'
-  if (mod.startsWith('ops_')) return '/ops'
-  return '/ops'
+  if (mod.startsWith('ops_')) return `/${mod}`
+  if (mod.startsWith('crm_')) return `/${mod}/dashboard`
+  if (mod.startsWith('cs_')) return `/${mod}/dashboard`
+  return `/${mod}`
+}
+
+/** Build `/{module}/a/b` safely. */
+export function moduleHref(mod: Module, ...segments: string[]): string {
+  const rest = segments
+    .map(s => s.replace(/^\/+|\/+$/g, ''))
+    .filter(Boolean)
+  return rest.length ? `/${mod}/${rest.join('/')}` : `/${mod}`
 }

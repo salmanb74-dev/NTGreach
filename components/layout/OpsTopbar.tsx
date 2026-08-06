@@ -6,22 +6,26 @@ import ModuleSelector from '@/components/layout/ModuleSelector'
 import type { Module } from '@/lib/roles'
 import styles from '@/components/layout/Topbar.module.css'
 
-const TITLES: { match: string; title: string; exact?: boolean }[] = [
-  { match: '/ops/management', title: 'Tenants' },
-  { match: '/ops',            title: 'Home', exact: true },
-]
-
 interface Props {
-  modules:      Module[]
+  modules: Module[]
   activeModule: Module
 }
 
 export default function OpsTopbar({ modules, activeModule }: Props) {
   const pathname = usePathname()
-  const title =
-    TITLES.find(t =>
-      t.exact ? pathname === t.match : pathname.startsWith(t.match)
-    )?.title ?? 'Ops'
+
+  let title = 'Home'
+  if (pathname.includes('/management') || pathname.includes('/tenants')) {
+    title = 'Tenants'
+  } else if (pathname.includes('/logs')) {
+    title = 'Logs'
+  } else if (pathname.includes('/users')) {
+    title = 'Users'
+  } else if (pathname.includes('/subscription')) {
+    title = 'Subscription'
+  } else if (pathname.includes('/reports')) {
+    title = 'Reports'
+  }
 
   return (
     <header className={styles.topbar}>

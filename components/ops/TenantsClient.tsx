@@ -1,8 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import type { RestoAdminEnv, RestoTenant } from '@/lib/resto-admin/types'
+import { moduleFromPathname, modulePath } from '@/lib/module-routing'
+import type { Module } from '@/lib/modules'
 import styles from './TenantsClient.module.css'
 
 interface Props {
@@ -68,6 +70,11 @@ async function copyTenantDetails(tenant: RestoTenant): Promise<void> {
 
 export default function TenantsClient({ initialEnv }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const productModule: Module =
+    moduleFromPathname(pathname)?.startsWith('ops_')
+      ? (moduleFromPathname(pathname) as Module)
+      : 'ops_resto'
   const [env, setEnv] = useState<RestoAdminEnv>(initialEnv)
   const [query, setQuery] = useState('')
   const [state, setState] = useState<LoadState>({ status: 'loading' })
@@ -164,7 +171,9 @@ export default function TenantsClient({ initialEnv }: Props) {
   }
 
   function openTenant(tenantId: string) {
-    router.push(`/ops/management/${encodeURIComponent(tenantId)}?env=${env}`)
+    router.push(
+      `${modulePath(productModule, 'management', tenantId)}?env=${env}`
+    )
   }
 
   const isProduction = env === 'production'

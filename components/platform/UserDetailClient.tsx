@@ -105,7 +105,7 @@ export default function UserDetailClient({
     startTransition(async () => {
       try {
         await deleteReachUser(user.id)
-        router.push('/platform/users')
+        router.push('/ops/users')
         router.refresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not delete user')
@@ -116,7 +116,7 @@ export default function UserDetailClient({
   return (
     <div className={styles.page}>
       <div className={styles.backRow}>
-        <Link href="/platform/users" className={styles.backLink}>
+        <Link href="/ops/users" className={styles.backLink}>
           ← All users
         </Link>
         {!canEdit && <span className={styles.viewOnlyBadge}>View only</span>}

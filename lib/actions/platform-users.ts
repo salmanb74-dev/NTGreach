@@ -88,6 +88,7 @@ export async function createReachUser(input: UpsertUserInput): Promise<{ id: str
     }
   }
 
+  revalidatePath('/ops/users')
   revalidatePath('/platform/users')
   return { id }
 }
@@ -129,7 +130,9 @@ export async function updateReachUser(
     }
   }
 
+  revalidatePath('/ops/users')
   revalidatePath('/platform/users')
+  revalidatePath(`/ops/users/${userId}`)
   revalidatePath(`/platform/users/${userId}`)
 }
 
@@ -157,7 +160,9 @@ export async function resetReachUserPassword(userId: string): Promise<void> {
       .eq('id', userId)
   }
 
+  revalidatePath('/ops/users')
   revalidatePath('/platform/users')
+  revalidatePath(`/ops/users/${userId}`)
   revalidatePath(`/platform/users/${userId}`)
 }
 
@@ -175,7 +180,9 @@ export async function deleteReachUser(userId: string): Promise<void> {
   const { error } = await admin.auth.admin.deleteUser(userId)
   if (error) throw new Error(error.message)
 
+  revalidatePath('/ops/users')
   revalidatePath('/platform/users')
+  revalidatePath(`/ops/users/${userId}`)
   revalidatePath(`/platform/users/${userId}`)
 }
 

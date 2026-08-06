@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import type {
   RestoAdminEnv,
   RestoAdminTenantTab,
   RestoTenant,
 } from '@/lib/resto-admin/types'
 import LogsClient from '@/components/ops/LogsClient'
+import TenantDeletePanel from '@/components/ops/TenantDeletePanel'
+import { moduleFromPathname, modulePath } from '@/lib/module-routing'
+import type { Module } from '@/lib/modules'
 import styles from './TenantDetailClient.module.css'
 
 const TABS: { id: RestoAdminTenantTab; label: string }[] = [
@@ -37,6 +40,12 @@ export default function TenantDetailClient({
   initialTab,
 }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const productModule: Module =
+    moduleFromPathname(pathname)?.startsWith('ops_')
+      ? (moduleFromPathname(pathname) as Module)
+      : 'ops_resto'
+  const managementHref = modulePath(productModule, 'management')
   const [env] = useState<RestoAdminEnv>(initialEnv)
   const [tab, setTab] = useState<RestoAdminTenantTab>(initialTab)
   const [state, setState] = useState<LoadState>({ status: 'loading' })
@@ -89,7 +98,7 @@ export default function TenantDetailClient({
     <div className={styles.page}>
       <div className={styles.backRow}>
         <Link
-          href={`/ops/management?env=${env}`}
+          href={`${managementHref}?env=${env}`}
           className={styles.backLink}
         >
           ← All tenants
@@ -198,13 +207,7 @@ export default function TenantDetailClient({
           )}
 
           {tab === 'delete' && (
-            <div className={styles.panel}>
-              <h3 className={styles.panelTitle}>Delete tenant</h3>
-              <p className={styles.panelBody}>
-                Coming soon — destructive tenant deletion is intentionally
-                disabled in v1.
-              </p>
-            </div>
+            <TenantDeletePanel tenant={state.tenant} env={env} />
           )}
 
           {tab === 'logs' && (

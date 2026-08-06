@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-/** Users moved to platform Ops module. */
+/** Users moved to platform Ops module under /ops/users. */
 export default function SettingsUsersRedirect() {
-  redirect('/platform/users')
+  redirect('/ops/users')
 }
