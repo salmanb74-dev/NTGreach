@@ -1,6 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+async function getUserWithTimeout(
+  supabase: ReturnType<typeof createServerClient>,
+  ms = 8_000
+) {
+  try {
+    const result = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('auth_timeout')), ms)
+      ),
+    ])
+    return result.data.user
+  } catch {
+    return null
+  }
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -25,7 +42,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getUserWithTimeout(supabase)
 
   const { pathname } = request.nextUrl
 
@@ -40,16 +57,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Redirect authenticated users away from login
+  // After login → smart module home (app/page.tsx)
   if (user && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  // Redirect root to dashboard
-  if (pathname === '/') {
-    return NextResponse.redirect(
-      new URL(user ? '/dashboard' : '/login', request.url)
-    )
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return supabaseResponse

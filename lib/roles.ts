@@ -1,4 +1,6 @@
 import type { Module } from '@/lib/modules'
+import { modulesForProfile } from '@/lib/platform/access-model'
+
 export type { Module } from '@/lib/modules'
 export { MODULE_LABELS } from '@/lib/modules'
 
@@ -52,7 +54,8 @@ export interface UserProfile {
   full_name: string | null
   email:     string
   roles:     UserRole[]
-  products:  Product[]
+  /** resto/alma brands (legacy) or explicit module keys (crm_resto, ops, …). */
+  products:  string[]
 }
 
 // ─── CRM role checks ──────────────────────────────────────────
@@ -115,27 +118,5 @@ export function isManager(profile: UserProfile | null): boolean {
 // ─── Module access ────────────────────────────────────────────
 export function getAccessibleModules(profile: UserProfile | null): Module[] {
   if (!profile) return []
-  const roles    = profile.roles    ?? []
-  const products = profile.products ?? []
-  const modules: Module[] = []
-
-  // Platform Ops (Users, etc.) — not product-scoped
-  if (roles.includes('ops_admin') || roles.includes('ops_user')) {
-    modules.push('ops')
-  }
-
-  for (const product of products) {
-    if (roles.some(r => r.startsWith('crm_'))) modules.push(`crm_${product}` as Module)
-    if (roles.some(r => r.startsWith('cs_')))  modules.push(`cs_${product}` as Module)
-    // Nest tenant ops — Admin only + product
-    if (roles.includes('ops_admin')) modules.push(`ops_${product}` as Module)
-  }
-
-  return modules
-}
-
-// ─── Server helper ────────────────────────────────────────────
-export async function getCurrentProfile(): Promise<UserProfile | null> {
-  const { getCachedProfile } = await import('@/lib/dataCache')
-  return getCachedProfile()
+  return modulesForProfile(profile.roles, profile.products)
 }

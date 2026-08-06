@@ -2,23 +2,22 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { createReachUser } from '@/lib/actions/platform-users'
+import ModuleRoleMatrix from '@/components/platform/ModuleRoleMatrix'
+import AccessCell from '@/components/platform/AccessCell'
+import { DEFAULT_TEMP_PASSWORD } from '@/lib/platform/constants'
 import {
-  createReachUser,
-  DEFAULT_TEMP_PASSWORD,
-} from '@/lib/actions/platform-users'
-import {
-  EDITABLE_ROLES,
-  PRODUCT_LABELS,
-  ROLE_LABELS,
-  type Product,
-  type UserRole,
-} from '@/lib/roles'
+  defaultModuleRoleMap,
+  formatAccessByModule,
+  type ModuleRoleMap,
+} from '@/lib/platform/access-model'
 import type { PlatformUserRow } from '@/components/platform/types'
 import styles from './Users.module.css'
 
 interface Props {
   initialUsers: PlatformUserRow[]
   canEdit: boolean
+  loadError?: string | null
 }
 
 function formatWhen(iso: string | null): string {
@@ -34,32 +33,19 @@ function formatWhen(iso: string | null): string {
   })
 }
 
-function modulesSummary(roles: UserRole[], products: Product[]): string {
-  const bits: string[] = []
-  const hasCrm = roles.some(r => r.startsWith('crm_'))
-  const hasCs = roles.some(r => r.startsWith('cs_'))
-  const hasOpsAdmin = roles.includes('ops_admin')
-  const hasOpsUser = roles.includes('ops_user')
-
-  for (const p of products) {
-    if (hasCrm) bits.push(`CRM ${PRODUCT_LABELS[p]}`)
-    if (hasCs) bits.push(`Support ${PRODUCT_LABELS[p]}`)
-    if (hasOpsAdmin) bits.push(`Ops ${PRODUCT_LABELS[p]}`)
-  }
-  if (hasOpsAdmin) bits.push('Ops (Admin)')
-  else if (hasOpsUser) bits.push('Ops (User)')
-
-  return bits.length ? bits.join(', ') : '—'
-}
-
-export default function UsersClient({ initialUsers, canEdit }: Props) {
+export default function UsersClient({
+  initialUsers,
+  canEdit,
+  loadError = null,
+}: Props) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [roles, setRoles] = useState<UserRole[]>(['crm_sales_rep'])
-  const [products, setProducts] = useState<Product[]>(['resto'])
+  const [moduleRoles, setModuleRoles] = useState<ModuleRoleMap>(() =>
+    defaultModuleRoleMap()
+  )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -70,8 +56,7 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
       const hay = [
         u.full_name ?? '',
         u.email,
-        ...(u.roles ?? []).map(r => ROLE_LABELS[r] ?? r),
-        ...(u.products ?? []),
+        formatAccessByModule(u.roles, u.products),
       ]
         .join(' ')
         .toLowerCase()
@@ -79,36 +64,11 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
     })
   }, [initialUsers, query])
 
-  function toggleRole(role: UserRole) {
-    setRoles(prev => {
-      let next = prev.includes(role)
-        ? prev.filter(r => r !== role)
-        : [...prev, role]
-      // Exclusive platform Ops role
-      if (role === 'ops_admin' && next.includes('ops_admin')) {
-        next = next.filter(r => r !== 'ops_user')
-      }
-      if (role === 'ops_user' && next.includes('ops_user')) {
-        next = next.filter(r => r !== 'ops_admin')
-      }
-      return next
-    })
-  }
-
-  function toggleProduct(product: Product) {
-    setProducts(prev =>
-      prev.includes(product)
-        ? prev.filter(p => p !== product)
-        : [...prev, product]
-    )
-  }
-
   function openAdd() {
     setError(null)
     setName('')
     setEmail('')
-    setRoles(['crm_sales_rep'])
-    setProducts(['resto'])
+    setModuleRoles(defaultModuleRoleMap())
     setShowAdd(true)
   }
 
@@ -120,8 +80,7 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
         const { id } = await createReachUser({
           fullName: name,
           email,
-          roles,
-          products,
+          moduleRoles,
         })
         setShowAdd(false)
         router.push(`/platform/users/${id}`)
@@ -132,8 +91,6 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
     })
   }
 
-  const groups = Array.from(new Set(EDITABLE_ROLES.map(r => r.group)))
-
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
@@ -141,7 +98,8 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
           <h2 className={styles.title}>Reach users</h2>
           <p className={styles.sub}>
             Agents across CRM, Support, and Ops. Temporary password for new
-            accounts: <code className={styles.code}>{DEFAULT_TEMP_PASSWORD}</code>
+            accounts and resets:{' '}
+            <code className={styles.code}>{DEFAULT_TEMP_PASSWORD}</code>
           </p>
         </div>
         <div className={styles.controls}>
@@ -150,7 +108,7 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
             type="search"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search name, email, role…"
+            placeholder="Search name, email, access…"
             aria-label="Search users"
           />
           {canEdit && (
@@ -171,10 +129,20 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
         )}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className={styles.empty}>
-          {query.trim() ? 'No users match your search.' : 'No users found.'}
+      {loadError && (
+        <div className={styles.formError} role="alert">
+          Could not load users: {loadError}
         </div>
+      )}
+
+      {filtered.length === 0 && !loadError ? (
+        <div className={styles.empty}>
+          {query.trim()
+            ? 'No users match your search.'
+            : 'No profiles returned. Confirm profiles exist in Supabase and SUPABASE_SERVICE_ROLE_KEY is set if RLS blocks reads.'}
+        </div>
+      ) : filtered.length === 0 && loadError ? (
+        <div className={styles.empty}>Fix the load error above, then refresh.</div>
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -183,6 +151,8 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Access</th>
+                <th>Created</th>
+                <th>Modified</th>
                 <th>Password changed</th>
               </tr>
             </thead>
@@ -205,7 +175,13 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
                   <td className={styles.nameCell}>{user.full_name || '—'}</td>
                   <td>{user.email}</td>
                   <td className={styles.accessCell}>
-                    {modulesSummary(user.roles, user.products)}
+                    <AccessCell roles={user.roles} products={user.products} />
+                  </td>
+                  <td className={styles.muted}>
+                    {formatWhen(user.created_at)}
+                  </td>
+                  <td className={styles.muted}>
+                    {formatWhen(user.updated_at)}
                   </td>
                   <td className={styles.muted}>
                     {formatWhen(user.password_changed_at)}
@@ -218,7 +194,11 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
       )}
 
       {showAdd && (
-        <div className={styles.modalBackdrop} role="presentation" onClick={() => setShowAdd(false)}>
+        <div
+          className={styles.modalBackdrop}
+          role="presentation"
+          onClick={() => setShowAdd(false)}
+        >
           <div
             className={styles.modal}
             role="dialog"
@@ -256,38 +236,12 @@ export default function UsersClient({ initialUsers, canEdit }: Props) {
               </label>
 
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Products</span>
-                <div className={styles.checks}>
-                  {(['resto', 'alma'] as Product[]).map(p => (
-                    <label key={p} className={styles.check}>
-                      <input
-                        type="checkbox"
-                        checked={products.includes(p)}
-                        onChange={() => toggleProduct(p)}
-                      />
-                      {PRODUCT_LABELS[p]}
-                    </label>
-                  ))}
-                </div>
+                <span className={styles.fieldLabel}>Module access</span>
+                <ModuleRoleMatrix
+                  value={moduleRoles}
+                  onChange={setModuleRoles}
+                />
               </div>
-
-              {groups.map(group => (
-                <div key={group} className={styles.field}>
-                  <span className={styles.fieldLabel}>{group} roles</span>
-                  <div className={styles.checks}>
-                    {EDITABLE_ROLES.filter(r => r.group === group).map(r => (
-                      <label key={r.value} className={styles.check}>
-                        <input
-                          type="checkbox"
-                          checked={roles.includes(r.value)}
-                          onChange={() => toggleRole(r.value)}
-                        />
-                        {r.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
 
               {error && <p className={styles.formError}>{error}</p>}
 

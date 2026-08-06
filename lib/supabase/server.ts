@@ -1,6 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+/**
+ * Server-only Supabase client (uses next/headers cookies).
+ * Do not import this from Client Components.
+ */
 export function createClient() {
   const cookieStore = cookies()
 

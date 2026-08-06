@@ -2,14 +2,34 @@
 
 Cross-module **Ops** (not product Ops Resto/Alma). Sidebar: Home → Users list.
 
-## Access
+## Access model (UI)
+
+### Roles
 
 | Role | Meaning |
 |---|---|
-| `ops_admin` | Platform **Ops Admin** — can create/edit users + Nest Ops Resto/Alma when product is set |
-| `ops_user` | Platform **Ops User** — view Users only |
+| **Sales Rep** | CRM work in selected CRM modules |
+| **Support Rep** | Support work in selected Support modules |
+| **Admin** | Elevated access; can manage users when **Ops** is selected; required for Ops Resto/Alma |
+| **User** | Platform **Ops** view-only (Users list) |
 
-Assign at least one of those roles on a profile to see the **Ops** module.
+Admin and User are exclusive.
+
+### Modules
+
+CRM Resto, CRM Alma, Support Resto, Support Alma, Ops Resto, Ops Alma, Ops.
+
+Saving rules:
+
+- CRM modules → Sales Rep or Admin
+- Support modules → Support Rep or Admin
+- Ops Resto / Ops Alma → Admin
+- Ops → Admin or User
+
+Storage: `profiles.roles` uses internal keys (`crm_sales_rep`, `ops_admin`, …).  
+`profiles.products` stores **explicit module keys** for new/updated users (e.g. `crm_resto`, `ops`). Legacy `resto` / `alma` brand values still decode.
+
+## Bootstrap Ops Admin
 
 ```sql
 update public.profiles
@@ -37,6 +57,7 @@ New users and resets: `12345678`. Tracked via `password_changed_at` when set thr
 
 ## Paths
 
-- Module home: `/platform` → `/platform/users`
+- Module home: `/ops`
+- Users: `/platform/users`
 - Detail: `/platform/users/[id]`
 - CRM Settings → Users redirects here

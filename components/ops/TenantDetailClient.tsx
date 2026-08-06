@@ -8,6 +8,7 @@ import type {
   RestoAdminTenantTab,
   RestoTenant,
 } from '@/lib/resto-admin/types'
+import LogsClient from '@/components/ops/LogsClient'
 import styles from './TenantDetailClient.module.css'
 
 const TABS: { id: RestoAdminTenantTab; label: string }[] = [
@@ -207,11 +208,13 @@ export default function TenantDetailClient({
           )}
 
           {tab === 'logs' && (
-            <div className={styles.panel}>
-              <h3 className={styles.panelTitle}>Logs</h3>
-              <p className={styles.panelBody}>
-                Coming soon — audit and activity logs will live here.
-              </p>
+            <div className={styles.logsPanel}>
+              <LogsClient
+                initialEnv={env}
+                initialTenantId={tenantId}
+                lockTenantId
+                embed
+              />
             </div>
           )}
         </>

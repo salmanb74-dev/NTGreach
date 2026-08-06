@@ -1,6 +1,7 @@
 import type {
   RestoAdminEnv,
-  RestoAuditLog,
+  RestoApiHit,
+  RestoApiHitMetadata,
   RestoLogsPage,
   RestoLogsQuery,
   RestoTenant,
@@ -163,26 +164,26 @@ function extractTenantRows(body: unknown): unknown[] | null {
   return null
 }
 
-function normalizeMetadata(value: unknown): Record<string, unknown> {
+function normalizeMetadata(value: unknown): RestoApiHitMetadata {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>
+    return value as RestoApiHitMetadata
   }
   return {}
 }
 
-function normalizeAuditLog(raw: Record<string, unknown>): RestoAuditLog | null {
+/** Nest admin logs = api_hits HTTP traffic (not audit_logs). */
+function normalizeApiHit(raw: Record<string, unknown>): RestoApiHit | null {
   const id = asTrimmedString(raw.id)
-  const tenantId = asTrimmedString(raw.tenantId) ?? asTrimmedString(raw.tenant_id)
   const actionType =
     asTrimmedString(raw.actionType) ?? asTrimmedString(raw.action_type)
   const createdAt =
     asTrimmedString(raw.createdAt) ?? asTrimmedString(raw.created_at)
 
-  if (!id || !tenantId || !actionType || !createdAt) return null
+  if (!id || !actionType || !createdAt) return null
 
   return {
     id,
-    tenantId,
+    tenantId: asTrimmedString(raw.tenantId) ?? asTrimmedString(raw.tenant_id),
     tenantName:
       asTrimmedString(raw.tenantName) ?? asTrimmedString(raw.tenant_name),
     branchId: asTrimmedString(raw.branchId) ?? asTrimmedString(raw.branch_id),
@@ -223,7 +224,7 @@ function clampLimit(value: number | undefined): number {
 }
 
 /**
- * Server-only: list audit logs from Resto Nest.
+ * Server-only: list API hits from Resto Nest GET /api/v1/admin/logs.
  * Never import this into client components.
  */
 export async function fetchRestoLogs(
@@ -236,6 +237,10 @@ export async function fetchRestoLogs(
 
   if (query.tenantId?.trim()) params.set('tenantId', query.tenantId.trim())
   if (query.actionType?.trim()) params.set('actionType', query.actionType.trim())
+  if (query.method?.trim()) params.set('method', query.method.trim().toUpperCase())
+  if (query.statusCode != null && String(query.statusCode).trim() !== '') {
+    params.set('statusCode', String(query.statusCode).trim())
+  }
   if (query.from?.trim()) params.set('from', query.from.trim())
   if (query.to?.trim()) params.set('to', query.to.trim())
   if (query.cursor?.trim()) params.set('cursor', query.cursor.trim())
@@ -253,10 +258,10 @@ export async function fetchRestoLogs(
   const logs = record.data
     .map(row =>
       row && typeof row === 'object'
-        ? normalizeAuditLog(row as Record<string, unknown>)
+        ? normalizeApiHit(row as Record<string, unknown>)
         : null
     )
-    .filter((row): row is RestoAuditLog => Boolean(row))
+    .filter((row): row is RestoApiHit => Boolean(row))
 
   const nextCursor =
     typeof record.nextCursor === 'string' && record.nextCursor.trim()

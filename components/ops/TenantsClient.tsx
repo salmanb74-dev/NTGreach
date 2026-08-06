@@ -75,10 +75,12 @@ export default function TenantsClient({ initialEnv }: Props) {
 
   const load = useCallback(async (nextEnv: RestoAdminEnv) => {
     setState({ status: 'loading' })
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), 20_000)
     try {
       const response = await fetch(
         `/api/ops/tenants?env=${encodeURIComponent(nextEnv)}`,
-        { cache: 'no-store' }
+        { cache: 'no-store', signal: controller.signal }
       )
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -97,11 +99,18 @@ export default function TenantsClient({ initialEnv }: Props) {
         status: 'ready',
         tenants: Array.isArray(body.tenants) ? body.tenants : [],
       })
-    } catch {
+    } catch (err) {
+      const timedOut =
+        err instanceof Error &&
+        (err.name === 'AbortError' || err.name === 'TimeoutError')
       setState({
         status: 'error',
-        message: 'Could not load tenants. Check your connection and try again.',
+        message: timedOut
+          ? 'Request timed out after 20s. Reach may be hung — restart `npm run dev -- -p 3002`, or Nest is slow at RESTO_*_BASE_URL.'
+          : 'Could not load tenants. Check your connection and try again.',
       })
+    } finally {
+      window.clearTimeout(timer)
     }
   }, [])
 

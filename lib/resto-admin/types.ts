@@ -7,22 +7,41 @@ export type RestoTenant = {
   ownerEmail: string | null
 }
 
-export type RestoAuditLog = {
+/** One HTTP request row from Nest `api_hits` (admin logs API). */
+export type RestoApiHit = {
   id: string
-  tenantId: string
+  tenantId: string | null
   tenantName: string | null
   branchId: string | null
   userId: string | null
   userName: string | null
   userEmail: string | null
+  /** e.g. "GET /api/v1/orders" */
   actionType: string
-  metadata: Record<string, unknown>
+  metadata: RestoApiHitMetadata
   createdAt: string
 }
 
+/** Known keys on api_hits metadata; extra keys allowed. */
+export type RestoApiHitMetadata = {
+  method?: string
+  url?: string
+  statusCode?: number
+  responseTimeMs?: number
+  requestBody?: unknown
+  responseBody?: unknown
+  [key: string]: unknown
+}
+
+/** @deprecated Prefer RestoApiHit — same shape for Reach consumers. */
+export type RestoAuditLog = RestoApiHit
+
 export type RestoLogsQuery = {
   tenantId?: string
+  /** Method or URL substring match (Nest-side). */
   actionType?: string
+  method?: string
+  statusCode?: number | string
   from?: string
   to?: string
   limit?: number
@@ -30,7 +49,7 @@ export type RestoLogsQuery = {
 }
 
 export type RestoLogsPage = {
-  logs: RestoAuditLog[]
+  logs: RestoApiHit[]
   nextCursor: string | null
 }
 
@@ -70,4 +89,25 @@ export function parseRestoAdminEnv(
   fallback: RestoAdminEnv = 'staging'
 ): RestoAdminEnv {
   return isRestoAdminEnv(value) ? value : fallback
+}
+
+export function metaString(
+  meta: RestoApiHitMetadata,
+  key: string
+): string | null {
+  const v = meta[key]
+  if (typeof v === 'string' && v.trim()) return v.trim()
+  return null
+}
+
+export function metaNumber(
+  meta: RestoApiHitMetadata,
+  key: string
+): number | null {
+  const v = meta[key]
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim() && Number.isFinite(Number(v))) {
+    return Number(v)
+  }
+  return null
 }

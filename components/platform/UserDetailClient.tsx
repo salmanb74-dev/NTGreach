@@ -4,23 +4,23 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  DEFAULT_TEMP_PASSWORD,
+  deleteReachUser,
   resetReachUserPassword,
   updateReachUser,
 } from '@/lib/actions/platform-users'
+import ModuleRoleMatrix from '@/components/platform/ModuleRoleMatrix'
+import { DEFAULT_TEMP_PASSWORD } from '@/lib/platform/constants'
 import {
-  EDITABLE_ROLES,
-  PRODUCT_LABELS,
-  ROLE_LABELS,
-  type Product,
-  type UserRole,
-} from '@/lib/roles'
+  selectionFromProfile,
+  type ModuleRoleMap,
+} from '@/lib/platform/access-model'
 import type { PlatformUserRow } from '@/components/platform/types'
 import styles from './Users.module.css'
 
 interface Props {
   user: PlatformUserRow
   canEdit: boolean
+  currentUserId?: string | null
 }
 
 function formatWhen(iso: string | null): string {
@@ -36,39 +36,21 @@ function formatWhen(iso: string | null): string {
   })
 }
 
-export default function UserDetailClient({ user, canEdit }: Props) {
+export default function UserDetailClient({
+  user,
+  canEdit,
+  currentUserId = null,
+}: Props) {
   const router = useRouter()
   const [name, setName] = useState(user.full_name ?? '')
-  const [roles, setRoles] = useState<UserRole[]>(user.roles)
-  const [products, setProducts] = useState<Product[]>(user.products)
+  const [moduleRoles, setModuleRoles] = useState<ModuleRoleMap>(() =>
+    selectionFromProfile(user.roles, user.products)
+  )
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  function toggleRole(role: UserRole) {
-    if (!canEdit) return
-    setRoles(prev => {
-      let next = prev.includes(role)
-        ? prev.filter(r => r !== role)
-        : [...prev, role]
-      if (role === 'ops_admin' && next.includes('ops_admin')) {
-        next = next.filter(r => r !== 'ops_user')
-      }
-      if (role === 'ops_user' && next.includes('ops_user')) {
-        next = next.filter(r => r !== 'ops_admin')
-      }
-      return next
-    })
-  }
-
-  function toggleProduct(product: Product) {
-    if (!canEdit) return
-    setProducts(prev =>
-      prev.includes(product)
-        ? prev.filter(p => p !== product)
-        : [...prev, product]
-    )
-  }
+  const isSelf = !!currentUserId && currentUserId === user.id
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -79,8 +61,7 @@ export default function UserDetailClient({ user, canEdit }: Props) {
       try {
         await updateReachUser(user.id, {
           fullName: name,
-          roles,
-          products,
+          moduleRoles,
         })
         setSaved(true)
         router.refresh()
@@ -111,7 +92,26 @@ export default function UserDetailClient({ user, canEdit }: Props) {
     })
   }
 
-  const groups = Array.from(new Set(EDITABLE_ROLES.map(r => r.group)))
+  function handleDelete() {
+    if (!canEdit || isSelf) return
+    if (
+      !window.confirm(
+        `Permanently delete ${user.full_name || user.email}? This removes their login and cannot be undone.`
+      )
+    ) {
+      return
+    }
+    setError(null)
+    startTransition(async () => {
+      try {
+        await deleteReachUser(user.id)
+        router.push('/platform/users')
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not delete user')
+      }
+    })
+  }
 
   return (
     <div className={styles.page}>
@@ -144,90 +144,58 @@ export default function UserDetailClient({ user, canEdit }: Props) {
           <input className={styles.input} value={user.email} disabled readOnly />
         </div>
 
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>Password last changed</span>
-          <div className={styles.staticValue}>
-            {formatWhen(user.password_changed_at)}
-          </div>
-        </div>
-
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>Products</span>
-          <div className={styles.checks}>
-            {(['resto', 'alma'] as Product[]).map(p => (
-              <label key={p} className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={products.includes(p)}
-                  onChange={() => toggleProduct(p)}
-                  disabled={!canEdit}
-                />
-                {PRODUCT_LABELS[p]}
-              </label>
-            ))}
-          </div>
-          <p className={styles.hint}>
-            Products combine with CRM / Support / Ops Admin roles to unlock
-            modules (e.g. CRM Resto, Ops Resto).
-          </p>
-        </div>
-
-        {groups.map(group => (
-          <div key={group} className={styles.field}>
-            <span className={styles.fieldLabel}>
-              {group === 'Ops' ? 'Ops module' : `${group} roles`}
-            </span>
-            <div className={styles.checks}>
-              {EDITABLE_ROLES.filter(r => r.group === group).map(r => (
-                <label key={r.value} className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={roles.includes(r.value)}
-                    onChange={() => toggleRole(r.value)}
-                    disabled={!canEdit}
-                  />
-                  {r.label}
-                  {group === 'Ops' && r.value === 'ops_admin' && (
-                    <span className={styles.hintInline}> — can edit users</span>
-                  )}
-                  {group === 'Ops' && r.value === 'ops_user' && (
-                    <span className={styles.hintInline}> — view-only</span>
-                  )}
-                </label>
-              ))}
+        <div className={styles.metaGrid}>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Created</span>
+            <div className={styles.staticValue}>
+              {formatWhen(user.created_at)}
             </div>
           </div>
-        ))}
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Last modified</span>
+            <div className={styles.staticValue}>
+              {formatWhen(user.updated_at)}
+            </div>
+          </div>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>Password last changed</span>
+            <div className={styles.staticValue}>
+              {formatWhen(user.password_changed_at)}
+            </div>
+          </div>
+        </div>
 
         <div className={styles.field}>
-          <span className={styles.fieldLabel}>Current roles</span>
-          <div className={styles.badges}>
-            {roles.length === 0 ? (
-              <span className={styles.muted}>—</span>
-            ) : (
-              roles.map(r => (
-                <span key={r} className={styles.badge}>
-                  {ROLE_LABELS[r] ?? r}
-                </span>
-              ))
-            )}
-          </div>
+          <span className={styles.fieldLabel}>Module access</span>
+          <ModuleRoleMatrix
+            value={moduleRoles}
+            onChange={setModuleRoles}
+            disabled={!canEdit}
+          />
         </div>
 
         {error && <p className={styles.formError}>{error}</p>}
-        {saved && !error && (
-          <p className={styles.savedMsg}>Saved</p>
-        )}
+        {saved && !error && <p className={styles.savedMsg}>Saved</p>}
 
         {canEdit && (
           <div className={styles.modalActions}>
+            <button
+              type="button"
+              className={styles.dangerBtn}
+              onClick={handleDelete}
+              disabled={isPending || isSelf}
+              title={isSelf ? 'You cannot delete your own account' : undefined}
+            >
+              Delete user
+            </button>
+            <div className={styles.actionsSpacer} />
             <button
               type="button"
               className={styles.secondaryBtn}
               onClick={handleResetPassword}
               disabled={isPending}
             >
-              Reset password to temp
+              Reset password to {DEFAULT_TEMP_PASSWORD}
             </button>
             <button
               type="submit"

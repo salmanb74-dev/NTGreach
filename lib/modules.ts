@@ -11,6 +11,27 @@ export type Module =
   | 'ops_alma'
   | 'ops'
 
+export const ALL_MODULES: Module[] = [
+  'crm_resto',
+  'crm_alma',
+  'cs_resto',
+  'cs_alma',
+  'ops_resto',
+  'ops_alma',
+  'ops',
+]
+
+/**
+ * Modules currently live in the app (module switcher / assignable in Ops Users).
+ * Alma is reserved for later — not offered in UI until enabled.
+ */
+export const ASSIGNABLE_MODULES: Module[] = [
+  'crm_resto',
+  'cs_resto',
+  'ops_resto',
+  'ops',
+]
+
 export const MODULE_LABELS: Record<Module, string> = {
   crm_resto:  'CRM Resto',
   crm_alma:   'CRM Alma',
@@ -21,11 +42,31 @@ export const MODULE_LABELS: Record<Module, string> = {
   ops:        'Ops',
 }
 
+export function isModule(value: string): value is Module {
+  return (ALL_MODULES as string[]).includes(value)
+}
+
+export function isAssignableModule(value: string): value is Module {
+  return (ASSIGNABLE_MODULES as string[]).includes(value)
+}
+
+/**
+ * Prefer platform Ops, then product Ops (Resto/Alma), then other modules.
+ * Used post-login and when falling back from CRM-only routes.
+ */
+export function pickDefaultModule(modules: Module[]): Module | undefined {
+  if (!modules.length) return undefined
+  if (modules.includes('ops')) return 'ops'
+  const productOps = modules.find(m => m.startsWith('ops_'))
+  if (productOps) return productOps
+  return modules[0]
+}
+
 /** Landing path for a module (used by module switcher + post-login redirect). */
 export function getModuleHomePath(mod: Module): string {
-  if (mod === 'ops') return '/platform'
+  if (mod === 'ops') return '/ops'
   if (mod.startsWith('crm_')) return '/dashboard'
   if (mod.startsWith('cs_')) return '/support/dashboard'
   if (mod.startsWith('ops_')) return '/ops'
-  return '/dashboard'
+  return '/ops'
 }

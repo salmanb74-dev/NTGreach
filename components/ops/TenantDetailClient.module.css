@@ -126,6 +126,11 @@
   line-height: 1.45;
 }
 
+.logsPanel {
+  min-height: 0;
+  flex: 1;
+}
+
 .overviewGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

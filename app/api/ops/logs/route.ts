@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
     const page = await fetchRestoLogs(env, {
       tenantId: optionalParam(params.get('tenantId')),
       actionType: optionalParam(params.get('actionType')),
+      method: optionalParam(params.get('method')),
+      statusCode: optionalParam(params.get('statusCode')),
       from: optionalParam(params.get('from')),
       to: optionalParam(params.get('to')),
       cursor: optionalParam(params.get('cursor')),

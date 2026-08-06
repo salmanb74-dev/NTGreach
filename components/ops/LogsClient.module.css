@@ -8,6 +8,45 @@
   gap: 16px;
 }
 
+.embed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.embedHint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-3);
+  line-height: 1.4;
+}
+
+.inlineCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.statusOk {
+  font-weight: 600;
+  color: var(--color-success, #15803d);
+}
+
+.statusBad {
+  font-weight: 600;
+  color: var(--color-error, #b91c1c);
+}
+
+.actionsCell {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.detailRow td {
+  background: var(--color-surface-2);
+  padding: 10px 14px 14px;
+}
+
 .topBar {
   display: flex;
   align-items: flex-start;
@@ -112,8 +151,8 @@
 }
 
 .filterInput {
-  min-width: 180px;
-  width: min(260px, 100%);
+  min-width: 140px;
+  width: min(220px, 100%);
   padding: 8px 12px;
   border: 1px solid var(--color-border-medium);
   border-radius: var(--radius-md);
@@ -125,7 +164,22 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.filterInput:focus {
+.filterInputNarrow {
+  min-width: 88px;
+  width: 96px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filterInput:focus,
+.filterInputNarrow:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }

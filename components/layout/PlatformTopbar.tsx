@@ -8,6 +8,7 @@ import styles from '@/components/layout/Topbar.module.css'
 
 const TITLES: { match: string; title: string; exact?: boolean }[] = [
   { match: '/platform/users', title: 'Users' },
+  { match: '/ops',            title: 'Home', exact: true },
   { match: '/platform',       title: 'Home', exact: true },
 ]
 

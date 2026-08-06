@@ -1,9 +1,12 @@
 import { cache } from 'react'
-import { createClient } from '@/lib/supabase/server'
-import type { UserRole, Product, UserProfile } from '@/lib/roles'
+import type { UserRole, UserProfile } from '@/lib/roles'
+
+// Dynamic import of supabase/server so Client Components that pull
+// dataCache transitively do not load next/headers at module graph top-level.
 
 // ── Auth — cached once per request ────────────────────────────
 export const getUser = cache(async () => {
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   return user
@@ -13,6 +16,7 @@ export const getUser = cache(async () => {
 export const getCachedProfile = cache(async (): Promise<UserProfile | null> => {
   const user = await getUser()
   if (!user) return null
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
   const { data } = await supabase
     .from('profiles')
@@ -25,12 +29,13 @@ export const getCachedProfile = cache(async (): Promise<UserProfile | null> => {
     full_name: data.full_name,
     email:     data.email,
     roles:     (data.roles    ?? []) as UserRole[],
-    products:  (data.products ?? []) as Product[],
+    products:  (data.products ?? []) as string[],
   }
 })
 
 // ── App settings — cached once per request ─────────────────────
 export const getAppSettings = cache(async (): Promise<Record<string, string>> => {
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
   const { data } = await supabase.from('app_settings').select('key, value')
   const map: Record<string, string> = {}
@@ -40,6 +45,7 @@ export const getAppSettings = cache(async (): Promise<Record<string, string>> =>
 
 // ── Exchange rates — cached once per request ───────────────────
 export const getCurrentRates = cache(async () => {
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
   const { data } = await supabase.from('exchange_rates').select('*')
   return data ?? []
@@ -47,6 +53,7 @@ export const getCurrentRates = cache(async () => {
 
 // ── Rate history — scoped to last 2 years ─────────────────────
 export const getRecentRateHistory = cache(async (inputCurrency: string, viewCurrencies: string[]) => {
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
   const twoYearsAgo = new Date()
   twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)

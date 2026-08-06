@@ -9,8 +9,38 @@ import {
 } from '@/lib/resto-admin/client'
 import { parseRestoAdminEnv } from '@/lib/resto-admin/types'
 
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms
+        )
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export async function GET(request: NextRequest) {
-  const profile = await getCachedProfile()
+  let profile
+  try {
+    profile = await withTimeout(getCachedProfile(), 10_000, 'Reach session')
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          'Reach session check timed out (Supabase). Check network / NEXT_PUBLIC_SUPABASE_URL, then retry.',
+        code: 'auth_timeout',
+      },
+      { status: 504 }
+    )
+  }
+
   if (!hasOpsAccess(profile)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

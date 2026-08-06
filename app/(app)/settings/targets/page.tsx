@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentProfile, isCrmManager } from '@/lib/roles'
+import { getCachedProfile } from '@/lib/dataCache'
+import { isCrmManager } from '@/lib/roles'
 import { redirect } from 'next/navigation'
 import ManageTargets from '@/components/reports/ManageTargets'
 import styles from '../general.module.css'
 
 export default async function TargetsSettingsPage() {
   const supabase = createClient()
-  const profile  = await getCurrentProfile()
+  const profile  = await getCachedProfile()
   if (!isCrmManager(profile)) redirect('/dashboard')
 
   const { data: allUsers } = await supabase
