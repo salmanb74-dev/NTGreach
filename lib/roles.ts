@@ -11,6 +11,7 @@ export type UserRole =
   | 'cs_manager'
   | 'cs_support_rep'
   | 'ops_admin'
+  | 'ops_user'
 
 export type Product = 'resto' | 'alma'
 
@@ -22,7 +23,29 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   cs_manager:     'CS Manager',
   cs_support_rep: 'Support Rep',
   ops_admin:      'Ops Admin',
+  ops_user:       'Ops User',
 }
+
+export const PRODUCT_LABELS: Record<Product, string> = {
+  resto: 'Resto',
+  alma:  'Alma',
+}
+
+/** Roles shown when editing Reach access (grouped in the UI). */
+export const EDITABLE_ROLES: {
+  value: UserRole
+  label: string
+  group: string
+}[] = [
+  { value: 'crm_admin',      label: 'CRM Admin',    group: 'CRM' },
+  { value: 'crm_manager',    label: 'CRM Manager',  group: 'CRM' },
+  { value: 'crm_sales_rep',  label: 'Sales Rep',    group: 'CRM' },
+  { value: 'cs_admin',       label: 'CS Admin',     group: 'Support' },
+  { value: 'cs_manager',     label: 'CS Manager',   group: 'Support' },
+  { value: 'cs_support_rep', label: 'Support Rep',  group: 'Support' },
+  { value: 'ops_admin',      label: 'Admin',        group: 'Ops' },
+  { value: 'ops_user',       label: 'User',         group: 'Ops' },
+]
 
 export interface UserProfile {
   id:        string
@@ -60,12 +83,25 @@ export function hasCsAccess(profile: UserProfile | null): boolean {
   return !!profile?.roles?.some(r => r.startsWith('cs_'))
 }
 
-// ─── Ops portal checks ────────────────────────────────────────
+// ─── Product Ops (Nest tenants: Ops Resto / Ops Alma) ─────────
+/** Nest product ops portal — Admin only (not Ops User). */
 export function isOpsAdmin(profile: UserProfile | null): boolean {
   return !!profile?.roles?.includes('ops_admin')
 }
 export function hasOpsAccess(profile: UserProfile | null): boolean {
-  return !!profile?.roles?.some(r => r.startsWith('ops_'))
+  return isOpsAdmin(profile)
+}
+
+// ─── Platform Ops (cross-module Users etc.) ───────────────────
+export function isPlatformOpsAdmin(profile: UserProfile | null): boolean {
+  return !!profile?.roles?.includes('ops_admin')
+}
+export function isPlatformOpsUser(profile: UserProfile | null): boolean {
+  return !!profile?.roles?.includes('ops_user')
+}
+/** Can open platform Ops module (Admin or User). */
+export function hasPlatformOpsAccess(profile: UserProfile | null): boolean {
+  return isPlatformOpsAdmin(profile) || isPlatformOpsUser(profile)
 }
 
 // ─── Generic helpers (backwards compat) ──────────────────────
@@ -83,10 +119,16 @@ export function getAccessibleModules(profile: UserProfile | null): Module[] {
   const products = profile.products ?? []
   const modules: Module[] = []
 
+  // Platform Ops (Users, etc.) — not product-scoped
+  if (roles.includes('ops_admin') || roles.includes('ops_user')) {
+    modules.push('ops')
+  }
+
   for (const product of products) {
-    if (roles.some(r => r.startsWith('crm_')))  modules.push(`crm_${product}` as Module)
-    if (roles.some(r => r.startsWith('cs_')))   modules.push(`cs_${product}` as Module)
-    if (roles.some(r => r.startsWith('ops_')))  modules.push(`ops_${product}` as Module)
+    if (roles.some(r => r.startsWith('crm_'))) modules.push(`crm_${product}` as Module)
+    if (roles.some(r => r.startsWith('cs_')))  modules.push(`cs_${product}` as Module)
+    // Nest tenant ops — Admin only + product
+    if (roles.includes('ops_admin')) modules.push(`ops_${product}` as Module)
   }
 
   return modules

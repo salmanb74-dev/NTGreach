@@ -3,9 +3,8 @@
 import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { markOwnPasswordChanged } from '@/lib/actions/platform-users'
 import styles from './ProfileClient.module.css'
-
-type UserRole = 'admin' | 'manager' | 'sales_rep'
 
 export const ROLE_LABELS: Record<string, string> = {
   crm_admin:      'CRM Admin',
@@ -15,13 +14,14 @@ export const ROLE_LABELS: Record<string, string> = {
   cs_manager:     'CS Manager',
   cs_support_rep: 'Support Rep',
   ops_admin:      'Ops Admin',
+  ops_user:       'Ops User',
 }
 
 interface Profile {
   id: string
   full_name: string | null
   email: string
-  roles: UserRole[]
+  roles: string[]
 }
 
 export default function ProfileClient({ profile }: { profile: Profile | null }) {
@@ -71,6 +71,11 @@ export default function ProfileClient({ profile }: { profile: Profile | null }) 
       if (error) {
         setPwMsg('Error: ' + error.message)
       } else {
+        try {
+          await markOwnPasswordChanged()
+        } catch {
+          // Non-fatal if column/migration missing
+        }
         setPwMsg('Password updated successfully')
         setCurrentPassword('')
         setNewPassword('')

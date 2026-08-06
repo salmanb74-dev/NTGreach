@@ -90,31 +90,27 @@ const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     modules: ['cs_resto', 'cs_alma'],
   },
-  // ── Ops portal (Resto Nest ops) ─────────────────────────────
+  // ── Ops portal (Resto Nest / product) ───────────────────────
   {
     href: '/ops', label: 'Home',
     svgPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
     modules: ['ops_resto', 'ops_alma'],
   },
   {
-    href: '/ops/management', label: 'Management',
-    svgPath: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6',
+    href: '/ops/management', label: 'Tenants',
+    svgPath: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z m13 10v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
     modules: ['ops_resto', 'ops_alma'],
   },
+  // ── Platform Ops (cross-module) ────────────────────────────
   {
-    href: '/ops/reports', label: 'Reports',
-    svgPath: 'M18 20V10 M12 20V4 M6 20v-6',
-    modules: ['ops_resto', 'ops_alma'],
+    href: '/platform', label: 'Home',
+    svgPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
+    modules: ['ops'],
   },
   {
-    href: '/ops/logs', label: 'Logs',
-    svgPath: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
-    modules: ['ops_resto', 'ops_alma'],
-  },
-  {
-    href: '/ops/subscription', label: 'Subscription',
-    svgPath: 'M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z M1 10h22',
-    modules: ['ops_resto', 'ops_alma'],
+    href: '/platform/users', label: 'Users',
+    svgPath: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+    modules: ['ops'],
   },
 ]
 
@@ -151,8 +147,8 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
       <ul className={styles.navList} role="list">
         {visibleItems.map(item => {
           const isActive =
-            item.href === '/ops'
-              ? pathname === '/ops'
+            item.href === '/ops' || item.href === '/platform'
+              ? pathname === item.href
               : pathname === item.href ||
                 (item.href !== '/dashboard' &&
                   item.href !== '/support/dashboard' &&

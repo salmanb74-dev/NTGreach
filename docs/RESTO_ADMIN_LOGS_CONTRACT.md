@@ -141,8 +141,12 @@ Expect `200` + `{ "data": [ ... ] }` (array may be empty).
 
 ---
 
-## Reach follow-up (after Nest ships)
+## Reach status
 
-- Proxy: `GET /api/ops/logs?env=staging|production&…`
-- UI: Ops sidebar **Logs** tab — reverse-chronological table; optional tenant filter; Staging/Production toggle (same as Management).
-- Optional later: reuse same Nest endpoint inside tenant detail → **Logs** tab with `tenantId` fixed.
+Implemented:
+
+- Proxy: `GET /api/ops/logs?env=staging|production&tenantId=&actionType=&from=&to=&cursor=&limit=`
+- UI: Ops sidebar **Logs** — Staging/Production toggle, tenant/action filters, cursor **Load more**
+- Confirmed Nest reply: camelCase query params, `{ data, nextCursor }`, no contract deviations
+
+Optional later: tenant detail → **Logs** tab with `tenantId` fixed.

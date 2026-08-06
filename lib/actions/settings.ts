@@ -81,6 +81,7 @@ export async function updateUserRoles(userId: string, roles: UserRole[]) {
     .eq('id', userId)
   if (error) throw new Error(error.message)
   revalidatePath('/settings/users')
+  revalidatePath('/platform/users')
 }
 
 // ─── App Settings ─────────────────────────────────────────────

@@ -14,11 +14,64 @@ type LoadState =
   | { status: 'ready'; tenants: RestoTenant[] }
   | { status: 'error'; message: string; code?: string }
 
+const COPY_FIELDS: { label: string; value: (t: RestoTenant) => string }[] = [
+  { label: 'Restaurant', value: t => t.name || '—' },
+  { label: 'Owner', value: t => t.ownerName || '—' },
+  { label: 'Owner email', value: t => t.ownerEmail || '—' },
+  { label: 'Tenant ID', value: t => t.id || '—' },
+]
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function buildTenantClipboard(tenant: RestoTenant): { plain: string; html: string } {
+  const rows = COPY_FIELDS.map(({ label, value }) => ({
+    label,
+    value: value(tenant),
+  }))
+
+  const plain = rows.map(r => `${r.label}: ${r.value}`).join('\n')
+  const html = rows
+    .map(
+      r =>
+        `<div><strong>${escapeHtml(r.label)}</strong> ${escapeHtml(r.value)}</div>`
+    )
+    .join('')
+
+  return { plain, html }
+}
+
+async function copyTenantDetails(tenant: RestoTenant): Promise<void> {
+  const { plain, html } = buildTenantClipboard(tenant)
+
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([plain], { type: 'text/plain' }),
+          'text/html': new Blob([html], { type: 'text/html' }),
+        }),
+      ])
+      return
+    } catch {
+      // fall through to plain text
+    }
+  }
+
+  await navigator.clipboard.writeText(plain)
+}
+
 export default function TenantsClient({ initialEnv }: Props) {
   const router = useRouter()
   const [env, setEnv] = useState<RestoAdminEnv>(initialEnv)
   const [query, setQuery] = useState('')
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const load = useCallback(async (nextEnv: RestoAdminEnv) => {
     setState({ status: 'loading' })
@@ -31,7 +84,11 @@ export default function TenantsClient({ initialEnv }: Props) {
       if (!response.ok) {
         setState({
           status: 'error',
-          message: body.error ?? `Failed to load tenants (${response.status})`,
+          message:
+            body.error ??
+            (response.status === 404
+              ? 'Reach API route /api/ops/tenants not found (404). Restart the Reach dev server after clearing .next.'
+              : `Failed to load tenants (${response.status})`),
           code: typeof body.code === 'string' ? body.code : undefined,
         })
         return
@@ -56,9 +113,11 @@ export default function TenantsClient({ initialEnv }: Props) {
     if (next === env) return
     setEnv(next)
     setQuery('')
+    // Sync query string without an RSC soft-navigation (avoids flaky
+    // "Failed to fetch RSC payload" when the dev server is compiling/busy).
     const url = new URL(window.location.href)
     url.searchParams.set('env', next)
-    router.replace(`${url.pathname}?${url.searchParams.toString()}`)
+    window.history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}`)
   }
 
   const filtered = useMemo(() => {
@@ -77,6 +136,27 @@ export default function TenantsClient({ initialEnv }: Props) {
       return haystack.includes(q)
     })
   }, [state, query])
+
+  async function handleCopy(
+    e: React.MouseEvent,
+    tenant: RestoTenant
+  ) {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      await copyTenantDetails(tenant)
+      setCopiedId(tenant.id)
+      window.setTimeout(() => {
+        setCopiedId(prev => (prev === tenant.id ? null : prev))
+      }, 1500)
+    } catch {
+      // Clipboard may be blocked; leave UI as-is
+    }
+  }
+
+  function openTenant(tenantId: string) {
+    router.push(`/ops/management/${encodeURIComponent(tenantId)}?env=${env}`)
+  }
 
   const isProduction = env === 'production'
 
@@ -189,24 +269,23 @@ export default function TenantsClient({ initialEnv }: Props) {
                 <th>Owner</th>
                 <th>Owner email</th>
                 <th>Tenant ID</th>
+                <th className={styles.actionsCol}>
+                  <span className={styles.srOnly}>Copy</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(tenant => (
                 <tr
                   key={tenant.id}
-                  className={styles.rowLink}
-                  onClick={() =>
-                    router.push(
-                      `/ops/management/${encodeURIComponent(tenant.id)}?env=${env}`
-                    )
-                  }
+                  className={`${styles.rowLink} ${
+                    copiedId === tenant.id ? styles.rowCopied : ''
+                  }`}
+                  onClick={() => openTenant(tenant.id)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      router.push(
-                        `/ops/management/${encodeURIComponent(tenant.id)}?env=${env}`
-                      )
+                      openTenant(tenant.id)
                     }
                   }}
                   tabIndex={0}
@@ -225,6 +304,25 @@ export default function TenantsClient({ initialEnv }: Props) {
                     )}
                   </td>
                   <td className={styles.mono}>{tenant.id}</td>
+                  <td className={styles.actionsCell}>
+                    <button
+                      type="button"
+                      className={styles.copyBtn}
+                      onClick={e => void handleCopy(e, tenant)}
+                      aria-label={
+                        copiedId === tenant.id
+                          ? `Copied details for ${tenant.name}`
+                          : `Copy details for ${tenant.name}`
+                      }
+                      title={
+                        copiedId === tenant.id
+                          ? 'Copied'
+                          : 'Copy tenant details'
+                      }
+                    >
+                      Copy
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

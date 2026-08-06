@@ -30,10 +30,6 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'not_found' }
 
-function isTab(value: string | null | undefined): value is RestoAdminTenantTab {
-  return TABS.some(t => t.id === value)
-}
-
 export default function TenantDetailClient({
   tenantId,
   initialEnv,
@@ -222,10 +218,4 @@ export default function TenantDetailClient({
       )}
     </div>
   )
-}
-
-export function parseTenantTab(
-  value: string | null | undefined
-): RestoAdminTenantTab {
-  return isTab(value) ? value : 'overview'
 }

@@ -9,6 +9,7 @@ export type Module =
   | 'cs_alma'
   | 'ops_resto'
   | 'ops_alma'
+  | 'ops'
 
 export const MODULE_LABELS: Record<Module, string> = {
   crm_resto:  'CRM Resto',
@@ -17,10 +18,12 @@ export const MODULE_LABELS: Record<Module, string> = {
   cs_alma:    'Support Alma',
   ops_resto:  'Ops Resto',
   ops_alma:   'Ops Alma',
+  ops:        'Ops',
 }
 
 /** Landing path for a module (used by module switcher + post-login redirect). */
 export function getModuleHomePath(mod: Module): string {
+  if (mod === 'ops') return '/platform'
   if (mod.startsWith('crm_')) return '/dashboard'
   if (mod.startsWith('cs_')) return '/support/dashboard'
   if (mod.startsWith('ops_')) return '/ops'

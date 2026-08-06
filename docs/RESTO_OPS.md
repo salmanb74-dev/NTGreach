@@ -5,10 +5,10 @@ product on their profile, e.g. `resto` → **Ops Resto**).
 
 ## What v1 does
 
-- Sidebar: **Home** (blank), **Management**, **Reports**, **Logs**, **Subscription**
-- **Management:** toggle Staging vs Production; list tenants (name, owner, email, id); search; tenant detail shell
-- Reports / Logs / Subscription: blank placeholders for now
-  - Logs UI blocked on Nest — see [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md)
+- Sidebar: **Home** (blank), **Tenants**
+- **Tenants:** Staging/Production toggle; searchable tenant list; open a tenant for Overview, Subscription, Logs, Delete (tabs)
+- Global Reports / Logs / Subscription nav items removed — those actions belong on the tenant detail page
+- Logs API still available for per-tenant use later: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md)
 
 Reach never talks to Resto Supabase for this. The browser never sees Resto API keys.
 
@@ -48,13 +48,16 @@ Response (Nest shape; bare array / `{ "tenants": [...] }` also accepted):
 
 `owner_name` / `owner_email` snake_case is also accepted.
 
-## Reach proxy
+## Reach proxies
 
 Authenticated Reach ops users call:
 
-`GET /api/ops/tenants?env=staging|production`
+| Reach | Nest |
+|---|---|
+| `GET /api/ops/tenants?env=staging\|production` | `GET /api/v1/admin/tenants` |
+| `GET /api/ops/logs?env=…&tenantId=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` |
 
-That route checks the Reach session (`ops_*` role), then calls Nest with the matching env key.
+Those routes check the Reach session (`ops_admin`), then call Nest with the matching env key.
 
 If env vars are missing, the UI shows **Resto admin API not configured** (HTTP 503).
 
@@ -62,7 +65,7 @@ If env vars are missing, the UI shows **Resto admin API not configured** (HTTP 5
 
 1. Assign the user role `ops_admin` and product `resto` (see SQL below).
 2. Switch module to **Ops Resto** in the top-right module selector.
-3. Open **Management** in the sidebar (`/ops/management`) for the tenant list.
+3. Open **Tenants** in the sidebar (`/ops/management`) for the tenant list.
 
 ## SQL — migrate roles to Ops
 

@@ -7,8 +7,8 @@ import type { Module } from '@/lib/roles'
 import styles from '@/components/layout/Topbar.module.css'
 
 const TITLES: { match: string; title: string; exact?: boolean }[] = [
-  { match: '/ops/management', title: 'Tenants' },
-  { match: '/ops',            title: 'Home', exact: true },
+  { match: '/platform/users', title: 'Users' },
+  { match: '/platform',       title: 'Home', exact: true },
 ]
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
   activeModule: Module
 }
 
-export default function OpsTopbar({ modules, activeModule }: Props) {
+export default function PlatformTopbar({ modules, activeModule }: Props) {
   const pathname = usePathname()
   const title =
     TITLES.find(t =>

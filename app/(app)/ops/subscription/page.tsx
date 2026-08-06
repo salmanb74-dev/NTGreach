@@ -1,3 +1,5 @@
-export default function OpsSubscriptionPage() {
-  return null
+import { redirect } from 'next/navigation'
+
+export default function OpsSubscriptionRedirect() {
+  redirect('/ops/management')
 }

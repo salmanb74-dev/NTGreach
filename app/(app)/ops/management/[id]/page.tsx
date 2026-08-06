@@ -1,7 +1,5 @@
-import TenantDetailClient, {
-  parseTenantTab,
-} from '@/components/ops/TenantDetailClient'
-import { parseRestoAdminEnv } from '@/lib/resto-admin/types'
+import TenantDetailClient from '@/components/ops/TenantDetailClient'
+import { parseRestoAdminEnv, parseTenantTab } from '@/lib/resto-admin/types'
 
 export default function OpsManagementDetailPage({
   params,

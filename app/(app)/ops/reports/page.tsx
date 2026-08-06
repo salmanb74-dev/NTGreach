@@ -1,3 +1,5 @@
-export default function OpsReportsPage() {
-  return null
+import { redirect } from 'next/navigation'
+
+export default function OpsReportsRedirect() {
+  redirect('/ops/management')
 }
