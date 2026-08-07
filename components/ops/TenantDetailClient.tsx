@@ -10,6 +10,7 @@ import type {
 } from '@/lib/resto-admin/types'
 import LogsClient from '@/components/ops/LogsClient'
 import TenantDeletePanel from '@/components/ops/TenantDeletePanel'
+import TenantSubscriptionPanel from '@/components/ops/TenantSubscriptionPanel'
 import { moduleFromPathname, modulePath } from '@/lib/module-routing'
 import type { Module } from '@/lib/modules'
 import styles from './TenantDetailClient.module.css'
@@ -198,12 +199,11 @@ export default function TenantDetailClient({
           )}
 
           {tab === 'subscription' && (
-            <div className={styles.panel}>
-              <h3 className={styles.panelTitle}>Subscription</h3>
-              <p className={styles.panelBody}>
-                Coming soon — plan and billing controls will live here.
-              </p>
-            </div>
+            <TenantSubscriptionPanel
+              tenantId={state.tenant.id}
+              tenantName={state.tenant.name}
+              env={env}
+            />
           )}
 
           {tab === 'delete' && (

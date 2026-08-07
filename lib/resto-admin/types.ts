@@ -75,6 +75,116 @@ export type RestoTenantDeleteResult = {
   summary: RestoTenantDeleteSummary | null
 }
 
+/** PUT /subscription/enterprise — every key required (null where allowed). */
+export type RestoEnterpriseOfferInput = {
+  price: number
+  durationMonths: number
+  setupFee: number
+  locations: number | null
+  users: number | null
+  counters: number | null
+  ordersPerMonth: number | null
+  callCenter: boolean | null
+  kds: boolean | null
+  inventory: boolean | null
+  support: boolean | null
+  webOrdering: boolean | null
+  paidTrial: boolean
+  paidTrialDays: number | null
+  preTrialSetupFee: number | null
+  postTrialSetupFee: number | null
+  accessStartsAt: string | null
+  enterpriseEnabled: boolean
+}
+
+export const ENTERPRISE_OFFER_KEYS: ReadonlyArray<keyof RestoEnterpriseOfferInput> = [
+  'price',
+  'durationMonths',
+  'setupFee',
+  'locations',
+  'users',
+  'counters',
+  'ordersPerMonth',
+  'callCenter',
+  'kds',
+  'inventory',
+  'support',
+  'webOrdering',
+  'paidTrial',
+  'paidTrialDays',
+  'preTrialSetupFee',
+  'postTrialSetupFee',
+  'accessStartsAt',
+  'enterpriseEnabled',
+]
+
+export type RestoSubscriptionSnapshot = {
+  id: string | null
+  tenantId: string | null
+  planId: string | null
+  billingCycle: string | null
+  status: string | null
+  currentPeriodStart: string | null
+  currentPeriodEnd: string | null
+  trialEndsAt: string | null
+  cancelledAt: string | null
+  enterpriseEnabled: boolean | null
+  enterprisePrice: number | null
+  enterpriseDurationMonths: number | null
+  enterpriseSetupFee: number | null
+  enterpriseLocationsLimit: number | null
+  enterpriseUsersLimit: number | null
+  enterpriseCountersLimit: number | null
+  enterpriseOrdersMonthLimit: number | null
+  enterpriseCallcenterEnabled: boolean | null
+  enterpriseKdsEnabled: boolean | null
+  enterpriseInventoryEnabled: boolean | null
+  addonSupportEnabled: boolean | null
+  addonWebOrderingEnabled: boolean | null
+  enterprisePaidTrialEnabled: boolean | null
+  enterprisePaidTrialDurationDays: number | null
+  enterprisePreTrialSetupFee: number | null
+  enterprisePostTrialSetupFee: number | null
+  enterpriseAccessStartsAt: string | null
+  currentEnterprisePrice: number | null
+  currentEnterpriseDurationMonths: number | null
+  currentEnterpriseLocationsLimit: number | null
+  currentEnterpriseUsersLimit: number | null
+  currentEnterpriseCountersLimit: number | null
+  currentEnterpriseOrdersMonthLimit: number | null
+  currentEnterpriseCallcenterEnabled: boolean | null
+  currentEnterpriseKdsEnabled: boolean | null
+  currentEnterpriseInventoryEnabled: boolean | null
+  currentEnterpriseSupportEnabled: boolean | null
+  currentEnterpriseWebOrderingEnabled: boolean | null
+  stripeSubscriptionId: string | null
+  stripeCustomerId: string | null
+  created: boolean
+  usageCreated: boolean
+  warnings: string[]
+}
+
+export type RestoSubscriptionTenant = {
+  id: string
+  name: string | null
+  email: string | null
+  subdomain: string | null
+}
+
+export type RestoSubscriptionGetResult = {
+  tenant: RestoSubscriptionTenant | null
+  subscription: RestoSubscriptionSnapshot | null
+  notes: string[]
+}
+
+export type RestoEnterprisePutResult = {
+  upserted: boolean
+  created: boolean
+  tenant: RestoSubscriptionTenant | null
+  subscription: RestoSubscriptionSnapshot | null
+  notes: string[]
+}
+
 export type RestoAdminTenantTab =
   | 'overview'
   | 'reports'

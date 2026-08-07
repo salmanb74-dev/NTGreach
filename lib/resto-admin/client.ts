@@ -2,8 +2,13 @@ import type {
   RestoAdminEnv,
   RestoApiHit,
   RestoApiHitMetadata,
+  RestoEnterpriseOfferInput,
+  RestoEnterprisePutResult,
   RestoLogsPage,
   RestoLogsQuery,
+  RestoSubscriptionGetResult,
+  RestoSubscriptionSnapshot,
+  RestoSubscriptionTenant,
   RestoTenant,
   RestoTenantDeleteResult,
   RestoTenantDeleteSummary,
@@ -68,6 +73,21 @@ function nestErrorMessage(body: unknown, fallback: string): string {
 
   if (typeof record.error === 'string' && record.error.trim()) {
     return record.error.trim()
+  }
+
+  // Nest envelope: { success: false, error: { message, details } }
+  if (record.error && typeof record.error === 'object' && !Array.isArray(record.error)) {
+    const errObj = record.error as Record<string, unknown>
+    if (typeof errObj.message === 'string' && errObj.message.trim()) {
+      return errObj.message.trim()
+    }
+    const details = errObj.details
+    if (details && typeof details === 'object' && !Array.isArray(details)) {
+      const d = details as Record<string, unknown>
+      if (typeof d.message === 'string' && d.message.trim()) {
+        return d.message.trim()
+      }
+    }
   }
 
   const message = record.message
@@ -374,5 +394,286 @@ export async function deleteRestoTenant(
       asTrimmedString(record.tenantName) ??
       asTrimmedString(record.tenant_name),
     summary: normalizeDeletionSummary(summaryRaw),
+  }
+}
+
+function asBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value
+  return null
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+}
+
+function normalizeSubTenant(
+  raw: Record<string, unknown> | null | undefined
+): RestoSubscriptionTenant | null {
+  if (!raw) return null
+  const id = asTrimmedString(raw.id)
+  if (!id) return null
+  return {
+    id,
+    name: asTrimmedString(raw.name),
+    email: asTrimmedString(raw.email),
+    subdomain: asTrimmedString(raw.subdomain),
+  }
+}
+
+function normalizeSubscription(
+  raw: Record<string, unknown> | null | undefined
+): RestoSubscriptionSnapshot | null {
+  if (!raw) return null
+  return {
+    id: asTrimmedString(raw.id),
+    tenantId: asTrimmedString(raw.tenantId) ?? asTrimmedString(raw.tenant_id),
+    planId: asTrimmedString(raw.planId) ?? asTrimmedString(raw.plan_id),
+    billingCycle:
+      asTrimmedString(raw.billingCycle) ?? asTrimmedString(raw.billing_cycle),
+    status: asTrimmedString(raw.status),
+    currentPeriodStart:
+      asTrimmedString(raw.currentPeriodStart) ??
+      asTrimmedString(raw.current_period_start),
+    currentPeriodEnd:
+      asTrimmedString(raw.currentPeriodEnd) ??
+      asTrimmedString(raw.current_period_end),
+    trialEndsAt:
+      asTrimmedString(raw.trialEndsAt) ?? asTrimmedString(raw.trial_ends_at),
+    cancelledAt:
+      asTrimmedString(raw.cancelledAt) ?? asTrimmedString(raw.cancelled_at),
+    enterpriseEnabled: asBoolean(raw.enterpriseEnabled),
+    enterprisePrice: asNumber(raw.enterprisePrice) ?? asNumber(raw.enterprise_price),
+    enterpriseDurationMonths:
+      asNumber(raw.enterpriseDurationMonths) ??
+      asNumber(raw.enterprise_duration_months),
+    enterpriseSetupFee:
+      asNumber(raw.enterpriseSetupFee) ?? asNumber(raw.enterprise_setup_fee),
+    enterpriseLocationsLimit:
+      asNumber(raw.enterpriseLocationsLimit) ??
+      asNumber(raw.enterprise_locations_limit),
+    enterpriseUsersLimit:
+      asNumber(raw.enterpriseUsersLimit) ??
+      asNumber(raw.enterprise_users_limit),
+    enterpriseCountersLimit:
+      asNumber(raw.enterpriseCountersLimit) ??
+      asNumber(raw.enterprise_counters_limit),
+    enterpriseOrdersMonthLimit:
+      asNumber(raw.enterpriseOrdersMonthLimit) ??
+      asNumber(raw.enterprise_orders_month_limit),
+    enterpriseCallcenterEnabled:
+      asBoolean(raw.enterpriseCallcenterEnabled) ??
+      asBoolean(raw.enterprise_callcenter_enabled),
+    enterpriseKdsEnabled:
+      asBoolean(raw.enterpriseKdsEnabled) ??
+      asBoolean(raw.enterprise_kds_enabled),
+    enterpriseInventoryEnabled:
+      asBoolean(raw.enterpriseInventoryEnabled) ??
+      asBoolean(raw.enterprise_inventory_enabled),
+    addonSupportEnabled:
+      asBoolean(raw.addonSupportEnabled) ??
+      asBoolean(raw.addon_support_enabled),
+    addonWebOrderingEnabled:
+      asBoolean(raw.addonWebOrderingEnabled) ??
+      asBoolean(raw.addon_web_ordering_enabled),
+    enterprisePaidTrialEnabled:
+      asBoolean(raw.enterprisePaidTrialEnabled) ??
+      asBoolean(raw.enterprise_paid_trial_enabled),
+    enterprisePaidTrialDurationDays:
+      asNumber(raw.enterprisePaidTrialDurationDays) ??
+      asNumber(raw.enterprise_paid_trial_duration_days),
+    enterprisePreTrialSetupFee:
+      asNumber(raw.enterprisePreTrialSetupFee) ??
+      asNumber(raw.enterprise_pre_trial_setup_fee),
+    enterprisePostTrialSetupFee:
+      asNumber(raw.enterprisePostTrialSetupFee) ??
+      asNumber(raw.enterprise_post_trial_setup_fee),
+    enterpriseAccessStartsAt:
+      asTrimmedString(raw.enterpriseAccessStartsAt) ??
+      asTrimmedString(raw.enterprise_access_starts_at),
+    currentEnterprisePrice:
+      asNumber(raw.currentEnterprisePrice) ??
+      asNumber(raw.current_enterprise_price),
+    currentEnterpriseDurationMonths:
+      asNumber(raw.currentEnterpriseDurationMonths) ??
+      asNumber(raw.current_enterprise_duration_months),
+    currentEnterpriseLocationsLimit:
+      asNumber(raw.currentEnterpriseLocationsLimit) ??
+      asNumber(raw.current_enterprise_locations_limit),
+    currentEnterpriseUsersLimit:
+      asNumber(raw.currentEnterpriseUsersLimit) ??
+      asNumber(raw.current_enterprise_users_limit),
+    currentEnterpriseCountersLimit:
+      asNumber(raw.currentEnterpriseCountersLimit) ??
+      asNumber(raw.current_enterprise_counters_limit),
+    currentEnterpriseOrdersMonthLimit:
+      asNumber(raw.currentEnterpriseOrdersMonthLimit) ??
+      asNumber(raw.current_enterprise_orders_month_limit),
+    currentEnterpriseCallcenterEnabled:
+      asBoolean(raw.currentEnterpriseCallcenterEnabled) ??
+      asBoolean(raw.current_enterprise_callcenter_enabled),
+    currentEnterpriseKdsEnabled:
+      asBoolean(raw.currentEnterpriseKdsEnabled) ??
+      asBoolean(raw.current_enterprise_kds_enabled),
+    currentEnterpriseInventoryEnabled:
+      asBoolean(raw.currentEnterpriseInventoryEnabled) ??
+      asBoolean(raw.current_enterprise_inventory_enabled),
+    currentEnterpriseSupportEnabled:
+      asBoolean(raw.currentEnterpriseSupportEnabled) ??
+      asBoolean(raw.current_enterprise_support_enabled),
+    currentEnterpriseWebOrderingEnabled:
+      asBoolean(raw.currentEnterpriseWebOrderingEnabled) ??
+      asBoolean(raw.current_enterprise_web_ordering_enabled),
+    stripeSubscriptionId:
+      asTrimmedString(raw.stripeSubscriptionId) ??
+      asTrimmedString(raw.stripe_subscription_id),
+    stripeCustomerId:
+      asTrimmedString(raw.stripeCustomerId) ??
+      asTrimmedString(raw.stripe_customer_id),
+    created: raw.created === true,
+    usageCreated: raw.usageCreated === true || raw.usage_created === true,
+    warnings: asStringArray(raw.warnings),
+  }
+}
+
+/**
+ * Map Nest subscription snapshot → complete Enterprise PUT body for the form.
+ */
+export function offerFromSubscription(
+  sub: RestoSubscriptionSnapshot | null
+): RestoEnterpriseOfferInput {
+  if (!sub) {
+    return {
+      price: 420,
+      durationMonths: 12,
+      setupFee: 0,
+      locations: null,
+      users: null,
+      counters: null,
+      ordersPerMonth: null,
+      callCenter: false,
+      kds: false,
+      inventory: false,
+      support: false,
+      webOrdering: false,
+      paidTrial: false,
+      paidTrialDays: null,
+      preTrialSetupFee: 0,
+      postTrialSetupFee: 0,
+      accessStartsAt: null,
+      enterpriseEnabled: true,
+    }
+  }
+
+  const paidTrial = sub.enterprisePaidTrialEnabled === true
+  return {
+    price: sub.enterprisePrice ?? 420,
+    durationMonths: sub.enterpriseDurationMonths ?? 12,
+    setupFee: sub.enterpriseSetupFee ?? 0,
+    locations: sub.enterpriseLocationsLimit,
+    users: sub.enterpriseUsersLimit,
+    counters: sub.enterpriseCountersLimit,
+    ordersPerMonth: sub.enterpriseOrdersMonthLimit,
+    callCenter: sub.enterpriseCallcenterEnabled,
+    kds: sub.enterpriseKdsEnabled,
+    inventory: sub.enterpriseInventoryEnabled,
+    support: sub.addonSupportEnabled,
+    webOrdering: sub.addonWebOrderingEnabled,
+    paidTrial,
+    paidTrialDays: paidTrial ? sub.enterprisePaidTrialDurationDays : null,
+    preTrialSetupFee: sub.enterprisePreTrialSetupFee,
+    postTrialSetupFee: sub.enterprisePostTrialSetupFee,
+    accessStartsAt: paidTrial ? null : sub.enterpriseAccessStartsAt,
+    enterpriseEnabled: sub.enterpriseEnabled !== false,
+  }
+}
+
+/**
+ * Server-only: GET tenant subscription + Enterprise offer.
+ * Never import into client components.
+ */
+export async function fetchRestoTenantSubscription(
+  env: RestoAdminEnv,
+  tenantId: string
+): Promise<RestoSubscriptionGetResult> {
+  const id = tenantId.trim()
+  if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
+
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/tenants/${encodeURIComponent(id)}/subscription`
+  )
+
+  if (!body || typeof body !== 'object') {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  const record = body as Record<string, unknown>
+  const subRaw =
+    record.subscription && typeof record.subscription === 'object'
+      ? (record.subscription as Record<string, unknown>)
+      : null
+  const tenantRaw =
+    record.tenant && typeof record.tenant === 'object'
+      ? (record.tenant as Record<string, unknown>)
+      : null
+
+  return {
+    tenant: normalizeSubTenant(tenantRaw),
+    subscription: normalizeSubscription(subRaw),
+    notes: asStringArray(record.notes),
+  }
+}
+
+/**
+ * Server-only: PUT full Enterprise offer (creates free shell if needed).
+ * Never import into client components.
+ */
+export async function putRestoEnterpriseOffer(
+  env: RestoAdminEnv,
+  tenantId: string,
+  offer: RestoEnterpriseOfferInput
+): Promise<RestoEnterprisePutResult> {
+  const id = tenantId.trim()
+  if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
+
+  // Nest DB enforces NOT NULL on pre/post trial setup fee columns
+  const payload: RestoEnterpriseOfferInput = {
+    ...offer,
+    setupFee: offer.setupFee ?? 0,
+    preTrialSetupFee: offer.preTrialSetupFee ?? 0,
+    postTrialSetupFee: offer.postTrialSetupFee ?? 0,
+  }
+
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/tenants/${encodeURIComponent(id)}/subscription/enterprise`,
+    {
+      method: 'PUT',
+      body: payload,
+      timeoutMs: 30_000,
+    }
+  )
+
+  if (!body || typeof body !== 'object') {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  const record = body as Record<string, unknown>
+  const subRaw =
+    record.subscription && typeof record.subscription === 'object'
+      ? (record.subscription as Record<string, unknown>)
+      : null
+  const tenantRaw =
+    record.tenant && typeof record.tenant === 'object'
+      ? (record.tenant as Record<string, unknown>)
+      : null
+
+  return {
+    upserted: record.upserted === true || record.upserted === 'true' || true,
+    created: record.created === true || record.created === 'true',
+    tenant: normalizeSubTenant(tenantRaw),
+    subscription: normalizeSubscription(subRaw),
+    notes: asStringArray(record.notes),
   }
 }

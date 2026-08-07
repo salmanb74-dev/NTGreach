@@ -57,6 +57,8 @@ Authenticated Reach ops users call:
 | Reach | Nest |
 |---|---|
 | `GET /api/ops/tenants?env=staging\|production` | `GET /api/v1/admin/tenants` |
+| `GET /api/ops/tenants/:id/subscription?env=…` | `GET /api/v1/admin/tenants/:id/subscription` |
+| `PUT /api/ops/tenants/:id/subscription/enterprise?env=…` | `PUT /api/v1/admin/tenants/:id/subscription/enterprise` |
 | `DELETE /api/ops/tenants/:id?env=…` body `{ confirmTenantId }` | `DELETE /api/v1/admin/tenants/:tenantId` |
 | `GET /api/ops/logs?env=…&tenantId=&method=&statusCode=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` (`api_hits`) |
 
