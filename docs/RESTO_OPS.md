@@ -10,7 +10,7 @@ product on their profile, e.g. `resto` → **Ops Resto**).
 - Tenant **Delete** tab: Nest hard-delete (`DELETE /api/v1/admin/tenants/:id`) with name + id confirmation
 - Global Reports / Logs / Subscription nav items removed — those actions belong on the tenant detail page
 - Tenant **Logs** tab: Nest `api_hits` via `GET /api/v1/admin/logs` (~24h HTTP traffic)
-- Contracts: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md), [`RESTO_ADMIN_DELETE_CONTRACT.md`](./RESTO_ADMIN_DELETE_CONTRACT.md)
+- Contracts: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md), [`RESTO_ADMIN_DELETE_CONTRACT.md`](./RESTO_ADMIN_DELETE_CONTRACT.md), [`RESTO_ADMIN_SUBSCRIPTION_CONTRACT.md`](./RESTO_ADMIN_SUBSCRIPTION_CONTRACT.md)
 
 Reach never talks to Resto Supabase for this. The browser never sees Resto API keys.
 
@@ -59,6 +59,7 @@ Authenticated Reach ops users call:
 | `GET /api/ops/tenants?env=staging\|production` | `GET /api/v1/admin/tenants` |
 | `GET /api/ops/tenants/:id/subscription?env=…` | `GET /api/v1/admin/tenants/:id/subscription` |
 | `PUT /api/ops/tenants/:id/subscription/enterprise?env=…` | `PUT /api/v1/admin/tenants/:id/subscription/enterprise` |
+| `DELETE /api/ops/tenants/:id/subscription/enterprise?env=&force=` | `DELETE /api/v1/admin/tenants/:id/subscription/enterprise` |
 | `DELETE /api/ops/tenants/:id?env=…` body `{ confirmTenantId }` | `DELETE /api/v1/admin/tenants/:tenantId` |
 | `GET /api/ops/logs?env=…&tenantId=&method=&statusCode=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` (`api_hits`) |
 

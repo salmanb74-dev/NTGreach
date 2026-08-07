@@ -12,25 +12,13 @@ import {
   type ModuleRoleMap,
 } from '@/lib/platform/access-model'
 import type { PlatformUserRow } from '@/components/platform/types'
+import { formatWhen } from '@/lib/format-when'
 import styles from './Users.module.css'
 
 interface Props {
   initialUsers: PlatformUserRow[]
   canEdit: boolean
   loadError?: string | null
-}
-
-function formatWhen(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export default function UsersClient({
@@ -83,7 +71,7 @@ export default function UsersClient({
           moduleRoles,
         })
         setShowAdd(false)
-        router.push(`/ops/users/${id}`)
+        router.push('/ops/users')
         router.refresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not create user')

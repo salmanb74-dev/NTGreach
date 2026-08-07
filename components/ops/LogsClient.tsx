@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { RestoAdminEnv, RestoApiHit } from '@/lib/resto-admin/types'
 import { metaNumber, metaString } from '@/lib/resto-admin/types'
+import { formatWhen } from '@/lib/format-when'
 import styles from './LogsClient.module.css'
 
 interface Props {
@@ -30,19 +31,6 @@ type LoadState =
       nextCursor: string | null
     }
   | { status: 'error'; message: string; code?: string }
-
-function formatWhen(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
 
 function summarizeHit(log: RestoApiHit) {
   const method =

@@ -157,6 +157,11 @@ export type RestoSubscriptionSnapshot = {
   currentEnterpriseInventoryEnabled: boolean | null
   currentEnterpriseSupportEnabled: boolean | null
   currentEnterpriseWebOrderingEnabled: boolean | null
+  /**
+   * Lifetime setup fees paid to date (USD): regular + pre + post collected.
+   * Nest: setupFeePaidUsd / setup_fee_paid_usd. Read-only — never on PUT.
+   */
+  setupFeePaidUsd: number | null
   stripeSubscriptionId: string | null
   stripeCustomerId: string | null
   created: boolean
@@ -180,6 +185,13 @@ export type RestoSubscriptionGetResult = {
 export type RestoEnterprisePutResult = {
   upserted: boolean
   created: boolean
+  tenant: RestoSubscriptionTenant | null
+  subscription: RestoSubscriptionSnapshot | null
+  notes: string[]
+}
+
+export type RestoEnterpriseClearResult = {
+  cleared: boolean
   tenant: RestoSubscriptionTenant | null
   subscription: RestoSubscriptionSnapshot | null
   notes: string[]

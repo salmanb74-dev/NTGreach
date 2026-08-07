@@ -4,6 +4,7 @@ import type {
   RestoApiHitMetadata,
   RestoEnterpriseOfferInput,
   RestoEnterprisePutResult,
+  RestoEnterpriseClearResult,
   RestoLogsPage,
   RestoLogsQuery,
   RestoSubscriptionGetResult,
@@ -524,6 +525,9 @@ function normalizeSubscription(
     currentEnterpriseWebOrderingEnabled:
       asBoolean(raw.currentEnterpriseWebOrderingEnabled) ??
       asBoolean(raw.current_enterprise_web_ordering_enabled),
+    setupFeePaidUsd:
+      asNumber(raw.setupFeePaidUsd) ??
+      asNumber(raw.setup_fee_paid_usd),
     stripeSubscriptionId:
       asTrimmedString(raw.stripeSubscriptionId) ??
       asTrimmedString(raw.stripe_subscription_id),
@@ -672,6 +676,53 @@ export async function putRestoEnterpriseOffer(
   return {
     upserted: record.upserted === true || record.upserted === 'true' || true,
     created: record.created === true || record.created === 'true',
+    tenant: normalizeSubTenant(tenantRaw),
+    subscription: normalizeSubscription(subRaw),
+    notes: asStringArray(record.notes),
+  }
+}
+
+/**
+ * Server-only: DELETE pending Enterprise offer (clears enterprise_* only).
+ * force=true when plan is already Enterprise or current_enterprise_price is set.
+ */
+export async function clearRestoEnterpriseOffer(
+  env: RestoAdminEnv,
+  tenantId: string,
+  opts: { force?: boolean } = {}
+): Promise<RestoEnterpriseClearResult> {
+  const id = tenantId.trim()
+  if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
+
+  const force = opts.force === true
+  const qs = force ? '?force=true' : ''
+
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/tenants/${encodeURIComponent(id)}/subscription/enterprise${qs}`,
+    {
+      method: 'DELETE',
+      body: force ? { force: true } : undefined,
+      timeoutMs: 30_000,
+    }
+  )
+
+  if (!body || typeof body !== 'object') {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  const record = body as Record<string, unknown>
+  const subRaw =
+    record.subscription && typeof record.subscription === 'object'
+      ? (record.subscription as Record<string, unknown>)
+      : null
+  const tenantRaw =
+    record.tenant && typeof record.tenant === 'object'
+      ? (record.tenant as Record<string, unknown>)
+      : null
+
+  return {
+    cleared: record.cleared === true || record.cleared === 'true',
     tenant: normalizeSubTenant(tenantRaw),
     subscription: normalizeSubscription(subRaw),
     notes: asStringArray(record.notes),

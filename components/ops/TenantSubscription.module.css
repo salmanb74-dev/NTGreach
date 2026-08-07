@@ -145,6 +145,16 @@
   color: #94a3b8;
 }
 
+.placeholderVal {
+  color: #9ca3af;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.colCur .placeholderVal {
+  color: #9ca3af;
+}
+
 .pendingBadge {
   display: inline-block;
   font-size: 11px;
@@ -323,4 +333,26 @@
 
 .secondaryBtn:hover:not(:disabled) {
   background: var(--color-surface-2);
+}
+
+.dangerBtn {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: 1px solid #b91c1c;
+  height: 34px;
+  background: #fff;
+  color: #b91c1c;
+}
+
+.dangerBtn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

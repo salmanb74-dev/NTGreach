@@ -13,6 +13,20 @@ comment on column public.profiles.password_changed_at is
 comment on column public.profiles.updated_at is
   'Last profile modification (name, roles, products, password mark).';
 
+-- Bootstrap password_changed_at from when the auth user (password) was first created.
+-- Supabase has no separate "password set at" column; auth.users.created_at is the
+-- practical start date for existing accounts.
+update public.profiles p
+set password_changed_at = coalesce(u.created_at, p.created_at, now())
+from auth.users u
+where u.id = p.id
+  and p.password_changed_at is null;
+
+-- Rows missing an auth user still get a non-null seed from profile/now
+update public.profiles
+set password_changed_at = coalesce(password_changed_at, created_at, now())
+where password_changed_at is null;
+
 -- Backfill missing updated_at for existing rows
 update public.profiles
 set updated_at = coalesce(updated_at, created_at, now())

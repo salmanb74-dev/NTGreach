@@ -144,7 +144,7 @@ function formToOffer(form: FormState): RestoEnterpriseOfferInput | { error: stri
     return n
   }
 
-  const locations = limitValue(form.locationsUnlimited, form.locations, 'locations')
+  const locations = limitValue(form.locationsUnlimited, form.locations, 'Branches')
   if (typeof locations === 'object' && locations && 'error' in locations) return locations
   const users = limitValue(form.usersUnlimited, form.users, 'users')
   if (typeof users === 'object' && users && 'error' in users) return users
@@ -246,13 +246,17 @@ function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return (
+    d.toLocaleString('en-GB', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    }) + ' UTC'
+  )
 }
 
 const DEFAULT_OFFER: RestoEnterpriseOfferInput = {
@@ -290,6 +294,16 @@ function isEnterpriseLive(sub: RestoSubscriptionSnapshot | null): boolean {
   if (!sub) return false
   const base = normalizePlanBaseId(sub.planId)
   return base === 'enterprise' && sub.currentEnterprisePrice != null
+}
+
+/**
+ * Nest DELETE returns 409 when plan is Enterprise OR current_enterprise_price is set
+ * unless force=true.
+ */
+function needsEnterpriseClearForce(sub: RestoSubscriptionSnapshot | null): boolean {
+  if (!sub) return false
+  if (sub.currentEnterprisePrice != null) return true
+  return normalizePlanBaseId(sub.planId) === 'enterprise'
 }
 
 /**
@@ -375,7 +389,9 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
   return {
     price: seed.monthlyPrice * durationMonths,
     durationMonths,
-    setupFee: seed.setupFee,
+    // Setup fees on New are charges for this offer; 0 = no new charge.
+    // Catalog/current setup stays visible in the Current column only.
+    setupFee: 0,
     locations: seed.locations,
     users: seed.users,
     counters: seed.counters,
@@ -650,18 +666,12 @@ function formDiffs(
         toLocalDatetimeValue(plan.accessStartsAt) !== form.accessStartsAt
       )
     })(),
-    setupFee:
-      plan.setupFee == null
-        ? Number.isFinite(setupFee) && setupFee !== 0
-        : !nearlyEqual(setupFee, plan.setupFee),
-    // Pre/post often n/a on current non-enterprise — only mark when form non-zero
-    // or when we have a comparable current value that differs
-    preTrial: form.paidTrial
-      ? preTrial !== 0 // show if offering a trial fee
-      : false,
-    postTrial: form.paidTrial
-      ? postTrial !== 0
-      : false,
+    // Setup fees on the NEW offer: 0 = no charge this time (not a "change");
+    // any amount > 0 = sales is charging a setup fee and rows highlight.
+    // Only active fee inputs count (trial on ⇔ pre/post; trial off ⇔ setup).
+    setupFee: !form.paidTrial && Number.isFinite(setupFee) && setupFee > 0,
+    preTrial: form.paidTrial && Number.isFinite(preTrial) && preTrial > 0,
+    postTrial: form.paidTrial && Number.isFinite(postTrial) && postTrial > 0,
   }
 }
 
@@ -708,10 +718,13 @@ export default function TenantSubscriptionPanel({
     () => newOfferStatusLabel(subscription),
     [subscription]
   )
+  const canCancelOffer = Boolean(newStatus)
+  const needsForceCancel = needsEnterpriseClearForce(subscription)
   const diffs = useMemo(
     () => formDiffs(form, activePlan, termTotalPreview),
     [form, activePlan, termTotalPreview]
   )
+  const setupFeePaidUsd = subscription?.setupFeePaidUsd ?? null
 
   const applySubscription = useCallback(
     (sub: RestoSubscriptionSnapshot | null, bodyNotes?: string[]) => {
@@ -771,6 +784,79 @@ export default function TenantSubscriptionPanel({
     setForm(prev => ({ ...prev, ...partial }))
     setSavedMsg(null)
     setSaveError(null)
+  }
+
+  function handleCancelOffer() {
+    setSaveError(null)
+    setSavedMsg(null)
+
+    let force = needsForceCancel
+    const confirmMsg = force
+      ? `This tenant already has live Enterprise terms. Cancel the pending re-offer only?\n\nLive plan, current_enterprise_*, Stripe, and total setup fees paid are kept.`
+      : `Cancel the pending Enterprise offer for ${tenantName}?\n\nThis clears the sales offer (enterprise_*) only. The current plan is unchanged.`
+
+    if (!window.confirm(confirmMsg)) return
+
+    startTransition(async () => {
+      async function doDelete(useForce: boolean) {
+        const qs = new URLSearchParams({ env })
+        if (useForce) qs.set('force', 'true')
+        const res = await fetch(
+          `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription/enterprise?${qs}`,
+          {
+            method: 'DELETE',
+            headers: useForce
+              ? { 'Content-Type': 'application/json' }
+              : undefined,
+            body: useForce ? JSON.stringify({ force: true }) : undefined,
+          }
+        )
+        const body = await res.json().catch(() => ({}))
+        return { res, body }
+      }
+
+      try {
+        let { res, body } = await doDelete(force)
+
+        // Nest 409: already Enterprise / has current_enterprise_price — need force
+        if (res.status === 409 && !force) {
+          const ok = window.confirm(
+            `${typeof body.error === 'string' ? body.error : 'This tenant has live Enterprise terms.'}\n\nCancel the pending offer only? Live plan and setup paid balance are kept.`
+          )
+          if (!ok) return
+          force = true
+          ;({ res, body } = await doDelete(true))
+        }
+
+        if (!res.ok) {
+          setSaveError(
+            typeof body.error === 'string'
+              ? body.error
+              : `Cancel failed (${res.status})`
+          )
+          return
+        }
+
+        const notesFromDelete = Array.isArray(body.notes) ? body.notes : []
+        if (body.subscription != null) {
+          applySubscription(
+            body.subscription as RestoSubscriptionSnapshot,
+            notesFromDelete
+          )
+        } else {
+          await load({ quiet: true })
+          if (notesFromDelete.length) setNotes(notesFromDelete)
+        }
+
+        setSavedMsg(
+          body.cleared
+            ? 'Pending offer cancelled. Current plan and live terms unchanged.'
+            : 'No pending offer to cancel.'
+        )
+      } catch {
+        setSaveError('Could not cancel offer. Check connection and try again.')
+      }
+    })
   }
 
   function handleSave(e: React.FormEvent) {
@@ -883,10 +969,10 @@ export default function TenantSubscriptionPanel({
         <div>
           <h3 className={styles.title}>Subscription — {tenantName}</h3>
           <p className={styles.subline}>
-            <strong>New</strong> = Enterprise sales offer (what you save).{' '}
-            <strong>Current</strong> = live plan (free / starter / pro / accepted
-            Enterprise) and only changes after the tenant accepts the offer.
-            Highlighted rows differ from current.
+            New: Enterprise sales offer. Current: live plan. Setup fees on New
+            are charges for this offer (0 = no charge, not compared to prior).
+            Highlighted rows differ / are charging. Total setup charged = lifetime
+            paid to date (from API when available).
             {noSubYet
               ? ' No subscription yet — save creates a free shell.'
               : ''}
@@ -905,6 +991,21 @@ export default function TenantSubscriptionPanel({
             disabled={isPending}
           >
             Reload
+          </button>
+          <button
+            type="button"
+            className={styles.dangerBtn}
+            disabled={isPending || !canCancelOffer}
+            title={
+              !canCancelOffer
+                ? 'No pending Enterprise offer to cancel'
+                : needsForceCancel
+                  ? 'Cancel pending re-offer (tenant already on Enterprise)'
+                  : 'Cancel pending Enterprise offer'
+            }
+            onClick={() => handleCancelOffer()}
+          >
+            Cancel pending offer
           </button>
           <button
             type="submit"
@@ -983,7 +1084,7 @@ export default function TenantSubscriptionPanel({
             currentCell={current.termTotal}
           />
           <CompareRow
-            label="Locations"
+            label="Branches"
             diff={diffs.locations}
             newCell={limitField(
               form,
@@ -1149,6 +1250,7 @@ export default function TenantSubscriptionPanel({
                 type="number"
                 min={0}
                 step="any"
+                disabled={form.paidTrial}
                 value={form.setupFee}
                 onChange={e => patchForm({ setupFee: e.target.value })}
               />
@@ -1164,6 +1266,7 @@ export default function TenantSubscriptionPanel({
                 type="number"
                 min={0}
                 step="any"
+                disabled={!form.paidTrial}
                 value={form.preTrialSetupFee}
                 onChange={e => patchForm({ preTrialSetupFee: e.target.value })}
               />
@@ -1179,6 +1282,7 @@ export default function TenantSubscriptionPanel({
                 type="number"
                 min={0}
                 step="any"
+                disabled={!form.paidTrial}
                 value={form.postTrialSetupFee}
                 onChange={e =>
                   patchForm({ postTrialSetupFee: e.target.value })
@@ -1186,6 +1290,28 @@ export default function TenantSubscriptionPanel({
               />
             }
             currentCell={current.postTrial}
+          />
+          <CompareRow
+            label="Total setup fees paid"
+            newCell={
+              <span
+                className={styles.mutedVal}
+                title="Read-only Nest field setupFeePaidUsd — not sent on PUT"
+              >
+                {setupFeePaidUsd != null
+                  ? fmtMoney(setupFeePaidUsd)
+                  : '—'}
+              </span>
+            }
+            currentCell={
+              setupFeePaidUsd != null ? (
+                <span title="Regular + pre-trial + post-trial setup already collected">
+                  {fmtMoney(setupFeePaidUsd)}
+                </span>
+              ) : (
+                <span className={styles.placeholderVal}>—</span>
+              )
+            }
           />
           <CompareRow
             label="Billing period"

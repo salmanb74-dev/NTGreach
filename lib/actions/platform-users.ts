@@ -1,14 +1,15 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCachedProfile } from '@/lib/dataCache'
 import {
   encodeModuleRoleMap,
   type ModuleRoleMap,
 } from '@/lib/platform/access-model'
+import { DEFAULT_TEMP_PASSWORD } from '@/lib/platform/constants'
 import { isPlatformOpsAdmin } from '@/lib/roles'
 import { getServiceRoleClient } from '@/lib/supabase/admin'
-import { DEFAULT_TEMP_PASSWORD } from '@/lib/platform/constants'
 
 async function requirePlatformOpsAdmin() {
   const profile = await getCachedProfile()
@@ -26,6 +27,46 @@ function assertModuleRoles(moduleRoles: ModuleRoleMap) {
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+/**
+ * Update profiles with graceful fallback when optional columns
+ * (password_changed_at, updated_at) are not yet migrated on Supabase.
+ */
+async function updateProfileRow(
+  client: SupabaseClient,
+  userId: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const attempts: Record<string, unknown>[] = [payload]
+
+  if ('password_changed_at' in payload || 'updated_at' in payload) {
+    const withoutUpdated = { ...payload }
+    delete withoutUpdated.updated_at
+    const withoutPwd = { ...payload }
+    delete withoutPwd.password_changed_at
+    const withoutBoth = { ...payload }
+    delete withoutBoth.password_changed_at
+    delete withoutBoth.updated_at
+    attempts.push(withoutUpdated, withoutPwd, withoutBoth)
+  }
+
+  let lastError: string | null = null
+  for (const attempt of attempts) {
+    const { error } = await client
+      .from('profiles')
+      .update(attempt)
+      .eq('id', userId)
+    if (!error) return
+    lastError = error.message
+    if (!/column|schema cache|does not exist/i.test(error.message)) {
+      throw new Error(error.message)
+    }
+  }
+  throw new Error(
+    lastError ??
+      'Could not update profile. Run supabase/platform_ops_users.sql in the Supabase SQL Editor.'
+  )
 }
 
 export type UpsertUserInput = {
@@ -58,35 +99,14 @@ export async function createReachUser(input: UpsertUserInput): Promise<{ id: str
   if (!id) throw new Error('User create returned no id')
 
   const now = nowIso()
-  const { error: profileError } = await admin
-    .from('profiles')
-    .update({
-      full_name: fullName,
-      email,
-      roles,
-      products,
-      password_changed_at: now,
-      updated_at: now,
-    })
-    .eq('id', id)
-
-  if (profileError) {
-    if (/updated_at|column/i.test(profileError.message)) {
-      const { error: retry } = await admin
-        .from('profiles')
-        .update({
-          full_name: fullName,
-          email,
-          roles,
-          products,
-          password_changed_at: now,
-        })
-        .eq('id', id)
-      if (retry) throw new Error(retry.message)
-    } else {
-      throw new Error(profileError.message)
-    }
-  }
+  await updateProfileRow(admin, id, {
+    full_name: fullName,
+    email,
+    roles,
+    products,
+    password_changed_at: now,
+    updated_at: now,
+  })
 
   revalidatePath('/ops/users')
   revalidatePath('/platform/users')
@@ -108,27 +128,13 @@ export async function updateReachUser(
 
   const { roles, products } = assertModuleRoles(input.moduleRoles)
   const now = nowIso()
-  const payload = {
+  const admin = getServiceRoleClient()
+  await updateProfileRow(admin, userId, {
     full_name: fullName,
     roles,
     products,
     updated_at: now,
-  }
-
-  const admin = getServiceRoleClient()
-  const { error } = await admin.from('profiles').update(payload).eq('id', userId)
-
-  if (error) {
-    if (/updated_at|column/i.test(error.message)) {
-      const { error: retry } = await admin
-        .from('profiles')
-        .update({ full_name: fullName, roles, products })
-        .eq('id', userId)
-      if (retry) throw new Error(retry.message)
-    } else {
-      throw new Error(error.message)
-    }
-  }
+  })
 
   revalidatePath('/ops/users')
   revalidatePath('/platform/users')
@@ -148,16 +154,13 @@ export async function resetReachUserPassword(userId: string): Promise<void> {
   if (error) throw new Error(error.message)
 
   const now = nowIso()
-  const { error: profileError } = await admin
-    .from('profiles')
-    .update({ password_changed_at: now, updated_at: now })
-    .eq('id', userId)
-
-  if (profileError && /updated_at|column/i.test(profileError.message)) {
-    await admin
-      .from('profiles')
-      .update({ password_changed_at: now })
-      .eq('id', userId)
+  try {
+    await updateProfileRow(admin, userId, {
+      password_changed_at: now,
+      updated_at: now,
+    })
+  } catch {
+    // Auth password was reset; optional profile columns may be missing
   }
 
   revalidatePath('/ops/users')
@@ -193,14 +196,12 @@ export async function markOwnPasswordChanged(): Promise<void> {
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
   const now = nowIso()
-  const { error } = await supabase
-    .from('profiles')
-    .update({ password_changed_at: now, updated_at: now })
-    .eq('id', profile.id)
-  if (error && /updated_at|column/i.test(error.message)) {
-    await supabase
-      .from('profiles')
-      .update({ password_changed_at: now })
-      .eq('id', profile.id)
+  try {
+    await updateProfileRow(supabase, profile.id, {
+      password_changed_at: now,
+      updated_at: now,
+    })
+  } catch {
+    // optional columns
   }
 }
