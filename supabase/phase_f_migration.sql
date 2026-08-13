@@ -31,8 +31,8 @@ create policy "quotation_templates_select" on public.quotation_templates
 
 create policy "quotation_templates_write" on public.quotation_templates
   for all to authenticated
-  using (exists (select 1 from public.profiles where id = auth.uid() and roles && array['admin','manager']))
-  with check (exists (select 1 from public.profiles where id = auth.uid() and roles && array['admin','manager']));
+  using (exists (select 1 from public.profiles where id = auth.uid() and roles && array['crm_admin','crm_manager']))
+  with check (exists (select 1 from public.profiles where id = auth.uid() and roles && array['crm_admin','crm_manager']));
 
 create policy "quotations_select" on public.quotations
   for select to authenticated using (true);

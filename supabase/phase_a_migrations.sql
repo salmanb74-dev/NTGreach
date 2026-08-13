@@ -5,7 +5,7 @@
 
 -- ─── 1. Add roles to profiles (if not already done) ──────────
 alter table public.profiles
-  add column if not exists roles text[] default array['sales_rep'];
+  add column if not exists roles text[] default array['crm_sales_rep'];
 
 -- ─── 2. Enumerations table ────────────────────────────────────
 -- Stores all admin-editable dropdown values
@@ -30,14 +30,14 @@ create policy "enumerations_admin_write" on public.enumerations
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   )
   with check (
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   );
 
@@ -112,14 +112,14 @@ create policy "app_settings_admin_write" on public.app_settings
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   )
   with check (
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   );
 

@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { saveTemplate, deleteTemplate } from '@/lib/actions/contracts'
 import { CONTRACT_VARIABLES } from '@/lib/contracts'
 import styles from './ContractTemplates.module.css'
 
-// Lazy load TipTap to avoid SSR issues
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
 interface Template {
@@ -19,11 +18,17 @@ interface Template {
 
 export default function ContractTemplatesClient({ templates }: { templates: Template[] }) {
   const router = useRouter()
+  const [list, setList] = useState(templates)
   const [editing, setEditing] = useState<string | 'new' | null>(null)
   const [name, setName] = useState('')
   const [content, setContent] = useState('')
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [listError, setListError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setList(templates)
+  }, [templates])
 
   async function loadTemplate(id: string) {
     const res = await fetch(`/api/contracts/template/${id}`)
@@ -40,18 +45,31 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
   }
 
   function handleSave() {
+    setListError(null)
     startTransition(async () => {
-      await saveTemplate(editing === 'new' ? null : editing!, name, content)
-      setEditing(null)
-      router.refresh()
+      try {
+        await saveTemplate(editing === 'new' ? null : editing!, name, content)
+        setEditing(null)
+        router.refresh()
+      } catch (err) {
+        setListError(err instanceof Error ? err.message : 'Save failed')
+      }
     })
   }
 
   function handleDelete(id: string) {
+    setListError(null)
     startTransition(async () => {
-      await deleteTemplate(id)
-      setConfirmDelete(null)
-      router.refresh()
+      try {
+        await deleteTemplate(id)
+        setList(prev => prev.filter(t => t.id !== id))
+        setConfirmDelete(null)
+        router.refresh()
+      } catch (err) {
+        setConfirmDelete(null)
+        setListError(err instanceof Error ? err.message : 'Delete failed')
+        router.refresh()
+      }
     })
   }
 
@@ -73,7 +91,6 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
           </div>
         </div>
 
-        {/* Variable reference */}
         <div className={styles.varsBar}>
           <span className={styles.varsLabel}>Available variables:</span>
           <div className={styles.varsList}>
@@ -81,10 +98,10 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
               <code
                 key={v.key}
                 className={styles.varChip}
-                title={`${v.label} — e.g. ${v.example}`}
+                title={`Insert {{${v.key}}} — e.g. ${v.example}`}
                 onClick={() => navigator.clipboard.writeText(`{{${v.key}}}`)}
               >
-                {`{{${v.key}}}`}
+                {v.label}
               </code>
             ))}
           </div>
@@ -106,11 +123,17 @@ export default function ContractTemplatesClient({ templates }: { templates: Temp
         <button className={styles.newBtn} onClick={handleNew}>+ New Template</button>
       </div>
 
-      {templates.length === 0 && (
+      {listError && (
+        <div className={styles.empty} role="alert" style={{ color: 'var(--color-error)' }}>
+          {listError}
+        </div>
+      )}
+
+      {list.length === 0 && (
         <div className={styles.empty}>No templates yet. The default will be created when you run the Phase E migration.</div>
       )}
 
-      {templates.map(t => (
+      {list.map(t => (
         <div key={t.id} className={styles.templateRow}>
           <div className={styles.templateInfo}>
             <div className={styles.templateName}>{t.name}</div>

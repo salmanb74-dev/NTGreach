@@ -82,7 +82,8 @@ export default function ContractGenerator({ templates, lead, prefilled, inputCur
             p { margin: 0 0 10px; }
             ul, ol { padding-left: 20px; margin-bottom: 10px; }
             table { width: 100%; border-collapse: collapse; }
-            td { padding: 4px 8px; vertical-align: top; }
+            th, td { padding: 6px 10px; vertical-align: top; border: 1px solid #e5e7eb; }
+            th { background: #f3f4f6; font-weight: 600; text-align: left; }
             @media print { body { margin: 0; } }
           </style>
         </head>
@@ -133,7 +134,6 @@ export default function ContractGenerator({ templates, lead, prefilled, inputCur
               <div key={v.key} className={styles.field}>
                 <label className={styles.label}>
                   {v.label}
-                  <code className={styles.varCode}>{`{{${v.key}}}`}</code>
                 </label>
                 <input
                   className={styles.input}
@@ -150,7 +150,6 @@ export default function ContractGenerator({ templates, lead, prefilled, inputCur
               <div key={v.key} className={styles.field}>
                 <label className={styles.label}>
                   {v.label}
-                  <code className={styles.varCode}>{`{{${v.key}}}`}</code>
                 </label>
                 <input
                   className={`${styles.input} ${styles.readOnly}`}
@@ -171,7 +170,7 @@ export default function ContractGenerator({ templates, lead, prefilled, inputCur
             <div className={styles.varsSummary}>
               {CONTRACT_VARIABLES.map(v => (
                 <div key={v.key} className={styles.varRow}>
-                  <code className={styles.varKey}>{`{{${v.key}}}`}</code>
+                  <span className={styles.varKey}>{v.label}</span>
                   <span className={`${styles.varValue} ${!variables[v.key] ? styles.varEmpty : ''}`}>
                     {variables[v.key] || '(empty)'}
                   </span>

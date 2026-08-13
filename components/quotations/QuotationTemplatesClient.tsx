@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { saveQuotationTemplate, deleteQuotationTemplate } from '@/lib/actions/quotations'
@@ -10,22 +10,28 @@ import styles from '@/components/contracts/ContractTemplates.module.css'
 const RichTextEditor = dynamic(() => import('@/components/contracts/RichTextEditor'), { ssr: false })
 
 interface Template {
-  id:         string
-  name:       string
+  id: string
+  name: string
   is_default: boolean
   updated_at: string
 }
 
 export default function QuotationTemplatesClient({ templates }: { templates: Template[] }) {
   const router = useRouter()
-  const [editing, setEditing]     = useState<string | 'new' | null>(null)
-  const [name, setName]           = useState('')
-  const [content, setContent]     = useState('')
+  const [list, setList] = useState(templates)
+  const [editing, setEditing] = useState<string | 'new' | null>(null)
+  const [name, setName] = useState('')
+  const [content, setContent] = useState('')
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [listError, setListError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setList(templates)
+  }, [templates])
 
   async function loadTemplate(id: string) {
-    const res  = await fetch(`/api/quotations/template/${id}`)
+    const res = await fetch(`/api/quotations/template/${id}`)
     const data = await res.json()
     setName(data.name)
     setContent(data.content)
@@ -39,18 +45,31 @@ export default function QuotationTemplatesClient({ templates }: { templates: Tem
   }
 
   function handleSave() {
+    setListError(null)
     startTransition(async () => {
-      await saveQuotationTemplate(editing === 'new' ? null : editing!, name, content)
-      setEditing(null)
-      router.refresh()
+      try {
+        await saveQuotationTemplate(editing === 'new' ? null : editing!, name, content)
+        setEditing(null)
+        router.refresh()
+      } catch (err) {
+        setListError(err instanceof Error ? err.message : 'Save failed')
+      }
     })
   }
 
   function handleDelete(id: string) {
+    setListError(null)
     startTransition(async () => {
-      await deleteQuotationTemplate(id)
-      setConfirmDelete(null)
-      router.refresh()
+      try {
+        await deleteQuotationTemplate(id)
+        setList(prev => prev.filter(t => t.id !== id))
+        setConfirmDelete(null)
+        router.refresh()
+      } catch (err) {
+        setConfirmDelete(null)
+        setListError(err instanceof Error ? err.message : 'Delete failed')
+        router.refresh()
+      }
     })
   }
 
@@ -79,10 +98,10 @@ export default function QuotationTemplatesClient({ templates }: { templates: Tem
               <code
                 key={v.key}
                 className={styles.varChip}
-                title={`${v.label} — e.g. ${v.example}`}
+                title={`Insert {{${v.key}}} — e.g. ${v.example}`}
                 onClick={() => navigator.clipboard.writeText(`{{${v.key}}}`)}
               >
-                {`{{${v.key}}}`}
+                {v.label}
               </code>
             ))}
           </div>
@@ -104,11 +123,17 @@ export default function QuotationTemplatesClient({ templates }: { templates: Tem
         <button className={styles.newBtn} onClick={handleNew}>+ New Template</button>
       </div>
 
-      {templates.length === 0 && (
+      {listError && (
+        <div className={styles.empty} role="alert" style={{ color: 'var(--color-error)' }}>
+          {listError}
+        </div>
+      )}
+
+      {list.length === 0 && (
         <div className={styles.empty}>No templates yet. Run the Phase F migration to seed the default template.</div>
       )}
 
-      {templates.map(t => (
+      {list.map(t => (
         <div key={t.id} className={styles.templateRow}>
           <div className={styles.templateInfo}>
             <div className={styles.templateName}>{t.name}</div>

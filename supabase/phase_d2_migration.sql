@@ -25,14 +25,14 @@ create policy "exchange_rate_history_write" on public.exchange_rate_history
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   )
   with check (
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   );
 

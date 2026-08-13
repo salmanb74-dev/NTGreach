@@ -88,7 +88,7 @@ export default async function DashboardPage({
     .filter(l => ACTIVE_STAGES.has(l.stage))
     .reduce((sum, l) => {
       const setup = l.quoted_setup_fee ?? 0
-      const mrr   = l.payment_frequency === 'annual' ? (l.quoted_mrr ?? 0) / 12 : (l.quoted_mrr ?? 0)
+      const mrr   = l.quoted_mrr ?? 0
       return sum + setup + mrr
     }, 0)
 

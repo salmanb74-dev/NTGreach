@@ -39,6 +39,21 @@ preTrialSetupFee, postTrialSetupFee, accessStartsAt, enterpriseEnabled
 
 Writes Enterprise **offer** (`enterprise_*`) only. Does **not** set `plan_id` to enterprise. Activation = portal checkout / Billing “Apply new terms”. Live = `current_enterprise_*`.
 
+### Planned Nest fields (Reach UI placeholders — not sent yet)
+
+Reach Ops Subscription UI collects these for parity with CRM Deal Values, but **PUT still sends only the boolean flags** until Nest accepts them:
+
+| Field | Meaning |
+|---|---|
+| `callCenterFee` | Monthly $ add-on when call center is on |
+| `kdsFee` | Monthly $ add-on when KDS is on |
+| `inventoryFee` | Monthly $ add-on when inventory is on |
+| `supportFee` | Monthly $ add-on when ops/operation support is on |
+| `webOrderingFee` | Monthly $ add-on when web ordering is on |
+| `webOrderingRevenuePercent` | % of revenue on month-end invoice (web ordering) |
+
+CRM stores the same shape on `leads.quoted_subscription` and uses fees in `quoted_mrr` / quotation templates today.
+
 ### DELETE
 
 Cancels a **pending** offer only (clears `enterprise_*`). Does not cancel live plan, `current_enterprise_*`, Stripe, or `setupFeePaidUsd`.

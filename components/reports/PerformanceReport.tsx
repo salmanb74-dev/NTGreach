@@ -37,8 +37,8 @@ interface Props {
 }
 
 function getMRR(lead: Lead): number {
-  if (!lead.quoted_mrr) return 0
-  return lead.payment_frequency === 'annual' ? lead.quoted_mrr / 12 : lead.quoted_mrr
+  // quoted_mrr is always the monthly platform fee
+  return lead.quoted_mrr ?? 0
 }
 
 function getRevenueInPeriod(lead: Lead, startDate: Date, endDate: Date): number {

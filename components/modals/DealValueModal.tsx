@@ -97,7 +97,7 @@ export default function DealValueModal({
           </div>
           <div className={styles.field}>
             <label className={styles.label}>
-              Recurring Fee ({currency}) <span className={styles.optional}>(optional)</span>
+              Platform fee / month ({currency}) <span className={styles.optional}>(optional)</span>
             </label>
             <input
               type="number" min="0" step="0.01"
@@ -111,7 +111,7 @@ export default function DealValueModal({
 
         <div className={styles.twoCol}>
           <div className={styles.field}>
-            <label className={styles.label}>Recurring Frequency</label>
+            <label className={styles.label}>Billing cycle</label>
             <select
               className={styles.select}
               value={frequency}
@@ -123,7 +123,7 @@ export default function DealValueModal({
           </div>
           {isClosing && (
             <div className={styles.field}>
-              <label className={styles.label}>Payment Start Date</label>
+              <label className={styles.label}>Trial starts</label>
               <input
                 type="date"
                 className={styles.input}
@@ -136,7 +136,8 @@ export default function DealValueModal({
 
         {frequency === 'annual' && mrr && (
           <div className={styles.annualHint}>
-            Annual amount: {currency} {(parseFloat(mrr) || 0).toLocaleString()} → MRR: {currency} {((parseFloat(mrr) || 0) / 12).toFixed(2)}/month
+            Platform fee is per month. Annual cycle: {currency}{' '}
+            {((parseFloat(mrr) || 0) * 12).toLocaleString()}/year
           </div>
         )}
 

@@ -8,7 +8,11 @@ import {
 } from '@/lib/modules'
 import type { UserRole } from '@/lib/roles'
 
-/** Simple roles for platform Ops Users UI. */
+/**
+ * UI-level capability chips for platform Ops Users matrix.
+ * These are NOT stored on profiles — they map to/from UserRole storage keys
+ * (crm_sales_rep, crm_admin, cs_*, ops_*). See storageRolesFromMatrix().
+ */
 export type PlatformRole = 'sales_rep' | 'support_rep' | 'admin' | 'user'
 
 export const PLATFORM_ROLES: {

@@ -132,7 +132,6 @@ export default function QuotationGenerator({ templates, lead, prefilled, inputCu
               <div key={v.key} className={styles.field}>
                 <label className={styles.label}>
                   {v.label}
-                  <code className={styles.varCode}>{`{{${v.key}}}`}</code>
                 </label>
                 <input
                   className={styles.input}
@@ -149,7 +148,6 @@ export default function QuotationGenerator({ templates, lead, prefilled, inputCu
               <div key={v.key} className={styles.field}>
                 <label className={styles.label}>
                   {v.label}
-                  <code className={styles.varCode}>{`{{${v.key}}}`}</code>
                 </label>
                 <input
                   className={`${styles.input} ${styles.readOnly}`}
@@ -170,7 +168,7 @@ export default function QuotationGenerator({ templates, lead, prefilled, inputCu
             <div className={styles.varsSummary}>
               {QUOTATION_VARIABLES.map(v => (
                 <div key={v.key} className={styles.varRow}>
-                  <code className={styles.varKey}>{`{{${v.key}}}`}</code>
+                  <span className={styles.varKey}>{v.label}</span>
                   <span className={`${styles.varValue} ${!variables[v.key] ? styles.varEmpty : ''}`}>
                     {variables[v.key] || '(empty)'}
                   </span>

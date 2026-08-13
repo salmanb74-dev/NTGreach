@@ -92,4 +92,28 @@ export async function updateAppSetting(key: string, value: string) {
     .upsert({ key, value, updated_at: new Date().toISOString() })
   if (error) throw new Error(error.message)
   revalidatePath('/settings')
+  revalidatePath('/leads')
+}
+
+export async function saveDealQuoteDefaults(payload: {
+  currency: string
+  billingCycle: 'monthly' | 'annual'
+  subscription: Record<string, unknown>
+}) {
+  const {
+    DEAL_QUOTE_DEFAULTS_SETTING_KEY,
+    parseDealQuoteDefaults,
+    serializeDealQuoteDefaults,
+  } = await import('@/lib/subscription-quote')
+
+  const normalized = parseDealQuoteDefaults({
+    currency: payload.currency,
+    billingCycle: payload.billingCycle,
+    subscription: payload.subscription,
+  })
+
+  await updateAppSetting(
+    DEAL_QUOTE_DEFAULTS_SETTING_KEY,
+    serializeDealQuoteDefaults(normalized)
+  )
 }

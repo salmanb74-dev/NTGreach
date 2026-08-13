@@ -77,3 +77,10 @@ export const getViewCurrencies = cache(async (): Promise<string[]> => {
   const input = settings['input_currency'] ?? 'PKR'
   return (settings['view_currencies'] ?? input).split(',').map(c => c.trim())
 })
+
+export const getDealQuoteDefaults = cache(async () => {
+  const { parseDealQuoteDefaults, DEAL_QUOTE_DEFAULTS_SETTING_KEY } =
+    await import('@/lib/subscription-quote')
+  const settings = await getAppSettings()
+  return parseDealQuoteDefaults(settings[DEAL_QUOTE_DEFAULTS_SETTING_KEY])
+})

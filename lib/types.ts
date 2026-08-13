@@ -111,6 +111,8 @@ export interface Lead {
   closed_at:          string | null
   payment_start_date: string | null
   payment_frequency:  'monthly' | 'annual' | null
+  /** Enterprise-style quote payload — see lib/subscription-quote.ts */
+  quoted_subscription?: Record<string, unknown> | null
   lost_reason: string | null
   created_at: string
   updated_at: string

@@ -34,13 +34,13 @@ create policy "contract_templates_write" on public.contract_templates
   using (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and roles && array['admin','manager']
+      where id = auth.uid() and roles && array['crm_admin','crm_manager']
     )
   )
   with check (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and roles && array['admin','manager']
+      where id = auth.uid() and roles && array['crm_admin','crm_manager']
     )
   );
 

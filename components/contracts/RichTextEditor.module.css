@@ -101,11 +101,53 @@
 .editorContent table {
   width: 100%;
   border-collapse: collapse;
+  margin: 12px 0;
+  table-layout: fixed;
+  overflow: hidden;
 }
 
-.editorContent td {
-  padding: 4px 8px;
+.editorContent td,
+.editorContent th {
+  padding: 6px 10px;
   vertical-align: top;
+  border: 1px solid var(--color-border-medium);
+  min-width: 48px;
+  position: relative;
+}
+
+.editorContent th {
+  background: var(--color-surface-2);
+  font-weight: 600;
+  text-align: left;
+}
+
+.editorContent .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-subtle);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Column resize handle (TipTap Table) */
+.editorContent .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--color-primary);
+  pointer-events: none;
+}
+
+.editorContent.resize-cursor {
+  cursor: col-resize;
+}
+
+.toolBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .editorContent strong { font-weight: 700; }

@@ -5,14 +5,14 @@ import Button from '@/components/ui/Button'
 import styles from './modals.module.css'
 
 interface ConfirmModalProps {
-  title:         string
-  message:       string
+  title: string
+  message: React.ReactNode
   confirmLabel?: string
-  cancelLabel?:  string
-  danger?:       boolean
-  loading?:      boolean
-  onConfirm:     () => void
-  onClose:       () => void
+  cancelLabel?: string
+  danger?: boolean
+  loading?: boolean
+  onConfirm: () => void
+  onClose: () => void
 }
 
 export default function ConfirmModal({
@@ -26,9 +26,13 @@ export default function ConfirmModal({
   onClose,
 }: ConfirmModalProps) {
   return (
-    <Modal title={title} onClose={loading ? () => {} : onClose} width={400}>
+    <Modal title={title} onClose={loading ? () => {} : onClose} width={440}>
       <div className={styles.confirmBody}>
-        <p className={styles.confirmMessage}>{message}</p>
+        {typeof message === 'string' ? (
+          <p className={styles.confirmMessage}>{message}</p>
+        ) : (
+          <div className={styles.confirmMessage}>{message}</div>
+        )}
         <div className={styles.footerSimple}>
           <Button
             type="button"

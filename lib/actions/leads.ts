@@ -24,16 +24,36 @@ export interface LeadFormData {
   closed_at?:         string | null
   payment_start_date?: string | null
   payment_frequency?: 'monthly' | 'annual' | null
-lost_reason?: string | null
+  quoted_subscription?: Record<string, unknown> | null
+  lost_reason?: string | null
 }
 
 export async function createLead(data: LeadFormData) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const { getDealQuoteDefaults } = await import('@/lib/dataCache')
+  const {
+    leadFieldsFromDealDefaults,
+  } = await import('@/lib/subscription-quote')
+  const defaults = leadFieldsFromDealDefaults(await getDealQuoteDefaults())
+
+  const insert = {
+    ...defaults,
+    ...data,
+    // Only fill deal fields from defaults when caller left them unset
+    deal_currency: data.deal_currency ?? defaults.deal_currency,
+    quoted_mrr: data.quoted_mrr ?? defaults.quoted_mrr,
+    quoted_setup_fee: data.quoted_setup_fee ?? defaults.quoted_setup_fee,
+    payment_frequency: data.payment_frequency ?? defaults.payment_frequency,
+    quoted_subscription:
+      data.quoted_subscription ?? defaults.quoted_subscription,
+    created_by: user!.id,
+  }
+
   const { data: lead, error } = await supabase
     .from('leads')
-    .insert({ ...data, created_by: user!.id })
+    .insert(insert)
     .select()
     .single()
 

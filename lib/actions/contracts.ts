@@ -22,20 +22,32 @@ export async function saveTemplate(id: string | null, name: string, content: str
 
 export async function deleteTemplate(id: string) {
   const supabase = createClient()
-  const { error } = await supabase.from('contract_templates').delete().eq('id', id)
+  const { data, error } = await supabase
+    .from('contract_templates')
+    .delete()
+    .eq('id', id)
+    .select('id')
+
   if (error) throw new Error(error.message)
+  if (!data?.length) {
+    throw new Error(
+      'Could not delete template. You may need CRM Admin/Manager permission, or run supabase/fix_template_rls_crm_roles.sql.'
+    )
+  }
   revalidatePath('/settings/contracts')
 }
 
 export async function saveContract(data: {
-  lead_id?:     string
+  lead_id?: string
   template_id?: string
-  name:         string
-  content:      string
-  variables:    Record<string, string>
+  name: string
+  content: string
+  variables: Record<string, string>
 }) {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const { data: contract, error } = await supabase
     .from('contracts')
     .insert({ ...data, created_by: user!.id })

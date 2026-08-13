@@ -101,7 +101,7 @@ export default function ProfileClient({ profile }: { profile: Profile | null }) 
         <div>
           <div className={styles.email}>{profile?.email}</div>
           <div className={styles.roles}>
-            {(profile?.roles ?? ['sales_rep']).map(r => (
+            {(profile?.roles ?? ['crm_sales_rep']).map(r => (
               <span key={r} className={styles.roleBadge}>{ROLE_LABELS[r]}</span>
             ))}
           </div>

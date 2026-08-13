@@ -1,0 +1,108 @@
+-- Reset ALL leads' deal values to app_settings.deal_quote_defaults
+-- (Starter plan if the setting is missing).
+-- Also adds quoted_subscription / discount / tax_rate if missing.
+-- Run once in Supabase SQL Editor. Safe to re-run.
+
+-- ─── Schema: ensure deal columns exist ───────────────────────
+alter table public.leads
+  add column if not exists discount numeric(12,2),
+  add column if not exists tax_rate numeric(6,2),
+  add column if not exists quoted_subscription jsonb;
+
+comment on column public.leads.quoted_subscription is
+  'Enterprise-style quote: monthlyPrice, durationMonths, setupFee, limits, features, trial (see lib/subscription-quote.ts)';
+
+-- Ensure defaults setting exists
+insert into public.app_settings (key, value, updated_at)
+values (
+  'deal_quote_defaults',
+  '{"currency":"USD","billingCycle":"monthly","subscription":{"monthlyPrice":35,"billingCycle":"monthly","durationMonths":1,"setupFee":350,"locations":1,"locationsUnlimited":false,"users":50,"usersUnlimited":false,"counters":2,"countersUnlimited":false,"ordersPerMonth":3000,"ordersUnlimited":false,"callCenter":false,"callCenterFee":null,"kds":false,"kdsFee":null,"inventory":false,"inventoryFee":null,"support":false,"supportFee":null,"webOrdering":false,"webOrderingFee":null,"webOrderingRevenuePercent":null,"paidTrial":false,"paidTrialDays":null,"preTrialSetupFee":0,"postTrialSetupFee":0}}',
+  now()
+)
+on conflict (key) do nothing;
+
+with defaults as (
+  select
+    coalesce(nullif(trim(value::jsonb->>'currency'), ''), 'USD') as currency,
+    case
+      when value::jsonb->>'billingCycle' = 'annual'
+        or value::jsonb->>'paymentFrequency' = 'annual'
+        or coalesce((value::jsonb #>> '{subscription,durationMonths}')::numeric, 0) >= 12
+      then 'annual'
+      else 'monthly'
+    end as billing_cycle,
+    coalesce(value::jsonb->'subscription', value::jsonb) as subscription
+  from public.app_settings
+  where key = 'deal_quote_defaults'
+  limit 1
+),
+normalized as (
+  select
+    currency,
+    billing_cycle,
+    jsonb_strip_nulls(
+      jsonb_build_object(
+        'monthlyPrice',       coalesce((subscription->>'monthlyPrice')::numeric, 35),
+        'billingCycle',       billing_cycle,
+        'durationMonths',     case when billing_cycle = 'annual' then 12 else 1 end,
+        'setupFee',           coalesce((subscription->>'setupFee')::numeric, 350),
+        'locations',          coalesce((subscription->>'locations')::numeric, 1),
+        'locationsUnlimited', coalesce((subscription->>'locationsUnlimited')::boolean, false),
+        'users',              coalesce((subscription->>'users')::numeric, 50),
+        'usersUnlimited',     coalesce((subscription->>'usersUnlimited')::boolean, false),
+        'counters',           coalesce((subscription->>'counters')::numeric, 2),
+        'countersUnlimited',  coalesce((subscription->>'countersUnlimited')::boolean, false),
+        'ordersPerMonth',     coalesce((subscription->>'ordersPerMonth')::numeric, 3000),
+        'ordersUnlimited',    coalesce((subscription->>'ordersUnlimited')::boolean, false),
+        'callCenter',         coalesce((subscription->>'callCenter')::boolean, false),
+        'callCenterFee',      case when nullif(subscription->>'callCenterFee', 'null') is null then null else (subscription->>'callCenterFee')::numeric end,
+        'kds',                coalesce((subscription->>'kds')::boolean, false),
+        'kdsFee',             case when nullif(subscription->>'kdsFee', 'null') is null then null else (subscription->>'kdsFee')::numeric end,
+        'inventory',          coalesce((subscription->>'inventory')::boolean, false),
+        'inventoryFee',       case when nullif(subscription->>'inventoryFee', 'null') is null then null else (subscription->>'inventoryFee')::numeric end,
+        'support',            coalesce((subscription->>'support')::boolean, false),
+        'supportFee',         case when nullif(subscription->>'supportFee', 'null') is null then null else (subscription->>'supportFee')::numeric end,
+        'webOrdering',        coalesce((subscription->>'webOrdering')::boolean, false),
+        'webOrderingFee',     case when nullif(subscription->>'webOrderingFee', 'null') is null then null else (subscription->>'webOrderingFee')::numeric end,
+        'webOrderingRevenuePercent', case when nullif(subscription->>'webOrderingRevenuePercent', 'null') is null then null else (subscription->>'webOrderingRevenuePercent')::numeric end,
+        'paidTrial',          coalesce((subscription->>'paidTrial')::boolean, false),
+        'preTrialSetupFee',   coalesce((subscription->>'preTrialSetupFee')::numeric, 0),
+        'postTrialSetupFee',  coalesce((subscription->>'postTrialSetupFee')::numeric, 0)
+      )
+    )
+    || jsonb_build_object(
+         'paidTrialDays',
+         case
+           when nullif(subscription->>'paidTrialDays', 'null') is null then 'null'::jsonb
+           else to_jsonb((subscription->>'paidTrialDays')::numeric)
+         end
+       ) as quoted_subscription
+  from defaults
+)
+update public.leads l
+set
+  deal_currency       = n.currency,
+  quoted_mrr          = (n.quoted_subscription->>'monthlyPrice')::numeric
+                        + coalesce((n.quoted_subscription->>'callCenterFee')::numeric, 0)
+                          * case when (n.quoted_subscription->>'callCenter')::boolean then 1 else 0 end
+                        + coalesce((n.quoted_subscription->>'kdsFee')::numeric, 0)
+                          * case when (n.quoted_subscription->>'kds')::boolean then 1 else 0 end
+                        + coalesce((n.quoted_subscription->>'inventoryFee')::numeric, 0)
+                          * case when (n.quoted_subscription->>'inventory')::boolean then 1 else 0 end
+                        + coalesce((n.quoted_subscription->>'supportFee')::numeric, 0)
+                          * case when (n.quoted_subscription->>'support')::boolean then 1 else 0 end
+                        + coalesce((n.quoted_subscription->>'webOrderingFee')::numeric, 0)
+                          * case when (n.quoted_subscription->>'webOrdering')::boolean then 1 else 0 end,
+  quoted_setup_fee    = (n.quoted_subscription->>'setupFee')::numeric,
+  payment_frequency   = n.billing_cycle,
+  quoted_subscription = n.quoted_subscription
+from normalized n;
+
+-- Quick check
+select
+  count(*) as leads_updated,
+  min(deal_currency) as currency,
+  min(quoted_mrr) as platform_fee,
+  min(quoted_setup_fee) as setup_fee,
+  min(payment_frequency) as billing_cycle
+from public.leads;

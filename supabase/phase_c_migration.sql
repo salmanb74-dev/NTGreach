@@ -18,31 +18,31 @@ create table if not exists public.targets (
 
 alter table public.targets enable row level security;
 
--- Managers/admins can read all targets, sales reps only their own
+-- CRM managers/admins can read all targets, sales reps only their own
 create policy "targets_select" on public.targets
   for select to authenticated using (
     user_id = auth.uid()
     or exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['manager','admin']
+      and roles && array['crm_manager','crm_admin']
     )
   );
 
--- Managers/admins can write all targets
+-- CRM managers/admins can write all targets
 create policy "targets_write" on public.targets
   for all to authenticated
   using (
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['manager','admin']
+      and roles && array['crm_manager','crm_admin']
     )
   )
   with check (
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['manager','admin']
+      and roles && array['crm_manager','crm_admin']
     )
   );

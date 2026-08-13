@@ -19,7 +19,14 @@ import {
   type ActivePlanView,
   type LimitValue,
 } from '@/lib/resto-admin/plan-catalog'
+import ConfirmModal from '@/components/modals/ConfirmModal'
 import styles from './TenantSubscription.module.css'
+
+type CancelOfferDialog = {
+  force: boolean
+  title: string
+  message: string
+}
 
 interface Props {
   tenantId: string
@@ -40,10 +47,17 @@ type FormState = {
   ordersPerMonth: string
   ordersUnlimited: boolean
   callCenter: boolean
+  callCenterFee: string
   kds: boolean
+  kdsFee: string
   inventory: boolean
+  inventoryFee: string
   support: boolean
+  supportFee: string
   webOrdering: boolean
+  webOrderingFee: string
+  /** Placeholder until Nest stores revenue share on the offer. */
+  webOrderingRevenuePercent: string
   paidTrial: boolean
   paidTrialDays: string
   preTrialSetupFee: string
@@ -82,10 +96,16 @@ function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
       offer.ordersPerMonth == null ? '' : String(offer.ordersPerMonth),
     ordersUnlimited: offer.ordersPerMonth == null,
     callCenter: boolFromApi(offer.callCenter),
+    callCenterFee: '',
     kds: boolFromApi(offer.kds),
+    kdsFee: '',
     inventory: boolFromApi(offer.inventory),
+    inventoryFee: '',
     support: boolFromApi(offer.support),
+    supportFee: '',
     webOrdering: boolFromApi(offer.webOrdering),
+    webOrderingFee: '',
+    webOrderingRevenuePercent: '',
     paidTrial: offer.paidTrial,
     paidTrialDays:
       offer.paidTrialDays == null ? '' : String(offer.paidTrialDays),
@@ -689,6 +709,9 @@ export default function TenantSubscriptionPanel({
   const [form, setForm] = useState<FormState>(() => offerToForm(DEFAULT_OFFER))
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
+  const [cancelDialog, setCancelDialog] = useState<CancelOfferDialog | null>(
+    null
+  )
   const [isPending, startTransition] = useTransition()
 
   const termTotalPreview = useMemo(() => {
@@ -786,16 +809,22 @@ export default function TenantSubscriptionPanel({
     setSaveError(null)
   }
 
-  function handleCancelOffer() {
+  function requestCancelOffer() {
     setSaveError(null)
     setSavedMsg(null)
+    const force = needsForceCancel
+    setCancelDialog({
+      force,
+      title: force ? 'Cancel re-offer?' : 'Cancel pending offer?',
+      message: force
+        ? `This tenant already has live Enterprise terms. Cancel the pending re-offer only?\n\nLive plan, current Enterprise terms, Stripe, and total setup fees paid are kept.`
+        : `Cancel the pending Enterprise offer for ${tenantName}?\n\nThis clears the sales offer only. The current plan is unchanged.`,
+    })
+  }
 
-    let force = needsForceCancel
-    const confirmMsg = force
-      ? `This tenant already has live Enterprise terms. Cancel the pending re-offer only?\n\nLive plan, current_enterprise_*, Stripe, and total setup fees paid are kept.`
-      : `Cancel the pending Enterprise offer for ${tenantName}?\n\nThis clears the sales offer (enterprise_*) only. The current plan is unchanged.`
-
-    if (!window.confirm(confirmMsg)) return
+  function executeCancelOffer(force: boolean) {
+    setSaveError(null)
+    setSavedMsg(null)
 
     startTransition(async () => {
       async function doDelete(useForce: boolean) {
@@ -816,19 +845,20 @@ export default function TenantSubscriptionPanel({
       }
 
       try {
-        let { res, body } = await doDelete(force)
+        const { res, body } = await doDelete(force)
 
         // Nest 409: already Enterprise / has current_enterprise_price — need force
         if (res.status === 409 && !force) {
-          const ok = window.confirm(
-            `${typeof body.error === 'string' ? body.error : 'This tenant has live Enterprise terms.'}\n\nCancel the pending offer only? Live plan and setup paid balance are kept.`
-          )
-          if (!ok) return
-          force = true
-          ;({ res, body } = await doDelete(true))
+          setCancelDialog({
+            force: true,
+            title: 'Force cancel pending offer?',
+            message: `${typeof body.error === 'string' ? body.error : 'This tenant has live Enterprise terms.'}\n\nCancel the pending offer only? Live plan and setup paid balance are kept.`,
+          })
+          return
         }
 
         if (!res.ok) {
+          setCancelDialog(null)
           setSaveError(
             typeof body.error === 'string'
               ? body.error
@@ -836,6 +866,8 @@ export default function TenantSubscriptionPanel({
           )
           return
         }
+
+        setCancelDialog(null)
 
         const notesFromDelete = Array.isArray(body.notes) ? body.notes : []
         if (body.subscription != null) {
@@ -854,6 +886,7 @@ export default function TenantSubscriptionPanel({
             : 'No pending offer to cancel.'
         )
       } catch {
+        setCancelDialog(null)
         setSaveError('Could not cancel offer. Check connection and try again.')
       }
     })
@@ -1003,7 +1036,7 @@ export default function TenantSubscriptionPanel({
                   ? 'Cancel pending re-offer (tenant already on Enterprise)'
                   : 'Cancel pending Enterprise offer'
             }
-            onClick={() => handleCancelOffer()}
+            onClick={() => requestCancelOffer()}
           >
             Cancel pending offer
           </button>
@@ -1124,26 +1157,94 @@ export default function TenantSubscriptionPanel({
           />
           {(
             [
-              ['callCenter', 'Call center'],
-              ['kds', 'KDS'],
-              ['inventory', 'Inventory'],
-              ['support', 'Operation Support'],
-              ['webOrdering', 'Web ordering'],
+              {
+                key: 'callCenter' as const,
+                feeKey: 'callCenterFee' as const,
+                label: 'Call center',
+              },
+              {
+                key: 'kds' as const,
+                feeKey: 'kdsFee' as const,
+                label: 'KDS',
+              },
+              {
+                key: 'inventory' as const,
+                feeKey: 'inventoryFee' as const,
+                label: 'Inventory',
+              },
+              {
+                key: 'support' as const,
+                feeKey: 'supportFee' as const,
+                label: 'Operation Support',
+              },
+              {
+                key: 'webOrdering' as const,
+                feeKey: 'webOrderingFee' as const,
+                label: 'Web ordering',
+              },
             ] as const
-          ).map(([key, label]) => (
+          ).map(({ key, feeKey, label }) => (
             <CompareRow
               key={key}
               label={label}
               diff={diffs[key]}
               newCell={
-                <label className={styles.checkSm}>
-                  <input
-                    type="checkbox"
-                    checked={form[key]}
-                    onChange={e => patchForm({ [key]: e.target.checked })}
-                  />
-                  {form[key] ? 'Yes' : 'No'}
-                </label>
+                <div className={styles.addonCol}>
+                  <label className={styles.checkSm}>
+                    <input
+                      type="checkbox"
+                      checked={form[key]}
+                      onChange={e => {
+                        const on = e.target.checked
+                        patchForm({
+                          [key]: on,
+                          ...(on
+                            ? {}
+                            : key === 'webOrdering'
+                              ? {
+                                  [feeKey]: '',
+                                  webOrderingRevenuePercent: '',
+                                }
+                              : { [feeKey]: '' }),
+                        })
+                      }}
+                    />
+                    {form[key] ? 'Yes' : 'No'}
+                  </label>
+                  {form[key] && (
+                    <>
+                      <input
+                        className={styles.inputSm}
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="$ / mo (Nest TBD)"
+                        value={form[feeKey]}
+                        onChange={e =>
+                          patchForm({ [feeKey]: e.target.value })
+                        }
+                        title="Monthly add-on fee — stored in Reach UI only until Nest accepts fee fields"
+                      />
+                      {key === 'webOrdering' && (
+                        <input
+                          className={styles.inputSm}
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          placeholder="% revenue (Nest TBD)"
+                          value={form.webOrderingRevenuePercent}
+                          onChange={e =>
+                            patchForm({
+                              webOrderingRevenuePercent: e.target.value,
+                            })
+                          }
+                          title="Revenue share for month-end invoice — Nest placeholder"
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
               }
               currentCell={
                 key === 'callCenter'
@@ -1345,6 +1446,22 @@ export default function TenantSubscriptionPanel({
         <p className={styles.success} role="status">
           {savedMsg}
         </p>
+      )}
+
+      {cancelDialog && (
+        <ConfirmModal
+          title={cancelDialog.title}
+          message={cancelDialog.message}
+          confirmLabel={
+            cancelDialog.force ? 'Cancel pending offer' : 'Cancel offer'
+          }
+          danger
+          loading={isPending}
+          onConfirm={() => executeCancelOffer(cancelDialog.force)}
+          onClose={() => {
+            if (!isPending) setCancelDialog(null)
+          }}
+        />
       )}
     </form>
   )

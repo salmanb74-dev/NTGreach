@@ -130,6 +130,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               discount={lead.discount ?? null}
               taxRate={lead.tax_rate ?? null}
               paymentStartDate={lead.payment_start_date}
+              quotedSubscription={lead.quoted_subscription ?? null}
               currencies={currencies ?? []}
               inputCurrency={inputCurrency}
             />

@@ -3,6 +3,13 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateLead } from '@/lib/actions/leads'
+import {
+  monthsForBillingCycle,
+  parseQuotedSubscription,
+  totalMonthlyRecurring,
+  type BillingCycle,
+  type QuotedSubscription,
+} from '@/lib/subscription-quote'
 import styles from './DealPanel.module.css'
 
 interface Currency {
@@ -11,26 +18,28 @@ interface Currency {
 }
 
 interface DealPanelProps {
-  leadId:           string
-  dealCurrency:     string | null
-  setupFee:         number | null
-  recurringFee:     number | null
-  frequency:        'monthly' | 'annual' | null
-  discount:         number | null
-  taxRate:          number | null
+  leadId: string
+  dealCurrency: string | null
+  setupFee: number | null
+  recurringFee: number | null
+  frequency: 'monthly' | 'annual' | null
+  discount: number | null
+  taxRate: number | null
   paymentStartDate: string | null
-  currencies:       Currency[]
-  inputCurrency:    string
+  quotedSubscription: unknown
+  currencies: Currency[]
+  inputCurrency: string
 }
 
-function calcTotal(
-  setup:     number,
-  recurring: number,
-  discount:  number,
-  taxRate:   number
-): number {
-  const subtotal = setup + recurring - discount
-  return subtotal + (subtotal * taxRate / 100)
+function numStr(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return ''
+  return String(v)
+}
+
+function parseOptNum(s: string): number | null {
+  if (!s.trim()) return null
+  const n = parseFloat(s)
+  return Number.isFinite(n) ? n : null
 }
 
 export default function DealPanel({
@@ -42,123 +51,459 @@ export default function DealPanel({
   discount,
   taxRate,
   paymentStartDate,
+  quotedSubscription,
   currencies,
   inputCurrency,
 }: DealPanelProps) {
   const router = useRouter()
-  const [currency,    setCurrency]    = useState(dealCurrency    ?? inputCurrency)
-  const [setup,       setSetup]       = useState(setupFee?.toString()     ?? '')
-  const [recurring,   setRecurring]   = useState(recurringFee?.toString() ?? '')
-  const [freq,        setFreq]        = useState<'monthly' | 'annual'>(frequency ?? 'monthly')
-  const [disc,        setDisc]        = useState(discount?.toString()  ?? '')
-  const [tax,         setTax]         = useState(taxRate?.toString()   ?? '')
-  const [payDate,     setPayDate]     = useState(
+  const initialSub = (() => {
+    const parsed = parseQuotedSubscription({
+      ...(typeof quotedSubscription === 'object' &&
+      quotedSubscription &&
+      !Array.isArray(quotedSubscription)
+        ? (quotedSubscription as Record<string, unknown>)
+        : {}),
+      paymentFrequency: frequency,
+    })
+    if (parsed.monthlyPrice == null && recurringFee != null) {
+      parsed.monthlyPrice = recurringFee
+    }
+    if (parsed.setupFee == null && setupFee != null) {
+      parsed.setupFee = setupFee
+    }
+    return parsed
+  })()
+
+  const [currency, setCurrency] = useState(dealCurrency ?? inputCurrency)
+  const [disc, setDisc] = useState(discount?.toString() ?? '')
+  const [tax, setTax] = useState(taxRate?.toString() ?? '')
+  const [payDate, setPayDate] = useState(
     paymentStartDate ? paymentStartDate.split('T')[0] : ''
   )
-  const [saved,       setSaved]       = useState(false)
-  const [error,       setError]       = useState<string | null>(null)
-  const [isPending,   startTransition] = useTransition()
-  const [isOpen,      setIsOpen]      = useState(
-    !!(setupFee || recurringFee) // open by default if values already exist
+  const [sub, setSub] = useState<QuotedSubscription>(initialSub)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [isOpen, setIsOpen] = useState(
+    !!(setupFee || recurringFee || initialSub.monthlyPrice)
   )
 
-  const setupNum     = parseFloat(setup)     || 0
-  const recurringNum = parseFloat(recurring) || 0
-  const discNum      = parseFloat(disc)      || 0
-  const taxNum       = parseFloat(tax)       || 0
-  const totalFirst   = calcTotal(setupNum, recurringNum, discNum, taxNum)
+  const monthly = totalMonthlyRecurring(sub)
+  const baseMonthly = sub.monthlyPrice ?? 0
+  const cycle = sub.billingCycle
+  const setup = sub.paidTrial ? 0 : sub.setupFee ?? 0
+  const pre = sub.paidTrial ? sub.preTrialSetupFee ?? 0 : 0
+  const discNum = parseFloat(disc) || 0
+  const taxNum = parseFloat(tax) || 0
+  const firstBase = setup + pre + monthly
+  const subtotal = firstBase - discNum
+  const totalFirst = subtotal + (subtotal * taxNum) / 100
+
+  function patchSub(partial: Partial<QuotedSubscription>) {
+    setSub(prev => ({ ...prev, ...partial }))
+  }
 
   function handleSave() {
     setError(null)
+    const payload: QuotedSubscription = {
+      ...sub,
+      monthlyPrice: sub.monthlyPrice,
+      billingCycle: sub.billingCycle,
+      durationMonths: monthsForBillingCycle(sub.billingCycle),
+      setupFee: sub.paidTrial ? 0 : sub.setupFee,
+      preTrialSetupFee: sub.paidTrial ? sub.preTrialSetupFee : 0,
+      postTrialSetupFee: sub.paidTrial ? sub.postTrialSetupFee : 0,
+      paidTrialDays: sub.paidTrial ? sub.paidTrialDays : null,
+      locations: sub.locationsUnlimited ? null : sub.locations,
+      users: sub.usersUnlimited ? null : sub.users,
+      counters: sub.countersUnlimited ? null : sub.counters,
+      ordersPerMonth: sub.ordersUnlimited ? null : sub.ordersPerMonth,
+      callCenterFee: sub.callCenter ? sub.callCenterFee : null,
+      kdsFee: sub.kds ? sub.kdsFee : null,
+      inventoryFee: sub.inventory ? sub.inventoryFee : null,
+      supportFee: sub.support ? sub.supportFee : null,
+      webOrderingFee: sub.webOrdering ? sub.webOrderingFee : null,
+      webOrderingRevenuePercent: sub.webOrdering
+        ? sub.webOrderingRevenuePercent
+        : null,
+    }
+
     startTransition(async () => {
       try {
         await updateLead(leadId, {
-          deal_currency:      currency,
-          quoted_setup_fee:   setup     ? parseFloat(setup)     : null,
-          quoted_mrr:         recurring ? parseFloat(recurring) : null,
-          payment_frequency:  freq,
-          discount:           disc      ? parseFloat(disc)      : null,
-          tax_rate:           tax       ? parseFloat(tax)       : null,
-          payment_start_date: payDate   ? new Date(payDate).toISOString() : null,
+          deal_currency: currency,
+          quoted_setup_fee: payload.setupFee,
+          quoted_mrr: totalMonthlyRecurring(payload),
+          payment_frequency: payload.billingCycle,
+          discount: disc ? parseFloat(disc) : null,
+          tax_rate: tax ? parseFloat(tax) : null,
+          payment_start_date: payDate
+            ? new Date(payDate).toISOString()
+            : null,
+          quoted_subscription: payload,
         })
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
         router.refresh()
-      } catch (err: any) {
-        setError(err.message ?? 'Failed to save.')
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to save.')
       }
     })
   }
 
+  function LimitField({
+    label,
+    value,
+    unlimited,
+    onValue,
+    onUnlimited,
+  }: {
+    label: string
+    value: number | null
+    unlimited: boolean
+    onValue: (n: number | null) => void
+    onUnlimited: (u: boolean) => void
+  }) {
+    return (
+      <div className={styles.field}>
+        <label className={styles.label}>{label}</label>
+        <div className={styles.limitRow}>
+          <input
+            type="number"
+            min={0}
+            className={styles.input}
+            disabled={unlimited}
+            value={unlimited ? '' : numStr(value)}
+            onChange={e => onValue(parseOptNum(e.target.value))}
+            placeholder={unlimited ? 'Unlimited' : '0'}
+          />
+          <label className={styles.checkLabel}>
+            <input
+              type="checkbox"
+              checked={unlimited}
+              onChange={e => onUnlimited(e.target.checked)}
+            />
+            Unlimited
+          </label>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.panel}>
-      <button className={styles.header} onClick={() => setIsOpen(p => !p)}>
+      <button type="button" className={styles.header} onClick={() => setIsOpen(p => !p)}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="12" y1="1" x2="12" y2="23"/>
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         </svg>
         <span className={styles.headerLabel}>Deal Values</span>
-        {!isOpen && (setupFee || recurringFee) ? (
+        {!isOpen && (sub.monthlyPrice != null || setupFee || recurringFee) ? (
           <span className={styles.headerSummary}>
-            {currency} {setupNum.toLocaleString()} + {recurringNum.toLocaleString()}/{freq === 'annual' ? 'yr' : 'mo'}
+            {currency}{' '}
+            {(sub.monthlyPrice ?? recurringFee ?? 0).toLocaleString()}/mo
+            {cycle === 'annual' ? ' · Annual' : ' · Monthly'}
           </span>
         ) : null}
         <svg
-          width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
           className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}
         >
-          <path d="m6 9 6 6 6-6"/>
+          <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
 
       {isOpen && (
         <div className={styles.body}>
-          {/* Currency */}
+          <p className={styles.sectionHint}>
+            Same commercial parameters as Ops Resto → Subscription. Used on
+            quotations and contracts.
+          </p>
+
+          <div className={styles.sectionTitle}>Pricing</div>
           <div className={styles.field}>
             <label className={styles.label}>Currency</label>
-            <select className={styles.select} value={currency} onChange={e => setCurrency(e.target.value)}>
+            <select
+              className={styles.select}
+              value={currency}
+              onChange={e => setCurrency(e.target.value)}
+            >
               {currencies.map(c => (
-                <option key={c.value} value={c.value}>{c.value} — {c.label}</option>
+                <option key={c.value} value={c.value}>
+                  {c.value} — {c.label}
+                </option>
               ))}
             </select>
           </div>
 
-          {/* Setup + Recurring */}
           <div className={styles.twoCol}>
             <div className={styles.field}>
-              <label className={styles.label}>Setup Fee</label>
+              <label className={styles.label}>Platform fee (per month)</label>
               <input
-                type="number" min="0" step="0.01"
+                type="number"
+                min={0}
+                step="0.01"
                 className={styles.input}
-                value={setup}
-                onChange={e => setSetup(e.target.value)}
+                value={numStr(sub.monthlyPrice)}
+                onChange={e =>
+                  patchSub({ monthlyPrice: parseOptNum(e.target.value) })
+                }
                 placeholder="0.00"
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Recurring Fee</label>
+              <label className={styles.label}>Billing cycle</label>
+              <select
+                className={styles.select}
+                value={sub.billingCycle}
+                onChange={e => {
+                  const next = e.target.value as BillingCycle
+                  patchSub({
+                    billingCycle: next,
+                    durationMonths: monthsForBillingCycle(next),
+                  })
+                }}
+              >
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.sectionTitle}>Setup &amp; trial</div>
+          <label className={styles.checkLabelBlock}>
+            <input
+              type="checkbox"
+              checked={sub.paidTrial}
+              onChange={e => patchSub({ paidTrial: e.target.checked })}
+            />
+            Paid trial
+          </label>
+
+          <div className={styles.twoCol}>
+            <div className={styles.field}>
+              <label className={styles.label}>Setup fee</label>
               <input
-                type="number" min="0" step="0.01"
+                type="number"
+                min={0}
+                step="0.01"
                 className={styles.input}
-                value={recurring}
-                onChange={e => setRecurring(e.target.value)}
+                disabled={sub.paidTrial}
+                value={numStr(sub.setupFee)}
+                onChange={e =>
+                  patchSub({ setupFee: parseOptNum(e.target.value) })
+                }
+                placeholder="0.00"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Trial days</label>
+              <input
+                type="number"
+                min={0}
+                className={styles.input}
+                disabled={!sub.paidTrial}
+                value={numStr(sub.paidTrialDays)}
+                onChange={e =>
+                  patchSub({ paidTrialDays: parseOptNum(e.target.value) })
+                }
+                placeholder="14"
+              />
+            </div>
+          </div>
+
+          <div className={styles.twoCol}>
+            <div className={styles.field}>
+              <label className={styles.label}>Pre-trial setup</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={styles.input}
+                disabled={!sub.paidTrial}
+                value={numStr(sub.preTrialSetupFee)}
+                onChange={e =>
+                  patchSub({ preTrialSetupFee: parseOptNum(e.target.value) })
+                }
+                placeholder="0.00"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Post-trial setup</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={styles.input}
+                disabled={!sub.paidTrial}
+                value={numStr(sub.postTrialSetupFee)}
+                onChange={e =>
+                  patchSub({ postTrialSetupFee: parseOptNum(e.target.value) })
+                }
                 placeholder="0.00"
               />
             </div>
           </div>
 
-          {/* Frequency + Start Date */}
+          <div className={styles.sectionTitle}>Limits</div>
+          <LimitField
+            label="Branches"
+            value={sub.locations}
+            unlimited={sub.locationsUnlimited}
+            onValue={n => patchSub({ locations: n })}
+            onUnlimited={u => patchSub({ locationsUnlimited: u })}
+          />
+          <LimitField
+            label="Users"
+            value={sub.users}
+            unlimited={sub.usersUnlimited}
+            onValue={n => patchSub({ users: n })}
+            onUnlimited={u => patchSub({ usersUnlimited: u })}
+          />
+          <LimitField
+            label="Counters"
+            value={sub.counters}
+            unlimited={sub.countersUnlimited}
+            onValue={n => patchSub({ counters: n })}
+            onUnlimited={u => patchSub({ countersUnlimited: u })}
+          />
+          <LimitField
+            label="Orders / month"
+            value={sub.ordersPerMonth}
+            unlimited={sub.ordersUnlimited}
+            onValue={n => patchSub({ ordersPerMonth: n })}
+            onUnlimited={u => patchSub({ ordersUnlimited: u })}
+          />
+
+          <div className={styles.sectionTitle}>Features (monthly add-ons)</div>
+          <p className={styles.sectionHint}>
+            Enable a feature to add its monthly $ to the platform fee. Web
+            ordering also takes a % of revenue on the month-end invoice
+            (Nest billing placeholder).
+          </p>
+          {(
+            [
+              {
+                key: 'callCenter' as const,
+                feeKey: 'callCenterFee' as const,
+                label: 'Call center',
+              },
+              {
+                key: 'kds' as const,
+                feeKey: 'kdsFee' as const,
+                label: 'Kitchen display',
+              },
+              {
+                key: 'inventory' as const,
+                feeKey: 'inventoryFee' as const,
+                label: 'Inventory',
+              },
+              {
+                key: 'support' as const,
+                feeKey: 'supportFee' as const,
+                label: 'Ops support',
+              },
+              {
+                key: 'webOrdering' as const,
+                feeKey: 'webOrderingFee' as const,
+                label: 'Web ordering',
+              },
+            ] as const
+          ).map(({ key, feeKey, label }) => (
+            <div key={key} className={styles.addonBlock}>
+              <label className={styles.checkLabel}>
+                <input
+                  type="checkbox"
+                  checked={sub[key]}
+                  onChange={e => {
+                    const on = e.target.checked
+                    patchSub({
+                      [key]: on,
+                      ...(on
+                        ? {}
+                        : key === 'webOrdering'
+                          ? {
+                              [feeKey]: null,
+                              webOrderingRevenuePercent: null,
+                            }
+                          : { [feeKey]: null }),
+                    })
+                  }}
+                />
+                {label}
+              </label>
+              {sub[key] && (
+                <div className={styles.twoCol}>
+                  <div className={styles.field}>
+                    <label className={styles.label}>
+                      {label} fee / mo ({currency})
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={styles.input}
+                      value={numStr(sub[feeKey])}
+                      onChange={e =>
+                        patchSub({ [feeKey]: parseOptNum(e.target.value) })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {key === 'webOrdering' && (
+                    <div className={styles.field}>
+                      <label className={styles.label}>
+                        Revenue share (%)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.01"
+                        className={styles.input}
+                        value={numStr(sub.webOrderingRevenuePercent)}
+                        onChange={e =>
+                          patchSub({
+                            webOrderingRevenuePercent: parseOptNum(
+                              e.target.value
+                            ),
+                          })
+                        }
+                        placeholder="e.g. 2.5"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {(monthly > 0 || baseMonthly > 0) && (
+            <div className={styles.addonTotal}>
+              Platform total / mo: {currency}{' '}
+              {monthly.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+              {monthly !== baseMonthly ? (
+                <span className={styles.addonTotalNote}>
+                  {' '}
+                  (base {baseMonthly.toLocaleString()} + add-ons)
+                </span>
+              ) : null}
+            </div>
+          )}
+
+          <div className={styles.sectionTitle}>Billing extras</div>
           <div className={styles.twoCol}>
             <div className={styles.field}>
-              <label className={styles.label}>Frequency</label>
-              <select className={styles.select} value={freq} onChange={e => setFreq(e.target.value as 'monthly' | 'annual')}>
-                <option value="monthly">Monthly</option>
-                <option value="annual">Annual</option>
-              </select>
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Payment Start</label>
+              <label className={styles.label}>Trial starts</label>
               <input
                 type="date"
                 className={styles.input}
@@ -166,51 +511,51 @@ export default function DealPanel({
                 onChange={e => setPayDate(e.target.value)}
               />
             </div>
-          </div>
-
-          {/* Discount + Tax */}
-          <div className={styles.twoCol}>
             <div className={styles.field}>
               <label className={styles.label}>Discount ({currency})</label>
               <input
-                type="number" min="0" step="0.01"
+                type="number"
+                min={0}
+                step="0.01"
                 className={styles.input}
                 value={disc}
                 onChange={e => setDisc(e.target.value)}
                 placeholder="0.00"
               />
             </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Tax Rate (%)</label>
-              <input
-                type="number" min="0" max="100" step="0.1"
-                className={styles.input}
-                value={tax}
-                onChange={e => setTax(e.target.value)}
-                placeholder="0"
-              />
-            </div>
           </div>
 
-          {/* Total first payment */}
-          {(setupNum > 0 || recurringNum > 0) && (
-            <div className={styles.totalRow}>
-              <span className={styles.totalLabel}>Total First Payment</span>
-              <span className={styles.totalValue}>
-                {currency} {totalFirst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-          )}
+          <div className={styles.field}>
+            <label className={styles.label}>Tax rate (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              className={styles.input}
+              value={tax}
+              onChange={e => setTax(e.target.value)}
+              placeholder="0"
+            />
+          </div>
 
-          {freq === 'annual' && recurringNum > 0 && (
-            <div className={styles.hint}>
-              MRR equivalent: {currency} {(recurringNum / 12).toFixed(2)}/month
+          {(monthly > 0 || setup > 0 || pre > 0) && (
+            <div className={styles.totalRow}>
+              <span className={styles.totalLabel}>Est. total first payment</span>
+              <span className={styles.totalValue}>
+                {currency}{' '}
+                {totalFirst.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
             </div>
           )}
 
           {error && <div className={styles.error}>{error}</div>}
 
           <button
+            type="button"
             className={`${styles.saveBtn} ${saved ? styles.saveBtnSaved : ''}`}
             onClick={handleSave}
             disabled={isPending}

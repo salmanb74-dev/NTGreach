@@ -9,6 +9,7 @@ import {
   updateReachUser,
 } from '@/lib/actions/platform-users'
 import ModuleRoleMatrix from '@/components/platform/ModuleRoleMatrix'
+import ConfirmModal from '@/components/modals/ConfirmModal'
 import { DEFAULT_TEMP_PASSWORD } from '@/lib/platform/constants'
 import {
   selectionFromProfile,
@@ -17,6 +18,8 @@ import {
 import type { PlatformUserRow } from '@/components/platform/types'
 import { formatWhen } from '@/lib/format-when'
 import styles from './Users.module.css'
+
+type ConfirmAction = 'reset-password' | 'delete-user'
 
 interface Props {
   user: PlatformUserRow
@@ -36,6 +39,7 @@ export default function UserDetailClient({
   )
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const isSelf = !!currentUserId && currentUserId === user.id
@@ -59,43 +63,46 @@ export default function UserDetailClient({
     })
   }
 
-  function handleResetPassword() {
+  function requestResetPassword() {
     if (!canEdit) return
-    if (
-      !window.confirm(
-        `Reset password for ${user.email} to temporary password ${DEFAULT_TEMP_PASSWORD}?`
-      )
-    ) {
-      return
-    }
-    setError(null)
-    startTransition(async () => {
-      try {
-        await resetReachUserPassword(user.id)
-        setSaved(true)
-        router.refresh()
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not reset password')
-      }
-    })
+    setConfirmAction('reset-password')
   }
 
-  function handleDelete() {
+  function requestDelete() {
     if (!canEdit || isSelf) return
-    if (
-      !window.confirm(
-        `Permanently delete ${user.full_name || user.email}? This removes their login and cannot be undone.`
-      )
-    ) {
+    setConfirmAction('delete-user')
+  }
+
+  function runConfirmedAction() {
+    if (!confirmAction) return
+    const action = confirmAction
+    setError(null)
+
+    if (action === 'reset-password') {
+      startTransition(async () => {
+        try {
+          await resetReachUserPassword(user.id)
+          setConfirmAction(null)
+          setSaved(true)
+          router.refresh()
+        } catch (err) {
+          setConfirmAction(null)
+          setError(
+            err instanceof Error ? err.message : 'Could not reset password'
+          )
+        }
+      })
       return
     }
-    setError(null)
+
     startTransition(async () => {
       try {
         await deleteReachUser(user.id)
+        setConfirmAction(null)
         router.push('/ops/users')
         router.refresh()
       } catch (err) {
+        setConfirmAction(null)
         setError(err instanceof Error ? err.message : 'Could not delete user')
       }
     })
@@ -170,7 +177,7 @@ export default function UserDetailClient({
             <button
               type="button"
               className={styles.dangerBtn}
-              onClick={handleDelete}
+              onClick={requestDelete}
               disabled={isPending || isSelf}
               title={isSelf ? 'You cannot delete your own account' : undefined}
             >
@@ -180,7 +187,7 @@ export default function UserDetailClient({
             <button
               type="button"
               className={styles.secondaryBtn}
-              onClick={handleResetPassword}
+              onClick={requestResetPassword}
               disabled={isPending}
             >
               Reset password to {DEFAULT_TEMP_PASSWORD}
@@ -195,6 +202,34 @@ export default function UserDetailClient({
           </div>
         )}
       </form>
+
+      {confirmAction === 'reset-password' && (
+        <ConfirmModal
+          title="Reset password?"
+          message={`Reset password for ${user.email} to temporary password ${DEFAULT_TEMP_PASSWORD}?\n\nThey will need to change it on next sign-in.`}
+          confirmLabel="Reset password"
+          danger
+          loading={isPending}
+          onConfirm={runConfirmedAction}
+          onClose={() => {
+            if (!isPending) setConfirmAction(null)
+          }}
+        />
+      )}
+
+      {confirmAction === 'delete-user' && (
+        <ConfirmModal
+          title="Delete user?"
+          message={`Permanently delete ${user.full_name || user.email}?\n\nThis removes their login and cannot be undone.`}
+          confirmLabel="Delete user"
+          danger
+          loading={isPending}
+          onConfirm={runConfirmedAction}
+          onClose={() => {
+            if (!isPending) setConfirmAction(null)
+          }}
+        />
+      )}
     </div>
   )
 }

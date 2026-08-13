@@ -19,7 +19,8 @@ export default function RefreshRatesButton() {
       if (data.source === 'previous_day') {
         setMsg(`Copied rates from ${data.fromDate} (live API unavailable)`)
       } else {
-        setMsg(`Rates updated for ${data.date} — ${data.pairs} pairs`)
+        const via = data.provider ? ` via ${data.provider}` : ''
+        setMsg(`Rates updated for ${data.date} — ${data.pairs} pairs${via}`)
       }
       router.refresh()
     } catch (err: any) {

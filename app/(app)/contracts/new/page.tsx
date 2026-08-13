@@ -28,7 +28,7 @@ export default async function NewContractPage({
   if (searchParams.lead) {
     const { data } = await supabase
       .from('leads')
-      .select('id, contact_name, company_name, email, address, quoted_setup_fee, quoted_mrr, payment_frequency, deal_currency')
+      .select('id, contact_name, company_name, email, address, quoted_setup_fee, quoted_mrr, payment_frequency, deal_currency, payment_start_date, quoted_subscription')
       .eq('id', searchParams.lead)
       .single()
     lead = data

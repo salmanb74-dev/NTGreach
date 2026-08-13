@@ -23,13 +23,13 @@ create policy "exchange_rates_write" on public.exchange_rates
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   )
   with check (
     exists (
       select 1 from public.profiles
       where id = auth.uid()
-      and roles && array['admin']
+      and roles && array['crm_admin']
     )
   );
