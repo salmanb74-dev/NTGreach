@@ -25,7 +25,7 @@ export const QUOTATION_VARIABLES = [
     label: 'Scope Summary',
     example: 'NTG Resto enterprise subscription',
   },
-  { key: 'currency', label: 'Currency', example: 'USD' },
+  { key: 'currency', label: 'Currency', example: 'US$' },
   ...SUBSCRIPTION_TEMPLATE_VARIABLES.map(v => ({
     key: v.key,
     label: v.label,
@@ -40,13 +40,14 @@ export function prefillQuotationFromLead(
     contact_name: string
     company_name: string
   },
-  inputCurrency: string
+  inputCurrency: string,
+  currencyLabels?: Record<string, string> | null
 ): Record<string, string> {
   const today = new Date()
   const validUntil = new Date(today)
   validUntil.setDate(validUntil.getDate() + QUOTATION_VALIDITY_DAYS)
 
-  const subVars = subscriptionVarsFromLead(lead, inputCurrency)
+  const subVars = subscriptionVarsFromLead(lead, inputCurrency, currencyLabels)
 
   return {
     client_name: lead.company_name,

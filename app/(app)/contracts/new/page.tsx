@@ -4,6 +4,8 @@ import ContractGenerator from '@/components/contracts/ContractGenerator'
 import Link from 'next/link'
 import { prefillFromLead } from '@/lib/contracts'
 import { getInputCurrency } from '@/lib/dataCache'
+import { getEnumerations } from '@/lib/enumerations'
+import { currencyLabelsFromOptions } from '@/lib/currency-display'
 import styles from './contract.module.css'
 
 export default async function NewContractPage({
@@ -13,13 +15,16 @@ export default async function NewContractPage({
 }) {
   const supabase = createClient()
 
-  const [{ data: templates }, inputCurrency] = await Promise.all([
+  const [{ data: templates }, inputCurrency, currencyOptions] = await Promise.all([
     supabase
       .from('contract_templates')
       .select('id, name, is_default')
       .order('created_at'),
     getInputCurrency(),
+    getEnumerations('currency'),
   ])
+
+  const currencyLabels = currencyLabelsFromOptions(currencyOptions)
 
   let lead: any = null
   let prefilled: Record<string, string> = {}
@@ -33,7 +38,7 @@ export default async function NewContractPage({
       .eq('id', searchParams.lead)
       .single()
     lead = data
-    if (lead) prefilled = prefillFromLead(lead, inputCurrency)
+    if (lead) prefilled = prefillFromLead(lead, inputCurrency, currencyLabels)
   }
 
   if (!templates || templates.length === 0) {

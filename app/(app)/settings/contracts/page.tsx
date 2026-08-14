@@ -1,24 +1,28 @@
 import { createClient } from '@/lib/supabase/server'
 import ContractTemplatesClient from '@/components/contracts/ContractTemplatesClient'
 import { getDealQuoteDefaults } from '@/lib/dataCache'
+import { getEnumerations } from '@/lib/enumerations'
+import { currencyLabelsFromOptions } from '@/lib/currency-display'
 import { CONTRACT_VARIABLES } from '@/lib/contracts'
 import { previewVariablesFromDealDefaults } from '@/lib/template-print'
 import styles from '../general.module.css'
 
 export default async function ContractTemplatesPage() {
   const supabase = createClient()
-  const [{ data: templates }, dealDefaults] = await Promise.all([
+  const [{ data: templates }, dealDefaults, currencyOptions] = await Promise.all([
     supabase
       .from('contract_templates')
       .select('id, name, is_default, updated_at')
       .order('created_at'),
     getDealQuoteDefaults(),
+    getEnumerations('currency'),
   ])
 
   const previewVars = previewVariablesFromDealDefaults(
     CONTRACT_VARIABLES,
     dealDefaults,
-    'contract'
+    'contract',
+    currencyLabelsFromOptions(currencyOptions)
   )
 
   return (

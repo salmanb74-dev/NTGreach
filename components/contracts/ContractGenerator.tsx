@@ -5,7 +5,6 @@ import {
   CONTRACT_VARIABLES,
   CONTRACT_DEAL_KEYS,
 } from '@/lib/contracts'
-import { saveContract } from '@/lib/actions/contracts'
 
 interface Template {
   id: string
@@ -34,7 +33,6 @@ export default function ContractGenerator({
         variables: CONTRACT_VARIABLES,
         dealKeys: CONTRACT_DEAL_KEYS,
         templateFetchPath: id => `/api/contracts/template/${id}`,
-        saveDocument: saveContract,
         namePlaceholder: 'e.g. Spice Garden — Q1 2026 Contract',
         summaryLabel: 'Live Preview',
       }}

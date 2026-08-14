@@ -30,7 +30,8 @@ export function sampleVariablesFromDefs(
 export function previewVariablesFromDealDefaults(
   defs: readonly TemplateVarDef[],
   defaults: DealQuoteDefaults,
-  kind: 'contract' | 'quotation'
+  kind: 'contract' | 'quotation',
+  currencyLabels?: Record<string, string> | null
 ): Record<string, string> {
   const examples = sampleVariablesFromDefs(defs)
   const fields = leadFieldsFromDealDefaults(defaults)
@@ -51,8 +52,8 @@ export function previewVariablesFromDealDefaults(
 
   const fromDeal =
     kind === 'quotation'
-      ? prefillQuotationFromLead(fakeLead, defaults.currency)
-      : prefillFromLead(fakeLead, defaults.currency)
+      ? prefillQuotationFromLead(fakeLead, defaults.currency, currencyLabels)
+      : prefillFromLead(fakeLead, defaults.currency, currencyLabels)
 
   return { ...examples, ...fromDeal }
 }

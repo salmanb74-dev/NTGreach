@@ -3,7 +3,6 @@
 import {
   saveDocumentTemplate,
   deleteDocumentTemplate,
-  saveGeneratedDocument,
 } from '@/lib/actions/documents'
 
 export async function saveTemplate(
@@ -16,14 +15,4 @@ export async function saveTemplate(
 
 export async function deleteTemplate(id: string) {
   return deleteDocumentTemplate('contract', id)
-}
-
-export async function saveContract(data: {
-  lead_id?: string
-  template_id?: string
-  name: string
-  content: string
-  variables: Record<string, string>
-}) {
-  return saveGeneratedDocument('contract', data)
 }

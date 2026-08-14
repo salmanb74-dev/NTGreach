@@ -1,73 +1,117 @@
 'use server'
 
-import { assertNoError } from '@/lib/assert'
+import { assertNoError, assertRows } from '@/lib/assert'
+import { getServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { UserRole } from '@/lib/roles'
 
 // ─── Enumerations ─────────────────────────────────────────────
+async function requireCrmAdmin() {
+  const { getCachedProfile } = await import('@/lib/dataCache')
+  const { isCrmAdmin } = await import('@/lib/roles')
+  const profile = await getCachedProfile()
+  if (!isCrmAdmin(profile)) {
+    throw new Error('Only CRM Admins can edit Lists & Values')
+  }
+}
+
 export async function addEnumeration(category: string, value: string, label: string) {
-  const supabase = createClient()
+  await requireCrmAdmin()
+  const supabase = getServiceRoleClient()
   const maxOrder = await supabase
     .from('enumerations')
     .select('sort_order')
     .eq('category', category)
     .order('sort_order', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   const nextOrder = ((maxOrder.data?.sort_order ?? 0) as number) + 1
 
-  const { error } = await supabase.from('enumerations').insert({
-    category,
-    value: value.toLowerCase().replace(/\s+/g, '_'),
-    label: label.trim(),
-    sort_order: nextOrder,
-  })
+  const storedValue =
+    category === 'currency'
+      ? value.trim().toUpperCase().replace(/\s+/g, '_')
+      : value.toLowerCase().replace(/\s+/g, '_')
+
+  const { data, error } = await supabase
+    .from('enumerations')
+    .insert({
+      category,
+      value: storedValue,
+      label: label.trim(),
+      sort_order: nextOrder,
+    })
+    .select('id')
   assertNoError(error)
+  assertRows(data, 'Could not add item')
   revalidatePath('/settings/enumerations')
 }
 
 export async function updateEnumeration(id: string, label: string, isActive: boolean) {
-  const supabase = createClient()
-  const { error } = await supabase
+  await requireCrmAdmin()
+  const supabase = getServiceRoleClient()
+  const { data, error } = await supabase
     .from('enumerations')
     .update({ label: label.trim(), is_active: isActive })
     .eq('id', id)
+    .select('id')
   assertNoError(error)
+  assertRows(data, 'Could not save — item not found')
   revalidatePath('/settings/enumerations')
 }
 
 export async function deleteEnumeration(id: string) {
-  const supabase = createClient()
-  const { error } = await supabase.from('enumerations').delete().eq('id', id)
+  await requireCrmAdmin()
+  const supabase = getServiceRoleClient()
+  const { data, error } = await supabase
+    .from('enumerations')
+    .delete()
+    .eq('id', id)
+    .select('id')
   assertNoError(error)
+  assertRows(data, 'Could not delete — item not found')
   revalidatePath('/settings/enumerations')
 }
 
 export async function reorderEnumeration(id: string, direction: 'up' | 'down') {
-  const supabase = createClient()
-  const { data: item } = await supabase
+  await requireCrmAdmin()
+  const supabase = getServiceRoleClient()
+  const { data: item, error: fetchError } = await supabase
     .from('enumerations')
     .select('sort_order, category')
     .eq('id', id)
     .single()
-  if (!item) return
+  assertNoError(fetchError)
+  if (!item) throw new Error('Item not found')
 
   const newOrder = direction === 'up' ? item.sort_order - 1 : item.sort_order + 1
 
-  // Swap with neighbour
-  const { data: neighbour } = await supabase
+  const { data: neighbour, error: neighbourError } = await supabase
     .from('enumerations')
     .select('id')
     .eq('category', item.category)
     .eq('sort_order', newOrder)
-    .single()
+    .maybeSingle()
+  assertNoError(neighbourError)
 
   if (neighbour) {
-    await supabase.from('enumerations').update({ sort_order: item.sort_order }).eq('id', neighbour.id)
+    const { data: swapped, error: swapError } = await supabase
+      .from('enumerations')
+      .update({ sort_order: item.sort_order })
+      .eq('id', neighbour.id)
+      .select('id')
+    assertNoError(swapError)
+    assertRows(swapped)
   }
-  await supabase.from('enumerations').update({ sort_order: newOrder }).eq('id', id)
+
+  const { data: moved, error: moveError } = await supabase
+    .from('enumerations')
+    .update({ sort_order: newOrder })
+    .eq('id', id)
+    .select('id')
+  assertNoError(moveError)
+  assertRows(moved)
   revalidatePath('/settings/enumerations')
 }
 

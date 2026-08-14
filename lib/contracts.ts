@@ -23,7 +23,7 @@ export const CONTRACT_VARIABLES = [
     example: formatTemplateDate(new Date()),
   },
   { key: 'start_date', label: 'Service Start Date', example: '1 January 2026' },
-  { key: 'currency', label: 'Currency', example: 'USD' },
+  { key: 'currency', label: 'Currency', example: 'US$' },
   ...SUBSCRIPTION_TEMPLATE_VARIABLES.map(v => ({
     key: v.key,
     label: v.label,
@@ -38,10 +38,11 @@ export function prefillFromLead(
     contact_name: string
     company_name: string
   },
-  inputCurrency: string
+  inputCurrency: string,
+  currencyLabels?: Record<string, string> | null
 ): Record<string, string> {
   const today = formatTemplateDate(new Date())
-  const subVars = subscriptionVarsFromLead(lead, inputCurrency)
+  const subVars = subscriptionVarsFromLead(lead, inputCurrency, currencyLabels)
 
   return {
     client_name: lead.company_name,

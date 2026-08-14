@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { openTemplatePrintWindow } from '@/lib/template-print'
 import { substituteTemplateHtml } from '@/lib/template-vars'
@@ -25,18 +25,11 @@ export type DocumentGeneratorConfig = {
   variables: readonly DocVarDef[]
   dealKeys: Set<string>
   templateFetchPath: (id: string) => string
-  saveDocument: (data: {
-    lead_id?: string
-    template_id?: string
-    name: string
-    content: string
-    variables: Record<string, string>
-  }) => Promise<{ id?: string } | void>
   namePlaceholder: string
   summaryLabel?: string
 }
 
-type Step = 'variables' | 'preview' | 'saved'
+type Step = 'variables' | 'preview'
 
 type Props = {
   config: DocumentGeneratorConfig
@@ -64,7 +57,6 @@ export default function DocumentGenerator({
   const [docName, setDocName] = useState(
     lead ? `${lead.company_name} — ${config.noun}` : `New ${config.noun}`
   )
-  const [isPending, startTransition] = useTransition()
 
   const manualVars = config.variables.filter(v => !config.dealKeys.has(v.key))
   const dealVars = config.variables.filter(
@@ -90,19 +82,6 @@ export default function DocumentGenerator({
       editedContent ?? templateContent ?? '',
       variables
     )
-  }
-
-  function handleSave() {
-    startTransition(async () => {
-      await config.saveDocument({
-        lead_id: lead?.id,
-        template_id: selectedTemplateId,
-        name: docName,
-        content: getRenderedContent(),
-        variables,
-      })
-      setStep('saved')
-    })
   }
 
   function handlePrint() {
@@ -143,9 +122,7 @@ export default function DocumentGenerator({
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label}>
-                {config.noun} Name (for your records)
-              </label>
+              <label className={styles.label}>Print title</label>
               <input
                 className={styles.input}
                 value={docName}
@@ -232,74 +209,46 @@ export default function DocumentGenerator({
     )
   }
 
-  if (step === 'preview') {
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.stepHeader}>
-          <div className={styles.stepTitle}>Preview & Edit</div>
-          <div className={styles.stepDesc}>
-            Review the {config.noun.toLowerCase()}. You can edit directly before
-            saving.
-          </div>
+  return (
+    <div className={styles.wrap}>
+      <div className={styles.stepHeader}>
+        <div className={styles.stepTitle}>Preview & Edit</div>
+        <div className={styles.stepDesc}>
+          Review the {config.noun.toLowerCase()}. You can edit directly before
+          printing. Log the send on the lead if you need a CRM record.
         </div>
+      </div>
 
-        <div className={styles.previewActions}>
+      <div className={styles.previewActions}>
+        <button
+          className={styles.backBtn}
+          onClick={() => setStep('variables')}
+        >
+          ← Back
+        </button>
+        <button className={styles.printBtn} onClick={handlePrint}>
+          🖨 Print / Save as PDF
+        </button>
+      </div>
+
+      <RichTextEditor
+        content={getRenderedContent()}
+        onChange={setEditedContent}
+      />
+
+      <div className={styles.footer}>
+        {lead ? (
+          <a href={`/leads/${lead.id}`} className={styles.backToLead}>
+            ← Back to lead
+          </a>
+        ) : (
           <button
             className={styles.backBtn}
             onClick={() => setStep('variables')}
           >
             ← Back
           </button>
-          <button className={styles.printBtn} onClick={handlePrint}>
-            🖨 Print / Save as PDF
-          </button>
-          <button
-            className={styles.saveBtn}
-            onClick={handleSave}
-            disabled={isPending}
-          >
-            {isPending ? 'Saving…' : `💾 Save ${config.noun}`}
-          </button>
-        </div>
-
-        <RichTextEditor
-          content={getRenderedContent()}
-          onChange={setEditedContent}
-        />
-
-        <div className={styles.footer}>
-          <button
-            className={styles.saveBtn}
-            onClick={handleSave}
-            disabled={isPending}
-          >
-            {isPending ? 'Saving…' : `Save ${config.noun}`}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={styles.saved}>
-      <div className={styles.savedIcon}>✓</div>
-      <div className={styles.savedTitle}>{config.noun} saved</div>
-      <div className={styles.savedSub}>{docName}</div>
-      <div className={styles.savedActions}>
-        <button className={styles.printBtn} onClick={handlePrint}>
-          🖨 Print / Save as PDF
-        </button>
-        {lead && (
-          <a href={`/leads/${lead.id}`} className={styles.backToLead}>
-            ← Back to lead
-          </a>
         )}
-        <button
-          className={styles.backBtn}
-          onClick={() => setStep('variables')}
-        >
-          Create another
-        </button>
       </div>
     </div>
   )

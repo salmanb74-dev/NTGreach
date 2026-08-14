@@ -34,10 +34,12 @@ export default function EnumerationsClient({
   const [newLabel, setNewLabel] = useState('')
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const items = grouped[activeTab] ?? []
 
   function startEdit(item: EnumItem) {
+    setError(null)
     setEditingId(item.id)
     setEditLabel(item.label)
     setEditActive(item.is_active)
@@ -45,33 +47,53 @@ export default function EnumerationsClient({
 
   function handleSave(id: string) {
     startTransition(async () => {
-      await updateEnumeration(id, editLabel, editActive)
-      setEditingId(null)
-      router.refresh()
+      try {
+        setError(null)
+        await updateEnumeration(id, editLabel, editActive)
+        setEditingId(null)
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save')
+      }
     })
   }
 
   function handleAdd() {
     if (!newLabel.trim()) return
     startTransition(async () => {
-      await addEnumeration(activeTab, newLabel.trim(), newLabel.trim())
-      setNewLabel('')
-      router.refresh()
+      try {
+        setError(null)
+        await addEnumeration(activeTab, newLabel.trim(), newLabel.trim())
+        setNewLabel('')
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to add')
+      }
     })
   }
 
   function handleDelete(id: string) {
     startTransition(async () => {
-      await deleteEnumeration(id)
-      setConfirmDelete(null)
-      router.refresh()
+      try {
+        setError(null)
+        await deleteEnumeration(id)
+        setConfirmDelete(null)
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete')
+      }
     })
   }
 
   function handleReorder(id: string, dir: 'up' | 'down') {
     startTransition(async () => {
-      await reorderEnumeration(id, dir)
-      router.refresh()
+      try {
+        setError(null)
+        await reorderEnumeration(id, dir)
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to reorder')
+      }
     })
   }
 
@@ -90,6 +112,25 @@ export default function EnumerationsClient({
           </button>
         ))}
       </div>
+
+      {error && <p className={styles.error}>{error}</p>}
+
+      <p className={styles.hint}>
+        <strong>Label</strong> is the display name. <strong>Value</strong> (right column) is the
+        code stored in the app.
+        {activeTab === 'currency' ? (
+          <>
+            {' '}
+            Deal currency uses the value (e.g. <code>USD</code>); quotation templates use the text
+            in brackets (e.g. <code>US$</code> from &quot;US Dollar (US$)&quot;).
+          </>
+        ) : (
+          <>
+            {' '}
+            Edit only changes the label; use + Add for a new code.
+          </>
+        )}
+      </p>
 
       {/* Items list */}
       <div className={styles.card}>

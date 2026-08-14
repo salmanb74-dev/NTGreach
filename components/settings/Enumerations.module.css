@@ -223,3 +223,29 @@
   font-size: 13px;
   color: var(--color-text-3);
 }
+
+.error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-danger, #b91c1c);
+  background: color-mix(in srgb, var(--color-danger, #b91c1c) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.hint {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-2);
+  background: var(--color-surface-2, #f4f4f5);
+  border-radius: var(--radius-md);
+}
+
+.hint code {
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--color-surface-1, #fff);
+}

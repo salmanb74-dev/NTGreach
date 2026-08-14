@@ -5,6 +5,7 @@
  */
 
 import { formatAmount } from '@/lib/currency'
+import { resolveCurrencyDisplay } from '@/lib/currency-display'
 
 export type QuotedLimit = number | null // null + unlimited flag → Unlimited
 
@@ -621,7 +622,8 @@ export function hydrateQuotedSubscriptionFromLead(
 /** Merge lead row + quoted_subscription into template variable strings. */
 export function subscriptionVarsFromLead(
   lead: LeadQuoteSource,
-  inputCurrency: string
+  inputCurrency: string,
+  currencyLabels?: Record<string, string> | null
 ): Record<string, string> {
   const sub = hydrateQuotedSubscriptionFromLead(lead)
   const baseMonthly = sub.monthlyPrice
@@ -653,8 +655,10 @@ export function subscriptionVarsFromLead(
     ? ''
     : formatAmount(setupDisplay ?? setup)
 
+  const currencyCode = lead.deal_currency ?? inputCurrency
+
   return {
-    currency: lead.deal_currency ?? inputCurrency,
+    currency: resolveCurrencyDisplay(currencyCode, currencyLabels),
     platform_fee: platformFee,
     billing_cycle: fmtBillingCycle(cycle),
     setup_fee: setupFeeVar,
