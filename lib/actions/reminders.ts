@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -20,7 +21,7 @@ export async function createReminder(data: {
     note:          data.note,
     remind_at:     data.remind_at,
   })
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/notifications')
 }
 
@@ -30,13 +31,13 @@ export async function dismissReminder(id: string) {
     .from('reminders')
     .update({ dismissed_at: new Date().toISOString() })
     .eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/notifications')
 }
 
 export async function deleteReminder(id: string) {
   const supabase = createClient()
   const { error } = await supabase.from('reminders').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/notifications')
 }

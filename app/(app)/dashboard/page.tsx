@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Topbar from '@/components/layout/Topbar'
-import { PIPELINE_STAGES, STAGE_LABELS, STAGE_CSS, type PipelineStage } from '@/lib/types'
+import { PIPELINE_STAGES, ACTIVE_PIPELINE_STAGES, STAGE_LABELS, STAGE_CSS, type PipelineStage } from '@/lib/types'
 import FunnelChart from '@/components/analytics/FunnelChart'
 import LeadsOverTimeChart from '@/components/analytics/LeadsOverTimeChart'
 import ActivityBreakdown from '@/components/analytics/ActivityBreakdown'
@@ -83,7 +83,7 @@ export default async function DashboardPage({
   const activeLeads = totalLeads - closedWon - closedLost
 
   // ── Pipeline value ─────────────────────────────────────────
-  const ACTIVE_STAGES = new Set(['new','contacted','demo_scheduled','proposal_sent','negotiation'])
+  const ACTIVE_STAGES = new Set<string>(ACTIVE_PIPELINE_STAGES)
   const pipelineValue = (allLeads ?? [])
     .filter(l => ACTIVE_STAGES.has(l.stage))
     .reduce((sum, l) => {

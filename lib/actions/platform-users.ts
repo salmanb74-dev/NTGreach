@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCachedProfile } from '@/lib/dataCache'
@@ -94,7 +95,7 @@ export async function createReachUser(input: UpsertUserInput): Promise<{ id: str
     user_metadata: { full_name: fullName },
   })
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   const id = data.user?.id
   if (!id) throw new Error('User create returned no id')
 
@@ -151,7 +152,7 @@ export async function resetReachUserPassword(userId: string): Promise<void> {
   const { error } = await admin.auth.admin.updateUserById(userId, {
     password: DEFAULT_TEMP_PASSWORD,
   })
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   const now = nowIso()
   try {
@@ -181,7 +182,7 @@ export async function deleteReachUser(userId: string): Promise<void> {
 
   const admin = getServiceRoleClient()
   const { error } = await admin.auth.admin.deleteUser(userId)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   revalidatePath('/ops/users')
   revalidatePath('/platform/users')

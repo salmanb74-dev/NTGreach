@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
 import Topbar from '@/components/layout/Topbar'
 import ContractGenerator from '@/components/contracts/ContractGenerator'
 import Link from 'next/link'
 import { prefillFromLead } from '@/lib/contracts'
+import { getInputCurrency } from '@/lib/dataCache'
 import styles from './contract.module.css'
 
 export default async function NewContractPage({
@@ -13,14 +13,13 @@ export default async function NewContractPage({
 }) {
   const supabase = createClient()
 
-  const { data: templates } = await supabase
-    .from('contract_templates')
-    .select('id, name, is_default')
-    .order('created_at')
-
-  const { data: currencySetting } = await supabase
-    .from('app_settings').select('value').eq('key', 'input_currency').single()
-  const inputCurrency = currencySetting?.value ?? 'PKR'
+  const [{ data: templates }, inputCurrency] = await Promise.all([
+    supabase
+      .from('contract_templates')
+      .select('id, name, is_default')
+      .order('created_at'),
+    getInputCurrency(),
+  ])
 
   let lead: any = null
   let prefilled: Record<string, string> = {}
@@ -28,7 +27,9 @@ export default async function NewContractPage({
   if (searchParams.lead) {
     const { data } = await supabase
       .from('leads')
-      .select('id, contact_name, company_name, email, address, quoted_setup_fee, quoted_mrr, payment_frequency, deal_currency, payment_start_date, quoted_subscription')
+      .select(
+        'id, contact_name, company_name, email, address, quoted_setup_fee, quoted_mrr, payment_frequency, deal_currency, payment_start_date, quoted_subscription'
+      )
       .eq('id', searchParams.lead)
       .single()
     lead = data
@@ -40,7 +41,16 @@ export default async function NewContractPage({
       <>
         <Topbar title="New Contract" />
         <div style={{ padding: 32 }}>
-          <p>No contract templates found. Go to <Link href="/settings/contracts" style={{ color: 'var(--color-primary)' }}>Settings → Contract Templates</Link> to create one first.</p>
+          <p>
+            No contract templates found. Go to{' '}
+            <Link
+              href="/settings/contracts"
+              style={{ color: 'var(--color-primary)' }}
+            >
+              Settings → Contract Templates
+            </Link>{' '}
+            to create one first.
+          </p>
         </div>
       </>
     )

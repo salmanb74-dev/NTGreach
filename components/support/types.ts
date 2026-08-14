@@ -158,27 +158,4 @@ export function groupConversationsByTenant(items: ConversationItem[]): TenantGro
   })
 }
 
-export function formatLastMessageAgo(iso: string | null | undefined): string {
-  if (!iso) return 'No messages yet'
-  const ms = Date.now() - new Date(iso).getTime()
-  if (Number.isNaN(ms)) return 'No messages yet'
-  if (ms < 0) return 'Just now'
-
-  const mins = Math.floor(ms / 60_000)
-  if (mins < 1) return 'Last message just now'
-  if (mins === 1) return 'Last message 1 min ago'
-  if (mins < 60) return `Last message ${mins} mins ago`
-
-  const hours = Math.floor(mins / 60)
-  if (hours === 1) return 'Last message 1 hour ago'
-  if (hours < 24) return `Last message ${hours} hours ago`
-
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'Last message 1 day ago'
-  if (days < 7) return `Last message ${days} days ago`
-
-  return `Last message ${new Date(iso).toLocaleDateString('en-PK', {
-    day: 'numeric',
-    month: 'short',
-  })}`
-}
+export { formatLastMessageAgo } from '@/lib/format-when'

@@ -1,5 +1,5 @@
 -- Seed Starter-plan deal defaults for new leads (if not already set).
--- Key is editable from Settings → General.
+-- Source: lib/subscription-quote.ts STARTER_* — run npm run sync:deal-defaults-sql after changes.
 insert into public.app_settings (key, value, updated_at)
 values (
   'deal_quote_defaults',

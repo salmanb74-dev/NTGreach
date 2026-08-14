@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getCachedProfile } from '@/lib/dataCache'
@@ -29,7 +30,7 @@ export async function getActiveClockIn(userId: string): Promise<TimeLog | null> 
     .limit(1)
     .maybeSingle()
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   return (data as TimeLog | null) ?? null
 }
 
@@ -58,7 +59,7 @@ export async function clockIn(): Promise<TimeLog> {
     .select('id, agent_id, clock_in, clock_out, notes, created_at')
     .single()
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   revalidatePath('/support/time')
   return data as TimeLog
@@ -74,7 +75,7 @@ export async function clockOut(id: string, notes?: string): Promise<TimeLog> {
     .eq('id', id)
     .maybeSingle()
 
-  if (fetchError) throw new Error(fetchError.message)
+  assertNoError(fetchError)
   if (!row) throw new Error('Time log not found')
   if (row.agent_id !== profile.id) throw new Error('You can only clock out your own session')
   if (row.clock_out) throw new Error('This session is already clocked out')
@@ -89,7 +90,7 @@ export async function clockOut(id: string, notes?: string): Promise<TimeLog> {
     .select('id, agent_id, clock_in, clock_out, notes, created_at')
     .single()
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   revalidatePath('/support/time')
   return data as TimeLog
@@ -116,6 +117,6 @@ export async function getTimeLogs(
     .lte('clock_in', endIso)
     .order('clock_in', { ascending: false })
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   return (data ?? []) as TimeLog[]
 }

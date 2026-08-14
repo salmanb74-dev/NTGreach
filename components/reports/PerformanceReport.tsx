@@ -1,4 +1,5 @@
 import type { Target } from '@/lib/types'
+import { ACTIVE_PIPELINE_STAGES } from '@/lib/types'
 import {
   convertAmount,
   convertAmountHistorical,
@@ -113,7 +114,7 @@ export default function PerformanceReport({
     ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : (user?.email?.[0] ?? '?').toUpperCase()
 
-  const ACTIVE_STAGES = new Set(['new','contacted','demo_scheduled','proposal_sent','negotiation'])
+  const ACTIVE_STAGES = new Set<string>(ACTIVE_PIPELINE_STAGES)
   const activeLeads   = allLeads.filter(l => ACTIVE_STAGES.has(l.stage))
   const pipelineValue = convertCurrent(activeLeads.reduce((sum, l) => sum + (l.quoted_setup_fee ?? 0) + getMRR(l), 0))
   const totalLeads    = allLeads.length

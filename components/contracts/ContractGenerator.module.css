@@ -1,4 +1,10 @@
-.wrap { display: flex; flex-direction: column; gap: 16px; }
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Clear the fixed action bar so the last fields stay reachable */
+  padding-bottom: 72px;
+}
 
 .stepHeader { margin-bottom: 4px; }
 .stepTitle { font-size: 17px; font-weight: 700; color: var(--color-text); }
@@ -124,7 +130,21 @@
 .varEmpty { color: var(--color-text-3); font-style: italic; font-weight: 400; }
 
 /* ─── Footer / actions ───────────────────────────────────────── */
-.footer { display: flex; justify-content: flex-end; }
+.footer {
+  position: fixed;
+  left: var(--sidebar-width);
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -8px 24px -12px rgba(0, 0, 0, 0.2);
+}
 
 .previewBtn {
   padding: 9px 20px;

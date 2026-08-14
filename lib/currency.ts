@@ -66,6 +66,31 @@ export function hasHistoricalRate(
 }
 
 /**
+ * Format amount with currency symbol and up to 2 decimal places.
+ * Returns em-dash for null/invalid values.
+ */
+export function formatMoney(
+  amount: number | null | undefined,
+  currency = 'USD'
+): string {
+  if (amount == null || !Number.isFinite(amount)) return '—'
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+/**
+ * Format amount without currency symbol (template variables).
+ * Returns empty string for null/invalid values.
+ */
+export function formatAmount(amount: number | null | undefined): string {
+  if (amount == null || !Number.isFinite(amount)) return ''
+  return amount.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
+/**
  * Format a number as currency with symbol.
  */
 export function formatCurrency(amount: number, currency: string): string {

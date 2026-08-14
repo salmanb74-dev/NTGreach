@@ -1,15 +1,12 @@
 import type { Config } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
+import {
+  SUPPORT_FILES_BUCKET,
+  storagePathFromPublicUrl,
+} from '../../lib/support/storage-path.ts'
 
-const BUCKET = 'support-files'
+const BUCKET = SUPPORT_FILES_BUCKET
 const PAGE_SIZE = 1000
-
-function storagePathFromPublicUrl(fileUrl: string): string | null {
-  const marker = `/object/public/${BUCKET}/`
-  const index = fileUrl.indexOf(marker)
-  if (index === -1) return null
-  return decodeURIComponent(fileUrl.slice(index + marker.length).split('?')[0])
-}
 
 async function getReferencedPaths(supabase: ReturnType<typeof createClient>) {
   const paths = new Set<string>()

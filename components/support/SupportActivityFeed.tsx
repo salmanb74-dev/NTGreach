@@ -2,27 +2,12 @@
 
 import styles from '@/components/activity/ActivityFeed.module.css'
 import local from './SupportActivityFeed.module.css'
+import { timeAgo } from '@/lib/format-when'
 import type {
   DirectionCounts,
   SupportActivityRow,
   SupportTimeDay,
 } from './types'
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
 
 function typeBreakdown(counts: DirectionCounts) {
   const parts: string[] = []

@@ -2,28 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { updateUserRoles } from '@/lib/actions/settings'
-import type { UserRole } from '@/lib/roles'
+import {
+  EDITABLE_ROLES,
+  ROLE_LABELS,
+  type UserRole,
+} from '@/lib/roles'
 import styles from './UsersRoles.module.css'
-
-export const ALL_ROLES = [
-  { value: 'crm_admin',      label: 'CRM Admin',     group: 'CRM' },
-  { value: 'crm_manager',    label: 'CRM Manager',   group: 'CRM' },
-  { value: 'crm_sales_rep',  label: 'Sales Rep',     group: 'CRM' },
-  { value: 'cs_admin',       label: 'CS Admin',      group: 'Support' },
-  { value: 'cs_manager',     label: 'CS Manager',    group: 'Support' },
-  { value: 'cs_support_rep', label: 'Support Rep',   group: 'Support' },
-  { value: 'ops_admin',      label: 'Ops Admin',     group: 'Ops' },
-]
-
-export const ROLE_LABELS: Record<string, string> = {
-  crm_admin:      'CRM Admin',
-  crm_manager:    'CRM Manager',
-  crm_sales_rep:  'Sales Rep',
-  cs_admin:       'CS Admin',
-  cs_manager:     'CS Manager',
-  cs_support_rep: 'Support Rep',
-  ops_admin:      'Ops Admin',
-}
 
 interface User {
   id: string
@@ -97,7 +81,7 @@ export default function UsersRolesClient({ users }: { users: User[] }) {
                 </>
               ) : (
                 <div className={styles.roleEditor}>
-                  {ALL_ROLES.map(role => (
+                  {EDITABLE_ROLES.map(role => (
                     <label key={role.value as string} className={styles.roleCheck}>
                       <input
                         type="checkbox"

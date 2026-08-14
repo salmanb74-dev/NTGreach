@@ -93,26 +93,93 @@
 
 .editorContent ul, .editorContent ol {
   padding-left: 20px;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
-.editorContent li { margin-bottom: 4px; }
+.editorContent li {
+  margin: 0;
+  padding: 0;
+  line-height: 1.35;
+}
+
+.editorContent li p {
+  margin: 0 !important;
+  line-height: 1.35;
+}
+
+.toolBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fontSizeSelect {
+  height: 26px;
+  margin-left: 2px;
+  padding: 0 4px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-2);
+  font-size: 11px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  outline: none;
+}
+.fontSizeSelect:focus {
+  border-color: var(--color-primary);
+}
+
+.editorContent strong { font-weight: 700; }
+.editorContent em { font-style: italic; }
+.editorContent u { text-decoration: underline; }
+
+/* Condensed tables — keep tall quote tables on one page */
+.editorContent :global(.tableWrapper) {
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  table-layout: fixed;
+  overflow: visible;
+}
 
 .editorContent table {
   width: 100%;
   border-collapse: collapse;
-  margin: 12px 0;
+  margin: 6px 0;
   table-layout: fixed;
-  overflow: hidden;
+  overflow: visible;
 }
 
+.tableCell,
 .editorContent td,
 .editorContent th {
-  padding: 6px 10px;
-  vertical-align: top;
+  padding: 3px 6px !important;
+  vertical-align: middle;
   border: 1px solid var(--color-border-medium);
-  min-width: 48px;
+  min-width: 40px;
   position: relative;
+  line-height: 1.25;
+  font-size: 11px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.editorContent td > *,
+.editorContent th > *,
+.tableCell > * {
+  margin: 0 !important;
+  line-height: 1.25;
+}
+
+.editorContent td p,
+.editorContent th p {
+  margin: 0 !important;
+  min-height: 1em;
 }
 
 .editorContent th {
@@ -121,17 +188,20 @@
   text-align: left;
 }
 
-.editorContent .selectedCell::after {
+.editorContent :global(.selectedCell)::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--color-primary-subtle);
+  background: rgba(59, 130, 246, 0.12);
   pointer-events: none;
   z-index: 1;
 }
 
-/* Column resize handle (TipTap Table) */
-.editorContent .column-resize-handle {
+.editorContent ::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+.editorContent :global(.column-resize-handle) {
   position: absolute;
   right: -2px;
   top: 0;
@@ -139,20 +209,50 @@
   width: 4px;
   background: var(--color-primary);
   pointer-events: none;
+  z-index: 2;
 }
 
+.editorContent:global(.resize-cursor),
 .editorContent.resize-cursor {
   cursor: col-resize;
 }
 
-.toolBtn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+/* Page break marker (hidden label in print via TEMPLATE_PRINT_STYLES) */
+.editorContent :global(.page-break),
+.editorContent .page-break {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0;
+  padding: 10px 0;
+  border: none;
+  border-top: 2px dashed var(--color-border-medium);
+  border-bottom: 2px dashed var(--color-border-medium);
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    var(--color-surface-2) 6px,
+    var(--color-surface-2) 12px
+  );
+  page-break-after: always;
+  break-after: page;
+  cursor: default;
+  user-select: none;
 }
 
-.editorContent strong { font-weight: 700; }
-.editorContent em { font-style: italic; }
-.editorContent u { text-decoration: underline; }
+.editorContent :global(.page-break-label),
+.editorContent .page-break-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+  background: var(--color-surface);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-medium);
+}
 
 /* Placeholder */
 .editorContent p.is-editor-empty:first-child::before {

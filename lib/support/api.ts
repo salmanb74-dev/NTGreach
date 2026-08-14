@@ -1,4 +1,6 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { assertNoError } from '@/lib/assert'
+import { getServiceRoleClient } from '@/lib/supabase/admin'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export function supportApiUnauthorized() {
@@ -25,12 +27,7 @@ export function assertSupportApiKey(request: Request): NextResponse | null {
 }
 
 export function getSupportAdmin(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) {
-    throw new Error('Supabase admin env is not configured')
-  }
-  return createClient(url, key)
+  return getServiceRoleClient()
 }
 
 /** Dedicated auth.users id used as created_by / customer sender_id for API traffic. */
@@ -135,7 +132,7 @@ export async function getConversationForTenant(
     .eq('id', conversationId)
     .maybeSingle()
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   if (!data) return { conversation: null as null, forbidden: false }
   if (String(data.tenant_id) !== tenantId) {
     return { conversation: null as null, forbidden: true }

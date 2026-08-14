@@ -6,24 +6,13 @@ import { useRouter } from 'next/navigation'
 import type { Lead } from '@/lib/types'
 import StageBadge from '@/components/ui/StageBadge'
 import { deleteLeads } from '@/lib/actions/deleteLeads'
+import { timeAgo } from '@/lib/format-when'
 import styles from './LeadsTable.module.css'
 
 interface LeadsTableProps { leads: Lead[] }
 
 function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-}
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
 export default function LeadsTable({ leads }: LeadsTableProps) {

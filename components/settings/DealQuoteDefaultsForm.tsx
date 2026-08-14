@@ -3,8 +3,13 @@
 import { useState, useTransition } from 'react'
 import { saveDealQuoteDefaults } from '@/lib/actions/settings'
 import {
-  monthsForBillingCycle,
+  normalizeQuotedSubscriptionForSave,
   totalMonthlyRecurring,
+  numStr,
+  parseOptNum,
+  FEATURE_ADDONS,
+  SAVE_FLASH_MS,
+  DEFAULT_PAID_TRIAL_DAYS,
   type BillingCycle,
   type DealQuoteDefaults,
   type QuotedSubscription,
@@ -14,17 +19,6 @@ import styles from '@/app/(app)/settings/general.module.css'
 interface Currency {
   value: string
   label: string
-}
-
-function numStr(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return ''
-  return String(v)
-}
-
-function parseOptNum(s: string): number | null {
-  if (!s.trim()) return null
-  const n = parseFloat(s)
-  return Number.isFinite(n) ? n : null
 }
 
 export default function DealQuoteDefaultsForm({
@@ -55,29 +49,10 @@ export default function DealQuoteDefaultsForm({
         await saveDealQuoteDefaults({
           currency,
           billingCycle: cycle,
-          subscription: {
-            ...sub,
-            billingCycle: cycle,
-            durationMonths: monthsForBillingCycle(cycle),
-            locations: sub.locationsUnlimited ? null : sub.locations,
-            users: sub.usersUnlimited ? null : sub.users,
-            counters: sub.countersUnlimited ? null : sub.counters,
-            ordersPerMonth: sub.ordersUnlimited ? null : sub.ordersPerMonth,
-            setupFee: sub.paidTrial ? 0 : sub.setupFee,
-            preTrialSetupFee: sub.paidTrial ? sub.preTrialSetupFee : 0,
-            postTrialSetupFee: sub.paidTrial ? sub.postTrialSetupFee : 0,
-            callCenterFee: sub.callCenter ? sub.callCenterFee : null,
-            kdsFee: sub.kds ? sub.kdsFee : null,
-            inventoryFee: sub.inventory ? sub.inventoryFee : null,
-            supportFee: sub.support ? sub.supportFee : null,
-            webOrderingFee: sub.webOrdering ? sub.webOrderingFee : null,
-            webOrderingRevenuePercent: sub.webOrdering
-              ? sub.webOrderingRevenuePercent
-              : null,
-          },
+          subscription: normalizeQuotedSubscriptionForSave(sub, cycle),
         })
         setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+        setTimeout(() => setSaved(false), SAVE_FLASH_MS)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save')
       }
@@ -212,35 +187,7 @@ export default function DealQuoteDefaultsForm({
         ordering also stores a revenue % for month-end invoicing (Nest TBD).
       </p>
 
-      {(
-        [
-          {
-            key: 'callCenter' as const,
-            feeKey: 'callCenterFee' as const,
-            label: 'Call center',
-          },
-          {
-            key: 'kds' as const,
-            feeKey: 'kdsFee' as const,
-            label: 'Kitchen display',
-          },
-          {
-            key: 'inventory' as const,
-            feeKey: 'inventoryFee' as const,
-            label: 'Inventory',
-          },
-          {
-            key: 'support' as const,
-            feeKey: 'supportFee' as const,
-            label: 'Ops support',
-          },
-          {
-            key: 'webOrdering' as const,
-            feeKey: 'webOrderingFee' as const,
-            label: 'Web ordering',
-          },
-        ] as const
-      ).map(({ key, feeKey, label }) => (
+      {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
         <div key={key} className={styles.field}>
           <label className={styles.checkRow}>
             <input
@@ -313,6 +260,55 @@ export default function DealQuoteDefaultsForm({
           Paid trial
         </label>
       </div>
+
+      {sub.paidTrial && (
+        <>
+          <div className={styles.field}>
+            <label className={styles.label}>Trial days</label>
+            <input
+              type="number"
+              min={0}
+              className={styles.input}
+              value={numStr(sub.paidTrialDays)}
+              onChange={e =>
+                patchSub({ paidTrialDays: parseOptNum(e.target.value) })
+              }
+            />
+          </div>
+          <div className={styles.grid2}>
+            <div className={styles.field}>
+              <label className={styles.label}>Pre-trial setup</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={styles.input}
+                value={numStr(sub.preTrialSetupFee)}
+                onChange={e =>
+                  patchSub({
+                    preTrialSetupFee: parseOptNum(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Post-trial setup</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={styles.input}
+                value={numStr(sub.postTrialSetupFee)}
+                onChange={e =>
+                  patchSub({
+                    postTrialSetupFee: parseOptNum(e.target.value),
+                  })
+                }
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       <p className={styles.sectionDesc}>
         Platform total / mo: {currency}{' '}

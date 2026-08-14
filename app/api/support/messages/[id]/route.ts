@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient as createUserClient } from '@/lib/supabase/server'
+import { getServiceRoleClient } from '@/lib/supabase/admin'
 import {
   assertSupportApiKey,
   getConversationForTenant,
@@ -9,25 +9,12 @@ import {
   supportApiError,
 } from '@/lib/support/api'
 import { SUPPORT_FILES_BUCKET } from '@/lib/support/media-limits'
+import { storagePathFromPublicUrl } from '@/lib/support/storage'
 
 const BUCKET = SUPPORT_FILES_BUCKET
 
-function storagePathFromPublicUrl(fileUrl: string): string | null {
-  const marker = `/object/public/${BUCKET}/`
-  const index = fileUrl.indexOf(marker)
-  if (index === -1) return null
-  return decodeURIComponent(fileUrl.slice(index + marker.length).split('?')[0])
-}
-
-function getAdmin() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
 async function deleteMessageRow(
-  admin: ReturnType<typeof getAdmin>,
+  admin: ReturnType<typeof getServiceRoleClient>,
   message: { id: string; file_url: string | null }
 ) {
   if (message.file_url) {
@@ -69,7 +56,7 @@ export async function DELETE(
     if (!tenantId) return supportApiError('tenant_id is required')
 
     try {
-      const admin = getAdmin()
+      const admin = getServiceRoleClient()
       const actorId = getSupportApiActorUserId()
 
       const { data: message, error: fetchError } = await admin
@@ -108,7 +95,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = getAdmin()
+  const admin = getServiceRoleClient()
 
   const { data: message, error: fetchError } = await admin
     .from('support_messages')

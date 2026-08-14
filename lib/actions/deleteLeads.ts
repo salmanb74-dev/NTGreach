@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -10,6 +11,6 @@ export async function deleteLeads(ids: string[]): Promise<void> {
     .from('leads')
     .delete()
     .in('id', ids)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/leads')
 }

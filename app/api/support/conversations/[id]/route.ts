@@ -1,23 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient as createUserClient } from '@/lib/supabase/server'
+import { getServiceRoleClient } from '@/lib/supabase/admin'
 import { SUPPORT_FILES_BUCKET } from '@/lib/support/media-limits'
+import { storagePathFromPublicUrl } from '@/lib/support/storage'
 
 const REMOVE_BATCH_SIZE = 100
-
-function getAdmin() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-function storagePathFromPublicUrl(fileUrl: string): string | null {
-  const marker = `/object/public/${SUPPORT_FILES_BUCKET}/`
-  const index = fileUrl.indexOf(marker)
-  if (index === -1) return null
-  return decodeURIComponent(fileUrl.slice(index + marker.length).split('?')[0])
-}
 
 export async function DELETE(
   _request: Request,
@@ -32,7 +19,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = getAdmin()
+  const admin = getServiceRoleClient()
   const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('roles')

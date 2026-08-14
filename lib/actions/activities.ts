@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -17,7 +18,7 @@ export async function logWhatsApp(leadId: string, body: string, occurredAt: stri
     created_at: occurredAt,
   })
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath(`/leads/${leadId}`)
 }
 
@@ -40,7 +41,7 @@ export async function logCall(
     created_by: user!.id,
   })
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath(`/leads/${leadId}`)
 }
 
@@ -56,6 +57,6 @@ export async function logNote(leadId: string, body: string) {
     created_by: user!.id,
   })
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath(`/leads/${leadId}`)
 }

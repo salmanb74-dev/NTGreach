@@ -4,18 +4,8 @@ import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { markOwnPasswordChanged } from '@/lib/actions/platform-users'
+import { ROLE_LABELS, type UserRole } from '@/lib/roles'
 import styles from './ProfileClient.module.css'
-
-export const ROLE_LABELS: Record<string, string> = {
-  crm_admin:      'CRM Admin',
-  crm_manager:    'CRM Manager',
-  crm_sales_rep:  'Sales Rep',
-  cs_admin:       'CS Admin',
-  cs_manager:     'CS Manager',
-  cs_support_rep: 'Support Rep',
-  ops_admin:      'Ops Admin',
-  ops_user:       'Ops User',
-}
 
 interface Profile {
   id: string
@@ -102,7 +92,9 @@ export default function ProfileClient({ profile }: { profile: Profile | null }) 
           <div className={styles.email}>{profile?.email}</div>
           <div className={styles.roles}>
             {(profile?.roles ?? ['crm_sales_rep']).map(r => (
-              <span key={r} className={styles.roleBadge}>{ROLE_LABELS[r]}</span>
+              <span key={r} className={styles.roleBadge}>
+                {ROLE_LABELS[r as UserRole] ?? r}
+              </span>
             ))}
           </div>
         </div>

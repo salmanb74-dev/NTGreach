@@ -2,7 +2,12 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { PipelineStage, LeadSource } from '@/lib/types'
+import {
+  PIPELINE_STAGE_SET,
+  LEAD_SOURCE_SET,
+  type PipelineStage,
+  type LeadSource,
+} from '@/lib/types'
 
 export interface ImportRow {
   contact_name:    string
@@ -22,31 +27,25 @@ export interface ImportResult {
   errors:   string[]
 }
 
-const VALID_STAGES = new Set([
-  'new','contacted','demo_scheduled','proposal_sent',
-  'negotiation','closed_won','closed_lost'
-])
-
-const VALID_SOURCES = new Set([
-  'cold_call','cold_email','referral','linkedin',
-  'website','event','import','other'
-])
-
 function normaliseStage(val?: string): PipelineStage {
   if (!val) return 'new'
   const s = val.toLowerCase().replace(/[\s-]/g, '_')
-  return VALID_STAGES.has(s) ? s as PipelineStage : 'new'
+  return PIPELINE_STAGE_SET.has(s) ? (s as PipelineStage) : 'new'
 }
 
 function normaliseSource(val?: string): LeadSource {
   if (!val) return 'import'
   const s = val.toLowerCase().replace(/[\s-]/g, '_')
-  return VALID_SOURCES.has(s) ? s as LeadSource : 'import'
+  return LEAD_SOURCE_SET.has(s) ? (s as LeadSource) : 'import'
 }
 
 export async function importLeads(rows: ImportRow[]): Promise<ImportResult> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const { getDealQuoteDefaults } = await import('@/lib/dataCache')
+  const { leadFieldsFromDealDefaults } = await import('@/lib/subscription-quote')
+  const dealDefaults = leadFieldsFromDealDefaults(await getDealQuoteDefaults())
 
   const result: ImportResult = { inserted: 0, skipped: 0, errors: [] }
 
@@ -91,6 +90,7 @@ export async function importLeads(rows: ImportRow[]): Promise<ImportResult> {
     }
 
     toInsert.push({
+      ...dealDefaults,
       contact_name:    row.contact_name.trim(),
       company_name:    row.company_name.trim(),
       email:           emailLower || null,

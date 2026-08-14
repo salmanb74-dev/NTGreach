@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getCachedProfile } from '@/lib/dataCache'
@@ -33,7 +34,7 @@ export async function createShift(agentId: string, startAt: string, endAt: strin
     end_at:     end.toISOString(),
     created_by: profile.id,
   })
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   revalidatePath('/support/calendar')
 }
@@ -71,7 +72,7 @@ export async function createRecurringShifts(
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize)
     const { error } = await supabase.from('support_shifts').insert(chunk)
-    if (error) throw new Error(error.message)
+    assertNoError(error)
   }
 
   revalidatePath('/support/calendar')
@@ -90,7 +91,7 @@ export async function deleteShiftSeries(seriesId: string): Promise<{ deleted: nu
     .eq('series_id', seriesId)
     .select('id')
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/support/calendar')
   return { deleted: data?.length ?? 0 }
 }
@@ -114,7 +115,7 @@ export async function deleteMatchingShifts(
     .eq('id', shiftId)
     .maybeSingle()
 
-  if (fetchError) throw new Error(fetchError.message)
+  assertNoError(fetchError)
   if (!origin) throw new Error('Shift not found')
 
   // Linked series: delete by series_id (+ optional from-date filter)
@@ -129,7 +130,7 @@ export async function deleteMatchingShifts(
     }
 
     const { data, error } = await query.select('id')
-    if (error) throw new Error(error.message)
+    assertNoError(error)
     revalidatePath('/support/calendar')
     return { deleted: data?.length ?? 0 }
   }
@@ -142,7 +143,7 @@ export async function deleteMatchingShifts(
     .select('id, start_at, end_at')
     .eq('agent_id', origin.agent_id)
 
-  if (listError) throw new Error(listError.message)
+  assertNoError(listError)
 
   const ids = (agentShifts ?? [])
     .filter(s => {
@@ -165,7 +166,7 @@ export async function deleteMatchingShifts(
       .delete()
       .in('id', chunk)
       .select('id')
-    if (error) throw new Error(error.message)
+    assertNoError(error)
     deleted += data?.length ?? 0
   }
 
@@ -183,7 +184,7 @@ export async function updateShift(id: string, agentId: string) {
     .update({ agent_id: agentId })
     .eq('id', id)
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/support/calendar')
 }
 
@@ -192,7 +193,7 @@ export async function deleteShift(id: string) {
   const supabase = createClient()
 
   const { error } = await supabase.from('support_shifts').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/support/calendar')
 }
 
@@ -210,7 +211,7 @@ export async function getCurrentOnDuty(): Promise<OnDutyAgent | null> {
     .limit(1)
     .maybeSingle()
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   if (!shift) return null
 
   const { data: profile } = await supabase
@@ -253,7 +254,7 @@ export async function updateSupportOfflineMessage(message: string) {
       updated_at: new Date().toISOString(),
     })
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/support/settings')
   revalidatePath('/support/chats')
 }

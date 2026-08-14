@@ -19,6 +19,7 @@ import {
   VOICE_WARN_SECONDS,
   screenRecordingExpiresAt,
 } from '@/lib/support/media-limits'
+export { storagePathFromPublicUrl } from '@/lib/support/storage'
 
 export {
   IMAGE_JPEG_QUALITY,
@@ -148,14 +149,6 @@ export function refocusAppWindow() {
   } catch {
     // ignore
   }
-}
-
-/** Extract storage object path from a public URL. */
-export function storagePathFromPublicUrl(fileUrl: string): string | null {
-  const marker = `/object/public/${BUCKET}/`
-  const idx = fileUrl.indexOf(marker)
-  if (idx === -1) return null
-  return decodeURIComponent(fileUrl.slice(idx + marker.length).split('?')[0])
 }
 
 /** Delete own message and its media through the server-side admin API. */

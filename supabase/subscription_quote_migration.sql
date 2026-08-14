@@ -28,50 +28,41 @@ info@ntgclarity.com</p>
 <h2>Scope of Work</h2>
 <p>{{scope_summary}}</p>
 <h2>Subscription quote</h2>
-<table style="width:100%;border-collapse:collapse">
+<p>All amounts in <strong>{{currency}}</strong> unless noted.</p>
+<table style="width:100%;border-collapse:collapse;margin:6px 0;font-size:11px">
 <thead>
 <tr style="background:#f3f4f6">
-<th style="padding:8px 12px;text-align:left;border:1px solid #e5e7eb">Item</th>
-<th style="padding:8px 12px;text-align:right;border:1px solid #e5e7eb">Quoted ({{currency}})</th>
+<th style="padding:3px 6px;text-align:left;border:1px solid #e5e7eb;line-height:1.25;font-weight:600">Item</th>
+<th style="padding:3px 6px;text-align:right;border:1px solid #e5e7eb;line-height:1.25;font-weight:600">Quoted</th>
 </tr>
 </thead>
 <tbody>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Monthly price</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{monthly_price}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Term (months)</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{duration_months}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Term total</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{term_total}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Setup fee</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{setup_fee}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Pre-trial setup</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{pre_trial_setup_fee}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Post-trial setup</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{post_trial_setup_fee}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Branches</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{branches}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Users</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{users}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Counters</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{counters}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Orders / month</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{orders_per_month}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Call center</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{call_center}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Kitchen display</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{kds}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Inventory</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{inventory}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Support</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{support}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Web ordering</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{web_ordering}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Paid trial</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{paid_trial}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Trial days</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{paid_trial_days}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Access starts</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{access_starts}}</td></tr>
-</tbody>
-</table>
-<h2>First payment summary</h2>
-<table style="width:100%;border-collapse:collapse">
-<tbody>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Setup / first period</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{currency}} {{setup_fee}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Term total ({{duration_months}} months)</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{currency}} {{term_total}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Discount</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{currency}} {{discount}} ({{discount_note}})</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Tax</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{currency}} {{tax}} ({{tax_note}})</td></tr>
-<tr style="font-weight:bold;background:#f9fafb"><td style="padding:8px 12px;border:1px solid #e5e7eb">Total first payment</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{currency}} {{total_first_payment}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Platform fee</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{platform_fee}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Billing cycle</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{billing_cycle}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Setup fee</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{setup_fee}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Pre-trial setup</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{pre_trial_setup_fee}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Post-trial setup</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{post_trial_setup_fee}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Branches</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{branches}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Users</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{users}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Counters</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{counters}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Orders / month</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{orders_per_month}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Call center / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{call_center}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Kitchen display / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{kds}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Inventory / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{inventory}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Ops support / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{ops_support}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering revenue %</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering_revenue_pct}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Paid trial</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Trial days</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial_days}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Trial starts</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{trial_starts}}</td></tr>
 </tbody>
 </table>
 <h2>Terms</h2>
 <ul>
 <li>This quotation is valid until <strong>{{valid_until}}</strong></li>
 <li>Prices are in <strong>{{currency}}</strong></li>
-<li>Access starts: <strong>{{access_starts}}</strong></li>
-<li>Subscription term: <strong>{{contract_term}}</strong></li>
+<li>Billing cycle: <strong>{{billing_cycle}}</strong> ({{contract_term}})</li>
+<li>Trial starts: <strong>{{trial_starts}}</strong></li>
 </ul>
 <p>&nbsp;</p>
 <p>To proceed, please confirm acceptance by replying to this quotation or signing below.</p>
@@ -81,8 +72,7 @@ info@ntgclarity.com</p>
 <p>___________________________<br>Client Signature — {{client_name}}</p>
 $q$,
     updated_at = now()
-where is_default = true
-  and name = 'NTG Reach — Standard Quotation';
+where is_default = true;
 
 -- Refresh default contract fee section with subscription table
 update public.contract_templates
@@ -158,6 +148,7 @@ where is_default = true
   and name = 'NTG Reach — SaaS Subscription Agreement';
 
 -- Default deal values for new leads (Starter plan commercial terms)
+-- Source: lib/subscription-quote.ts STARTER_* — run npm run sync:deal-defaults-sql after changes
 -- Editable later from Settings → General → Default deal values
 insert into public.app_settings (key, value, updated_at)
 values (

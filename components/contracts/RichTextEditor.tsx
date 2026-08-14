@@ -4,13 +4,17 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
+import TextStyle from '@tiptap/extension-text-style'
 import Placeholder from '@tiptap/extension-placeholder'
 import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import { CellSelection, TableMap } from '@tiptap/pm/tables'
 import { useEffect } from 'react'
 import { subscriptionQuoteTableHtml } from '@/lib/subscription-quote'
+import { PageBreak } from './PageBreak'
+import { FontSize } from './FontSize'
 import styles from './RichTextEditor.module.css'
 
 interface Props {
@@ -19,27 +23,71 @@ interface Props {
   placeholder?: string
 }
 
+const FONT_SIZES = [
+  { label: 'Default', value: '' },
+  { label: '10', value: '10px' },
+  { label: '11', value: '11px' },
+  { label: '12', value: '12px' },
+  { label: '13', value: '13px' },
+  { label: '14', value: '14px' },
+  { label: '16', value: '16px' },
+  { label: '18', value: '18px' },
+  { label: '20', value: '20px' },
+]
+
 export default function RichTextEditor({ content, onChange, placeholder }: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit,
       Underline,
+      TextStyle,
+      FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: placeholder ?? 'Start writing…' }),
       Table.configure({
         resizable: true,
+        allowTableNodeSelection: true,
         HTMLAttributes: {
           class: styles.table,
         },
       }),
       TableRow,
-      TableHeader,
-      TableCell,
+      TableHeader.configure({
+        HTMLAttributes: { class: styles.tableCell },
+      }),
+      TableCell.configure({
+        HTMLAttributes: { class: styles.tableCell },
+      }),
+      PageBreak,
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: { class: styles.editorContent },
+      handleKeyDown: (view, event) => {
+        // Ctrl/Cmd+A inside a table → select every cell (so copy works)
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+          const { state } = view
+          const $from = state.selection.$from
+          for (let d = $from.depth; d > 0; d--) {
+            if ($from.node(d).type.name === 'table') {
+              const table = $from.node(d)
+              const tableStart = $from.before(d)
+              const map = TableMap.get(table)
+              const firstCell = tableStart + map.map[0] + 1
+              const lastCell =
+                tableStart + map.map[map.map.length - 1] + 1
+              view.dispatch(
+                state.tr.setSelection(
+                  CellSelection.create(state.doc, firstCell, lastCell)
+                )
+              )
+              return true
+            }
+          }
+        }
+        return false
+      },
     },
   })
 
@@ -79,6 +127,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
   )
 
   const inTable = editor.isActive('table')
+  const currentFontSize =
+    (editor.getAttributes('textStyle').fontSize as string | undefined) ?? ''
 
   return (
     <div className={styles.wrap}>
@@ -104,6 +154,27 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
         >
           <u>U</u>
         </ToolBtn>
+
+        <select
+          className={styles.fontSizeSelect}
+          title="Font size"
+          value={currentFontSize}
+          onMouseDown={e => e.stopPropagation()}
+          onChange={e => {
+            const v = e.target.value
+            if (!v) {
+              editor.chain().focus().unsetFontSize().run()
+            } else {
+              editor.chain().focus().setFontSize(v).run()
+            }
+          }}
+        >
+          {FONT_SIZES.map(s => (
+            <option key={s.label} value={s.value}>
+              {s.value ? `${s.label}px` : s.label}
+            </option>
+          ))}
+        </select>
 
         <div className={styles.divider} />
 
@@ -187,11 +258,34 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
           +Row
         </ToolBtn>
         <ToolBtn
+          title="Delete column"
+          disabled={!inTable}
+          onClick={() => editor.chain().focus().deleteColumn().run()}
+        >
+          −Col
+        </ToolBtn>
+        <ToolBtn
+          title="Delete row"
+          disabled={!inTable}
+          onClick={() => editor.chain().focus().deleteRow().run()}
+        >
+          −Row
+        </ToolBtn>
+        <ToolBtn
           title="Delete table"
           disabled={!inTable}
           onClick={() => editor.chain().focus().deleteTable().run()}
         >
           −Table
+        </ToolBtn>
+
+        <div className={styles.divider} />
+
+        <ToolBtn
+          title="Insert page break (for PDF / print)"
+          onClick={() => editor.chain().focus().setPageBreak().run()}
+        >
+          Page ↵
         </ToolBtn>
 
         <div className={styles.divider} />

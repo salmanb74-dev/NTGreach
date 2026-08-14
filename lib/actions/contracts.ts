@@ -1,40 +1,21 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import {
+  saveDocumentTemplate,
+  deleteDocumentTemplate,
+  saveGeneratedDocument,
+} from '@/lib/actions/documents'
 
-export async function saveTemplate(id: string | null, name: string, content: string) {
-  const supabase = createClient()
-  if (id) {
-    const { error } = await supabase
-      .from('contract_templates')
-      .update({ name, content })
-      .eq('id', id)
-    if (error) throw new Error(error.message)
-  } else {
-    const { error } = await supabase
-      .from('contract_templates')
-      .insert({ name, content })
-    if (error) throw new Error(error.message)
-  }
-  revalidatePath('/settings/contracts')
+export async function saveTemplate(
+  id: string | null,
+  name: string,
+  content: string
+) {
+  return saveDocumentTemplate('contract', id, name, content)
 }
 
 export async function deleteTemplate(id: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('contract_templates')
-    .delete()
-    .eq('id', id)
-    .select('id')
-
-  if (error) throw new Error(error.message)
-  if (!data?.length) {
-    throw new Error(
-      'Could not delete template. You may need CRM Admin/Manager permission, or run supabase/fix_template_rls_crm_roles.sql.'
-    )
-  }
-  revalidatePath('/settings/contracts')
+  return deleteDocumentTemplate('contract', id)
 }
 
 export async function saveContract(data: {
@@ -44,16 +25,5 @@ export async function saveContract(data: {
   content: string
   variables: Record<string, string>
 }) {
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const { data: contract, error } = await supabase
-    .from('contracts')
-    .insert({ ...data, created_by: user!.id })
-    .select()
-    .single()
-  if (error) throw new Error(error.message)
-  revalidatePath(`/leads/${data.lead_id}`)
-  return contract
+  return saveGeneratedDocument('contract', data)
 }

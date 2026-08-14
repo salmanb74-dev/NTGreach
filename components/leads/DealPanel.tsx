@@ -5,8 +5,15 @@ import { useRouter } from 'next/navigation'
 import { updateLead } from '@/lib/actions/leads'
 import {
   monthsForBillingCycle,
-  parseQuotedSubscription,
+  hydrateQuotedSubscriptionFromLead,
+  normalizeQuotedSubscriptionForSave,
   totalMonthlyRecurring,
+  estimateFirstPaymentBase,
+  numStr,
+  parseOptNum,
+  FEATURE_ADDONS,
+  SAVE_FLASH_MS,
+  DEFAULT_PAID_TRIAL_DAYS,
   type BillingCycle,
   type QuotedSubscription,
 } from '@/lib/subscription-quote'
@@ -31,17 +38,6 @@ interface DealPanelProps {
   inputCurrency: string
 }
 
-function numStr(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return ''
-  return String(v)
-}
-
-function parseOptNum(s: string): number | null {
-  if (!s.trim()) return null
-  const n = parseFloat(s)
-  return Number.isFinite(n) ? n : null
-}
-
 export default function DealPanel({
   leadId,
   dealCurrency,
@@ -56,23 +52,12 @@ export default function DealPanel({
   inputCurrency,
 }: DealPanelProps) {
   const router = useRouter()
-  const initialSub = (() => {
-    const parsed = parseQuotedSubscription({
-      ...(typeof quotedSubscription === 'object' &&
-      quotedSubscription &&
-      !Array.isArray(quotedSubscription)
-        ? (quotedSubscription as Record<string, unknown>)
-        : {}),
-      paymentFrequency: frequency,
-    })
-    if (parsed.monthlyPrice == null && recurringFee != null) {
-      parsed.monthlyPrice = recurringFee
-    }
-    if (parsed.setupFee == null && setupFee != null) {
-      parsed.setupFee = setupFee
-    }
-    return parsed
-  })()
+  const initialSub = hydrateQuotedSubscriptionFromLead({
+    quoted_subscription: quotedSubscription,
+    quoted_mrr: recurringFee,
+    quoted_setup_fee: setupFee,
+    payment_frequency: frequency,
+  })
 
   const [currency, setCurrency] = useState(dealCurrency ?? inputCurrency)
   const [disc, setDisc] = useState(discount?.toString() ?? '')
@@ -91,11 +76,9 @@ export default function DealPanel({
   const monthly = totalMonthlyRecurring(sub)
   const baseMonthly = sub.monthlyPrice ?? 0
   const cycle = sub.billingCycle
-  const setup = sub.paidTrial ? 0 : sub.setupFee ?? 0
-  const pre = sub.paidTrial ? sub.preTrialSetupFee ?? 0 : 0
   const discNum = parseFloat(disc) || 0
   const taxNum = parseFloat(tax) || 0
-  const firstBase = setup + pre + monthly
+  const { setupFees, total: firstBase } = estimateFirstPaymentBase(sub)
   const subtotal = firstBase - discNum
   const totalFirst = subtotal + (subtotal * taxNum) / 100
 
@@ -105,28 +88,7 @@ export default function DealPanel({
 
   function handleSave() {
     setError(null)
-    const payload: QuotedSubscription = {
-      ...sub,
-      monthlyPrice: sub.monthlyPrice,
-      billingCycle: sub.billingCycle,
-      durationMonths: monthsForBillingCycle(sub.billingCycle),
-      setupFee: sub.paidTrial ? 0 : sub.setupFee,
-      preTrialSetupFee: sub.paidTrial ? sub.preTrialSetupFee : 0,
-      postTrialSetupFee: sub.paidTrial ? sub.postTrialSetupFee : 0,
-      paidTrialDays: sub.paidTrial ? sub.paidTrialDays : null,
-      locations: sub.locationsUnlimited ? null : sub.locations,
-      users: sub.usersUnlimited ? null : sub.users,
-      counters: sub.countersUnlimited ? null : sub.counters,
-      ordersPerMonth: sub.ordersUnlimited ? null : sub.ordersPerMonth,
-      callCenterFee: sub.callCenter ? sub.callCenterFee : null,
-      kdsFee: sub.kds ? sub.kdsFee : null,
-      inventoryFee: sub.inventory ? sub.inventoryFee : null,
-      supportFee: sub.support ? sub.supportFee : null,
-      webOrderingFee: sub.webOrdering ? sub.webOrderingFee : null,
-      webOrderingRevenuePercent: sub.webOrdering
-        ? sub.webOrderingRevenuePercent
-        : null,
-    }
+    const payload = normalizeQuotedSubscriptionForSave(sub, sub.billingCycle)
 
     startTransition(async () => {
       try {
@@ -143,7 +105,7 @@ export default function DealPanel({
           quoted_subscription: payload,
         })
         setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+        setTimeout(() => setSaved(false), SAVE_FLASH_MS)
         router.refresh()
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to save.')
@@ -313,7 +275,7 @@ export default function DealPanel({
                 onChange={e =>
                   patchSub({ paidTrialDays: parseOptNum(e.target.value) })
                 }
-                placeholder="14"
+                placeholder={String(DEFAULT_PAID_TRIAL_DAYS)}
               />
             </div>
           </div>
@@ -387,35 +349,7 @@ export default function DealPanel({
             ordering also takes a % of revenue on the month-end invoice
             (Nest billing placeholder).
           </p>
-          {(
-            [
-              {
-                key: 'callCenter' as const,
-                feeKey: 'callCenterFee' as const,
-                label: 'Call center',
-              },
-              {
-                key: 'kds' as const,
-                feeKey: 'kdsFee' as const,
-                label: 'Kitchen display',
-              },
-              {
-                key: 'inventory' as const,
-                feeKey: 'inventoryFee' as const,
-                label: 'Inventory',
-              },
-              {
-                key: 'support' as const,
-                feeKey: 'supportFee' as const,
-                label: 'Ops support',
-              },
-              {
-                key: 'webOrdering' as const,
-                feeKey: 'webOrderingFee' as const,
-                label: 'Web ordering',
-              },
-            ] as const
-          ).map(({ key, feeKey, label }) => (
+          {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
             <div key={key} className={styles.addonBlock}>
               <label className={styles.checkLabel}>
                 <input
@@ -539,7 +473,7 @@ export default function DealPanel({
             />
           </div>
 
-          {(monthly > 0 || setup > 0 || pre > 0) && (
+          {(monthly > 0 || setupFees > 0) && (
             <div className={styles.totalRow}>
               <span className={styles.totalLabel}>Est. total first payment</span>
               <span className={styles.totalValue}>

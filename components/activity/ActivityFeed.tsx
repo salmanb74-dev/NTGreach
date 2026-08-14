@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { timeAgo } from '@/lib/format-when'
 import styles from './ActivityFeed.module.css'
 
 interface Lead {
@@ -35,18 +36,6 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }
 
 function getConfig(type: string) {
   return TYPE_CONFIG[type] ?? { label: type.replace(/_/g, ' '), icon: '•', color: 'var(--color-text-3)' }
-}
-
-function timeAgo(dateStr: string) {
-  const diff  = Date.now() - new Date(dateStr).getTime()
-  const mins  = Math.floor(diff / 60000)
-  if (mins < 1)   return 'Just now'
-  if (mins < 60)  return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24)   return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7)   return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function groupByDate(activities: Activity[]) {

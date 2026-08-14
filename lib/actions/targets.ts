@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -15,7 +16,7 @@ export async function createTarget(data: {
 }) {
   const supabase = createClient()
   const { error } = await supabase.from('targets').insert(data)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/reports')
 }
 
@@ -30,13 +31,13 @@ export async function updateTarget(id: string, data: {
 }) {
   const supabase = createClient()
   const { error } = await supabase.from('targets').update(data).eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/reports')
 }
 
 export async function deleteTarget(id: string) {
   const supabase = createClient()
   const { error } = await supabase.from('targets').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/reports')
 }

@@ -4,9 +4,24 @@
  * Aligned with ops TenantSubscriptionPanel / Nest enterprise offer.
  */
 
+import { formatAmount } from '@/lib/currency'
+
 export type QuotedLimit = number | null // null + unlimited flag → Unlimited
 
 export type BillingCycle = 'monthly' | 'annual'
+
+/** Canonical starter commercial terms (TS source of truth for app defaults). */
+export const STARTER_PLATFORM_FEE = 35
+export const STARTER_SETUP_FEE = 350
+export const STARTER_LOCATIONS = 1
+export const STARTER_USERS = 50
+export const STARTER_COUNTERS = 2
+export const STARTER_ORDERS_PER_MONTH = 3000
+export const STARTER_CURRENCY = 'USD'
+export const DEFAULT_PAID_TRIAL_DAYS = 14
+export const QUOTATION_VALIDITY_DAYS = 30
+export const SAVE_FLASH_MS = 2000
+export const TEMPLATE_DATE_LOCALE = 'en-GB'
 
 export function monthsForBillingCycle(cycle: BillingCycle): number {
   return cycle === 'annual' ? 12 : 1
@@ -28,6 +43,59 @@ export function billingCycleFromStored(opts: {
 export function fmtBillingCycle(cycle: BillingCycle): string {
   return cycle === 'annual' ? 'Annual' : 'Monthly'
 }
+
+export function contractTermLabel(cycle: BillingCycle): string {
+  return cycle === 'annual' ? '12 months' : '1 month'
+}
+
+export function formatTemplateDate(d: Date | string | null | undefined): string {
+  if (d == null || d === '') return ''
+  const date = typeof d === 'string' ? new Date(d) : d
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString(TEMPLATE_DATE_LOCALE, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+export function numStr(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return ''
+  return String(v)
+}
+
+export function parseOptNum(s: string): number | null {
+  if (!s.trim()) return null
+  const n = parseFloat(s)
+  return Number.isFinite(n) ? n : null
+}
+
+export type FeatureAddonKey =
+  | 'callCenter'
+  | 'kds'
+  | 'inventory'
+  | 'support'
+  | 'webOrdering'
+
+export type FeatureAddonDef = {
+  key: FeatureAddonKey
+  feeKey:
+    | 'callCenterFee'
+    | 'kdsFee'
+    | 'inventoryFee'
+    | 'supportFee'
+    | 'webOrderingFee'
+  label: string
+}
+
+/** Feature toggles + monthly fee fields (Deal Panel + Settings defaults). */
+export const FEATURE_ADDONS: readonly FeatureAddonDef[] = [
+  { key: 'callCenter', feeKey: 'callCenterFee', label: 'Call center' },
+  { key: 'kds', feeKey: 'kdsFee', label: 'Kitchen display (KDS)' },
+  { key: 'inventory', feeKey: 'inventoryFee', label: 'Inventory' },
+  { key: 'support', feeKey: 'supportFee', label: 'Ops support' },
+  { key: 'webOrdering', feeKey: 'webOrderingFee', label: 'Web ordering' },
+] as const
 
 export type QuotedSubscription = {
   /** Platform fee charged per month (stored as monthlyPrice for Nest/legacy). */
@@ -98,17 +166,17 @@ export const EMPTY_QUOTED_SUBSCRIPTION: QuotedSubscription = {
  * Overridden by app_settings.deal_quote_defaults when set.
  */
 export const STARTER_QUOTED_SUBSCRIPTION: QuotedSubscription = {
-  monthlyPrice: 35,
+  monthlyPrice: STARTER_PLATFORM_FEE,
   billingCycle: 'monthly',
   durationMonths: 1,
-  setupFee: 350,
-  locations: 1,
+  setupFee: STARTER_SETUP_FEE,
+  locations: STARTER_LOCATIONS,
   locationsUnlimited: false,
-  users: 50,
+  users: STARTER_USERS,
   usersUnlimited: false,
-  counters: 2,
+  counters: STARTER_COUNTERS,
   countersUnlimited: false,
-  ordersPerMonth: 3000,
+  ordersPerMonth: STARTER_ORDERS_PER_MONTH,
   ordersUnlimited: false,
   callCenter: false,
   callCenterFee: null,
@@ -130,17 +198,61 @@ export const STARTER_QUOTED_SUBSCRIPTION: QuotedSubscription = {
 /** Sum of enabled feature monthly $ fees (excludes base platform fee). */
 export function addonMonthlyFees(sub: QuotedSubscription): number {
   let total = 0
-  if (sub.callCenter) total += sub.callCenterFee ?? 0
-  if (sub.kds) total += sub.kdsFee ?? 0
-  if (sub.inventory) total += sub.inventoryFee ?? 0
-  if (sub.support) total += sub.supportFee ?? 0
-  if (sub.webOrdering) total += sub.webOrderingFee ?? 0
+  for (const addon of FEATURE_ADDONS) {
+    if (sub[addon.key]) total += sub[addon.feeKey] ?? 0
+  }
   return total
 }
 
 /** Base platform fee + enabled addon monthly fees. */
 export function totalMonthlyRecurring(sub: QuotedSubscription): number {
   return (sub.monthlyPrice ?? 0) + addonMonthlyFees(sub)
+}
+
+/**
+ * Normalize subscription before DB save (paid trial, unlimited limits, disabled addons).
+ */
+export function normalizeQuotedSubscriptionForSave(
+  sub: QuotedSubscription,
+  billingCycle: BillingCycle = sub.billingCycle
+): QuotedSubscription {
+  return {
+    ...sub,
+    billingCycle,
+    durationMonths: monthsForBillingCycle(billingCycle),
+    setupFee: sub.paidTrial ? 0 : sub.setupFee,
+    preTrialSetupFee: sub.paidTrial ? sub.preTrialSetupFee : 0,
+    postTrialSetupFee: sub.paidTrial ? sub.postTrialSetupFee : 0,
+    paidTrialDays: sub.paidTrial ? sub.paidTrialDays : null,
+    locations: sub.locationsUnlimited ? null : sub.locations,
+    users: sub.usersUnlimited ? null : sub.users,
+    counters: sub.countersUnlimited ? null : sub.counters,
+    ordersPerMonth: sub.ordersUnlimited ? null : sub.ordersPerMonth,
+    callCenterFee: sub.callCenter ? sub.callCenterFee : null,
+    kdsFee: sub.kds ? sub.kdsFee : null,
+    inventoryFee: sub.inventory ? sub.inventoryFee : null,
+    supportFee: sub.support ? sub.supportFee : null,
+    webOrderingFee: sub.webOrdering ? sub.webOrderingFee : null,
+    webOrderingRevenuePercent: sub.webOrdering
+      ? sub.webOrderingRevenuePercent
+      : null,
+  }
+}
+
+/** Setup fees in force + one billing cycle of recurring (before discount/tax). */
+export function estimateFirstPaymentBase(sub: QuotedSubscription): {
+  setupFees: number
+  cycleRecurring: number
+  total: number
+} {
+  const monthly = totalMonthlyRecurring(sub)
+  const months = monthsForBillingCycle(sub.billingCycle)
+  const setup = sub.paidTrial ? 0 : sub.setupFee ?? 0
+  const pre = sub.paidTrial ? sub.preTrialSetupFee ?? 0 : 0
+  const post = sub.paidTrial ? sub.postTrialSetupFee ?? 0 : 0
+  const setupFees = setup + pre + post
+  const cycleRecurring = monthly * months
+  return { setupFees, cycleRecurring, total: setupFees + cycleRecurring }
 }
 
 export type DealQuoteDefaults = {
@@ -150,7 +262,7 @@ export type DealQuoteDefaults = {
 }
 
 export const STARTER_DEAL_QUOTE_DEFAULTS: DealQuoteDefaults = {
-  currency: 'USD',
+  currency: STARTER_CURRENCY,
   billingCycle: 'monthly',
   subscription: { ...STARTER_QUOTED_SUBSCRIPTION },
 }
@@ -222,15 +334,14 @@ export function parseDealQuoteDefaults(raw: unknown): DealQuoteDefaults {
 
 /** Flatten defaults for leads insert / deal panel. */
 export function leadFieldsFromDealDefaults(d: DealQuoteDefaults) {
-  const subscription = {
-    ...d.subscription,
-    billingCycle: d.billingCycle,
-    durationMonths: monthsForBillingCycle(d.billingCycle),
-  }
+  const subscription = normalizeQuotedSubscriptionForSave(
+    { ...d.subscription, billingCycle: d.billingCycle },
+    d.billingCycle
+  )
   return {
     deal_currency: d.currency,
     quoted_mrr: totalMonthlyRecurring(subscription),
-    quoted_setup_fee: d.subscription.setupFee,
+    quoted_setup_fee: subscription.setupFee,
     payment_frequency: d.billingCycle,
     quoted_subscription: subscription as unknown as Record<string, unknown>,
   }
@@ -248,21 +359,41 @@ export function serializeDealQuoteDefaults(d: DealQuoteDefaults): string {
   })
 }
 
+/** Serialized Starter defaults for SQL seeds — run `npm run sync:deal-defaults-sql` after changing STARTER_* */
+export const DEAL_QUOTE_DEFAULTS_JSON = serializeDealQuoteDefaults(
+  STARTER_DEAL_QUOTE_DEFAULTS
+)
+
 /** Template {{key}} definitions for subscription rows (contracts + quotations). */
 export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
-  { key: 'platform_fee', label: 'Platform fee (base)', example: '35' },
-  { key: 'platform_fee_total', label: 'Platform fee total / mo', example: '55' },
+  {
+    key: 'platform_fee',
+    label: 'Platform fee',
+    example: String(STARTER_PLATFORM_FEE),
+  },
   { key: 'billing_cycle', label: 'Billing cycle', example: 'Monthly' },
-  { key: 'setup_fee', label: 'Setup fee', example: '700' },
+  {
+    key: 'setup_fee',
+    label: 'Setup fee',
+    example: String(STARTER_SETUP_FEE),
+  },
   { key: 'pre_trial_setup_fee', label: 'Pre-trial setup', example: '0' },
-  { key: 'post_trial_setup_fee', label: 'Post-trial setup', example: '350' },
-  { key: 'branches', label: 'Branches', example: '3' },
-  { key: 'users', label: 'Users', example: '10' },
-  { key: 'counters', label: 'Counters', example: '5' },
-  { key: 'orders_per_month', label: 'Orders / month', example: 'Unlimited' },
+  {
+    key: 'post_trial_setup_fee',
+    label: 'Post-trial setup',
+    example: String(STARTER_SETUP_FEE),
+  },
+  { key: 'branches', label: 'Branches', example: String(STARTER_LOCATIONS) },
+  { key: 'users', label: 'Users', example: String(STARTER_USERS) },
+  { key: 'counters', label: 'Counters', example: String(STARTER_COUNTERS) },
+  {
+    key: 'orders_per_month',
+    label: 'Orders / month',
+    example: String(STARTER_ORDERS_PER_MONTH),
+  },
   { key: 'call_center', label: 'Call center / mo', example: '15' },
   { key: 'kds', label: 'Kitchen display / mo', example: '10' },
-  { key: 'inventory', label: 'Inventory / mo', example: 'No' },
+  { key: 'inventory', label: 'Inventory / mo', example: '12' },
   { key: 'ops_support', label: 'Ops support / mo', example: '25' },
   { key: 'web_ordering', label: 'Web ordering / mo', example: '20' },
   {
@@ -271,7 +402,11 @@ export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
     example: '2.5',
   },
   { key: 'paid_trial', label: 'Paid trial', example: 'Yes' },
-  { key: 'paid_trial_days', label: 'Trial days', example: '14' },
+  {
+    key: 'paid_trial_days',
+    label: 'Trial days',
+    example: String(DEFAULT_PAID_TRIAL_DAYS),
+  },
   { key: 'trial_starts', label: 'Trial starts', example: '1 January 2026' },
 ] as const
 
@@ -319,10 +454,20 @@ function parseFeatureAddon(
 }
 
 export function parseQuotedSubscription(raw: unknown): QuotedSubscription {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+  let value = raw
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return { ...EMPTY_QUOTED_SUBSCRIPTION }
+    try {
+      value = JSON.parse(trimmed)
+    } catch {
+      return { ...EMPTY_QUOTED_SUBSCRIPTION }
+    }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return { ...EMPTY_QUOTED_SUBSCRIPTION }
   }
-  const r = raw as Record<string, unknown>
+  const r = value as Record<string, unknown>
   const num = (v: unknown): number | null => {
     if (v == null || v === '') return null
     const n = typeof v === 'number' ? v : Number(v)
@@ -402,13 +547,6 @@ export function termTotal(
   return monthly * months
 }
 
-function fmtMoney(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return ''
-  return n.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })
-}
-
 function fmtLimit(
   value: number | null | undefined,
   unlimited: boolean
@@ -418,17 +556,13 @@ function fmtLimit(
   return String(value)
 }
 
-function fmtYesNo(v: boolean): string {
-  return v ? 'Yes' : 'No'
-}
-
-/** Enabled feature → monthly $ string; otherwise "No". */
+/** Enabled feature → monthly $ string; otherwise blank (row omitted in templates). */
 function fmtAddonFee(
   enabled: boolean,
   fee: number | null | undefined
 ): string {
-  if (!enabled) return 'No'
-  return fmtMoney(fee ?? 0)
+  if (!enabled) return ''
+  return formatAmount(fee ?? 0)
 }
 
 function fmtPercent(n: number | null | undefined): string {
@@ -437,14 +571,7 @@ function fmtPercent(n: number | null | undefined): string {
 }
 
 function formatAccessDate(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  return formatTemplateDate(iso)
 }
 
 export type LeadQuoteSource = {
@@ -462,19 +589,41 @@ export type LeadQuoteSource = {
   quoted_subscription?: unknown
 }
 
+/**
+ * Resolve a lead’s quoted subscription the same way Deal Panel does:
+ * parse JSON (object or string) + fall back to lead fee / frequency columns.
+ */
+export function hydrateQuotedSubscriptionFromLead(
+  lead: LeadQuoteSource
+): QuotedSubscription {
+  const fromStored = parseQuotedSubscription(lead.quoted_subscription)
+  const billingCycle = billingCycleFromStored({
+    billingCycle: fromStored.billingCycle,
+    durationMonths: fromStored.durationMonths,
+    paymentFrequency: lead.payment_frequency,
+  })
+  const parsed: QuotedSubscription = {
+    ...fromStored,
+    billingCycle,
+    durationMonths: monthsForBillingCycle(billingCycle),
+  }
+
+  if (parsed.monthlyPrice == null && lead.quoted_mrr != null) {
+    const addons = addonMonthlyFees(parsed)
+    parsed.monthlyPrice = Math.max(0, Number(lead.quoted_mrr) - addons)
+  }
+  if (parsed.setupFee == null && lead.quoted_setup_fee != null) {
+    parsed.setupFee = lead.quoted_setup_fee
+  }
+  return parsed
+}
+
 /** Merge lead row + quoted_subscription into template variable strings. */
 export function subscriptionVarsFromLead(
   lead: LeadQuoteSource,
   inputCurrency: string
 ): Record<string, string> {
-  const sub = parseQuotedSubscription({
-    ...(typeof lead.quoted_subscription === 'object' &&
-    lead.quoted_subscription &&
-    !Array.isArray(lead.quoted_subscription)
-      ? (lead.quoted_subscription as Record<string, unknown>)
-      : {}),
-    paymentFrequency: lead.payment_frequency,
-  })
+  const sub = hydrateQuotedSubscriptionFromLead(lead)
   const baseMonthly = sub.monthlyPrice
   const totalMonthly =
     baseMonthly != null || addonMonthlyFees(sub) > 0
@@ -498,17 +647,19 @@ export function subscriptionVarsFromLead(
   const trialStarts = formatAccessDate(lead.payment_start_date)
   const branches = fmtLimit(sub.locations, sub.locationsUnlimited)
   const opsSupport = fmtAddonFee(sub.support, sub.supportFee)
-  const platformFee = fmtMoney(baseMonthly)
-  const platformFeeTotal = fmtMoney(totalMonthly)
+  const platformFee = formatAmount(baseMonthly)
+  // Hide setup row when paid trial (fee is 0); show pre/post instead.
+  const setupFeeVar = sub.paidTrial
+    ? ''
+    : formatAmount(setupDisplay ?? setup)
 
   return {
     currency: lead.deal_currency ?? inputCurrency,
     platform_fee: platformFee,
-    platform_fee_total: platformFeeTotal,
     billing_cycle: fmtBillingCycle(cycle),
-    setup_fee: fmtMoney(setupDisplay ?? setup),
-    pre_trial_setup_fee: fmtMoney(preSetup),
-    post_trial_setup_fee: fmtMoney(postSetup),
+    setup_fee: setupFeeVar,
+    pre_trial_setup_fee: formatAmount(preSetup),
+    post_trial_setup_fee: formatAmount(postSetup),
     branches,
     users: fmtLimit(sub.users, sub.usersUnlimited),
     counters: fmtLimit(sub.counters, sub.countersUnlimited),
@@ -521,55 +672,50 @@ export function subscriptionVarsFromLead(
     web_ordering_revenue_pct: sub.webOrdering
       ? fmtPercent(sub.webOrderingRevenuePercent)
       : '',
-    paid_trial: fmtYesNo(sub.paidTrial),
+    paid_trial: sub.paidTrial ? 'Yes' : '',
     paid_trial_days:
       sub.paidTrial && sub.paidTrialDays != null
         ? String(sub.paidTrialDays)
         : '',
-    trial_starts: trialStarts,
+    trial_starts: sub.paidTrial ? trialStarts : '',
     // aliases for older templates
-    monthly_price: platformFeeTotal || platformFee,
-    recurring_fee: platformFeeTotal || platformFee,
+    monthly_price: platformFee,
+    recurring_fee: formatAmount(totalMonthly) || platformFee,
     duration_months: String(months),
-    term_total: fmtMoney(total),
+    term_total: formatAmount(total),
     locations: branches,
     support: opsSupport,
-    access_starts: trialStarts,
-    payment_frequency: cycle === 'annual' ? 'Annual' : 'Monthly',
-    contract_term: cycle === 'annual' ? '12 months' : '1 month',
+    access_starts: sub.paidTrial ? trialStarts : '',
+    payment_frequency: fmtBillingCycle(cycle),
+    contract_term: contractTermLabel(cycle),
   }
 }
 
+/** Shared inline styles for inserted subscription quote tables. */
+export const TEMPLATE_TABLE = {
+  border: '#e5e7eb',
+  headerBg: '#f3f4f6',
+  fontSize: '11px',
+  cellPad: '3px 6px',
+} as const
+
 /** HTML table snippet operators can paste / seed for subscription comparison. */
 export function subscriptionQuoteTableHtml(): string {
+  const cell = `padding:${TEMPLATE_TABLE.cellPad};border:1px solid ${TEMPLATE_TABLE.border};line-height:1.25;font-size:${TEMPLATE_TABLE.fontSize};vertical-align:middle`
   const row = (label: string, key: string) =>
-    `<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">${label}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{${key}}}</td></tr>`
+    `<tr><td style="${cell}">${label}</td><td style="${cell};text-align:right">{{${key}}}</td></tr>`
+
+  const body = SUBSCRIPTION_TEMPLATE_VARIABLES.map(v =>
+    row(v.label, v.key)
+  ).join('')
 
   return [
-    '<table style="width:100%;border-collapse:collapse">',
-    '<thead><tr style="background:#f3f4f6">',
-    '<th style="padding:8px 12px;text-align:left;border:1px solid #e5e7eb">Item</th>',
-    '<th style="padding:8px 12px;text-align:right;border:1px solid #e5e7eb">Quoted</th>',
+    `<table style="width:100%;border-collapse:collapse;margin:6px 0;font-size:${TEMPLATE_TABLE.fontSize}">`,
+    `<thead><tr style="background:${TEMPLATE_TABLE.headerBg}">`,
+    `<th style="${cell};text-align:left;font-weight:600">Item</th>`,
+    `<th style="${cell};text-align:right;font-weight:600">Quoted</th>`,
     '</tr></thead><tbody>',
-    row('Platform fee (base / mo)', 'platform_fee'),
-    row('Platform fee total / mo', 'platform_fee_total'),
-    row('Billing cycle', 'billing_cycle'),
-    row('Setup fee', 'setup_fee'),
-    row('Pre-trial setup', 'pre_trial_setup_fee'),
-    row('Post-trial setup', 'post_trial_setup_fee'),
-    row('Branches', 'branches'),
-    row('Users', 'users'),
-    row('Counters', 'counters'),
-    row('Orders / month', 'orders_per_month'),
-    row('Call center / mo', 'call_center'),
-    row('Kitchen display / mo', 'kds'),
-    row('Inventory / mo', 'inventory'),
-    row('Ops support / mo', 'ops_support'),
-    row('Web ordering / mo', 'web_ordering'),
-    row('Web ordering revenue %', 'web_ordering_revenue_pct'),
-    row('Paid trial', 'paid_trial'),
-    row('Trial days', 'paid_trial_days'),
-    row('Trial starts', 'trial_starts'),
+    body,
     '</tbody></table>',
   ].join('')
 }

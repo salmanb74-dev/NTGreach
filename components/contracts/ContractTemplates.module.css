@@ -170,3 +170,179 @@
 .varChip:hover { background: var(--color-primary-subtle); }
 
 .varsHint { font-size: 10px; color: var(--color-text-3); white-space: nowrap; }
+
+.previewBtn {
+  padding: 8px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+}
+.previewBtn:hover { background: var(--color-surface-2); }
+
+.printBtn {
+  padding: 8px 14px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.printBtn:hover { background: var(--color-primary-dark); }
+
+/* ─── Settings PDF preview ───────────────────────────────────── */
+.previewView {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.previewBanner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+
+.previewTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.previewNote {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-3);
+  line-height: 1.45;
+  max-width: 560px;
+}
+
+.previewDesk {
+  background: #e5e7eb;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 28px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  overflow-x: auto;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.previewPage {
+  position: relative;
+  width: min(794px, calc(100vw - 80px));
+  height: min(1123px, calc(min(794px, 100vw - 80px) * 297 / 210));
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewPageInner {
+  flex: 1;
+  padding: 64px 56px 48px;
+  overflow: hidden;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 12pt;
+  line-height: 1.7;
+  color: #1a1a18;
+  box-sizing: border-box;
+}
+
+.previewPageInner h1 {
+  font-size: 18pt;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.previewPageInner h2 {
+  font-size: 13pt;
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+.previewPageInner p { margin: 0 0 10px; }
+
+.previewPageInner ul,
+.previewPageInner ol {
+  padding-left: 20px;
+  margin: 0 0 8px;
+}
+
+.previewPageInner li {
+  margin: 0;
+  padding: 0;
+  line-height: 1.35;
+}
+
+.previewPageInner li p {
+  margin: 0 !important;
+  line-height: 1.35;
+}
+
+.previewPageInner table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 11pt;
+}
+
+.previewPageInner th,
+.previewPageInner td {
+  padding: 3px 6px !important;
+  vertical-align: middle;
+  border: 1px solid #e5e7eb;
+  line-height: 1.25;
+  font-size: 11pt;
+}
+
+.previewPageInner th {
+  background: #f3f4f6;
+  font-weight: 600;
+  text-align: left;
+}
+
+.previewPageInner td p,
+.previewPageInner th p {
+  margin: 0 !important;
+  line-height: 1.25;
+}
+
+.previewPageNum {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: #9ca3af;
+  letter-spacing: 0.04em;
+}
+
+.listError {
+  font-size: 12px;
+  color: var(--color-error);
+  background: var(--color-error-bg);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+}

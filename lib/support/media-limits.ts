@@ -22,7 +22,7 @@ export const SCREEN_MAX_BYTES = 12 * 1024 * 1024
 /** Chat image / screenshot soft max for API uploads. */
 export const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
-export const SUPPORT_FILES_BUCKET = 'support-files'
+export { SUPPORT_FILES_BUCKET } from './storage-path'
 
 export function screenRecordingExpiresAt(from = new Date()): string {
   const d = new Date(from)

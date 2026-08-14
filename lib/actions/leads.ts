@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -57,7 +58,7 @@ export async function createLead(data: LeadFormData) {
     .select()
     .single()
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   // Log creation activity
   await supabase.from('activities').insert({
@@ -99,7 +100,7 @@ export async function updateLead(id: string, data: Partial<LeadFormData>) {
     .update(data)
     .eq('id', id)
 
-  if (error) throw new Error(error.message)
+  assertNoError(error)
 
   revalidatePath('/leads')
   revalidatePath(`/leads/${id}`)
@@ -108,7 +109,7 @@ export async function updateLead(id: string, data: Partial<LeadFormData>) {
 export async function deleteLead(id: string) {
   const supabase = createClient()
   const { error } = await supabase.from('leads').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/leads')
   redirect('/leads')
 }

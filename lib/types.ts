@@ -20,6 +20,17 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   'early_exit'
 ]
 
+/** Open pipeline (excludes closed / early exit). */
+export const ACTIVE_PIPELINE_STAGES: PipelineStage[] = [
+  'new',
+  'contacted',
+  'demo_scheduled',
+  'proposal_sent',
+  'negotiation',
+]
+
+export const PIPELINE_STAGE_SET = new Set<string>(PIPELINE_STAGES)
+
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   new:            'New',
   contacted:      'Contacted',
@@ -75,6 +86,9 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
   import:     'Import',
   other:      'Other',
 }
+
+export const LEAD_SOURCES = Object.keys(SOURCE_LABELS) as LeadSource[]
+export const LEAD_SOURCE_SET = new Set<string>(LEAD_SOURCES)
 
 // ─── Restaurant Types ─────────────────────────────────────────────────
 export const RESTAURANT_TYPES = [

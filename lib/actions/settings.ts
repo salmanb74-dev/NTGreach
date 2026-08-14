@@ -1,5 +1,6 @@
 'use server'
 
+import { assertNoError } from '@/lib/assert'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { UserRole } from '@/lib/roles'
@@ -23,7 +24,7 @@ export async function addEnumeration(category: string, value: string, label: str
     label: label.trim(),
     sort_order: nextOrder,
   })
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/settings/enumerations')
 }
 
@@ -33,14 +34,14 @@ export async function updateEnumeration(id: string, label: string, isActive: boo
     .from('enumerations')
     .update({ label: label.trim(), is_active: isActive })
     .eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/settings/enumerations')
 }
 
 export async function deleteEnumeration(id: string) {
   const supabase = createClient()
   const { error } = await supabase.from('enumerations').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/settings/enumerations')
 }
 
@@ -79,7 +80,7 @@ export async function updateUserRoles(userId: string, roles: UserRole[]) {
     .from('profiles')
     .update({ roles: finalRoles })
     .eq('id', userId)
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/settings/users')
   revalidatePath('/platform/users')
 }
@@ -90,7 +91,7 @@ export async function updateAppSetting(key: string, value: string) {
   const { error } = await supabase
     .from('app_settings')
     .upsert({ key, value, updated_at: new Date().toISOString() })
-  if (error) throw new Error(error.message)
+  assertNoError(error)
   revalidatePath('/settings')
   revalidatePath('/leads')
 }
