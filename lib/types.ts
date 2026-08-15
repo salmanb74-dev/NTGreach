@@ -124,7 +124,7 @@ export interface Lead {
   tax_rate?:          number | null
   closed_at:          string | null
   payment_start_date: string | null
-  payment_frequency:  'monthly' | 'annual' | null
+  payment_frequency:  string | null
   /** Enterprise-style quote payload — see lib/subscription-quote.ts */
   quoted_subscription?: Record<string, unknown> | null
   lost_reason: string | null

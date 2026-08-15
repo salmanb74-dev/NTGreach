@@ -4,25 +4,29 @@ import { getDealQuoteDefaults } from '@/lib/dataCache'
 import { getEnumerations } from '@/lib/enumerations'
 import { currencyLabelsFromOptions } from '@/lib/currency-display'
 import { QUOTATION_VARIABLES } from '@/lib/quotations'
+import { billingCycleLabelsFromOptions } from '@/lib/subscription-quote'
 import { previewVariablesFromDealDefaults } from '@/lib/template-print'
 import styles from '../general.module.css'
 
 export default async function QuotationTemplatesPage() {
   const supabase = createClient()
-  const [{ data: templates }, dealDefaults, currencyOptions] = await Promise.all([
+  const [{ data: templates }, dealDefaults, currencyOptions, billingCycleOptions] =
+    await Promise.all([
     supabase
       .from('quotation_templates')
       .select('id, name, is_default, updated_at')
       .order('created_at'),
     getDealQuoteDefaults(),
     getEnumerations('currency'),
+    getEnumerations('billing_cycle'),
   ])
 
   const previewVars = previewVariablesFromDealDefaults(
     QUOTATION_VARIABLES,
     dealDefaults,
     'quotation',
-    currencyLabelsFromOptions(currencyOptions)
+    currencyLabelsFromOptions(currencyOptions),
+    billingCycleLabelsFromOptions(billingCycleOptions)
   )
 
   return (

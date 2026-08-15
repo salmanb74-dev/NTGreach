@@ -4,6 +4,12 @@ import { useState, useTransition } from 'react'
 import Modal from './Modal'
 import Button from '@/components/ui/Button'
 import { updateLead } from '@/lib/actions/leads'
+import {
+  STARTER_BILLING_CYCLES,
+  billingCycleFromStored,
+  monthsForBillingCycle,
+  type BillingCycleOption,
+} from '@/lib/subscription-quote'
 import type { PipelineStage } from '@/lib/types'
 import styles from './modals.module.css'
 
@@ -14,6 +20,8 @@ interface DealValueModalProps {
   existingSetupFee?: number | null
   existingMrr?:      number | null
   currency:          string
+  billingCycles?:    BillingCycleOption[]
+  existingFrequency?: string | null
   onClose:  () => void
   onSaved:  () => void
 }
@@ -28,11 +36,17 @@ const STAGE_LABELS: Record<string, string> = {
 export default function DealValueModal({
   leadId, leadName, newStage,
   existingSetupFee, existingMrr, currency,
+  billingCycles = [],
+  existingFrequency,
   onClose, onSaved,
 }: DealValueModalProps) {
+  const cycleOptions =
+    billingCycles.length > 0 ? billingCycles : [...STARTER_BILLING_CYCLES]
   const [setupFee, setSetupFee] = useState(existingSetupFee?.toString() ?? '')
   const [mrr, setMrr] = useState(existingMrr?.toString() ?? '')
-  const [frequency, setFrequency] = useState<'monthly' | 'annual'>('monthly')
+  const [frequency, setFrequency] = useState(
+    billingCycleFromStored({ paymentFrequency: existingFrequency })
+  )
   const [paymentDate, setPaymentDate] = useState('')
   const [lostReason, setLostReason] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -115,10 +129,16 @@ export default function DealValueModal({
             <select
               className={styles.select}
               value={frequency}
-              onChange={e => setFrequency(e.target.value as 'monthly' | 'annual')}
+              onChange={e => setFrequency(e.target.value)}
             >
-              <option value="monthly">Monthly</option>
-              <option value="annual">Annual</option>
+              {cycleOptions.map(c => (
+                <option key={c.value} value={c.value}>
+                  {c.label} ({c.value} mo)
+                </option>
+              ))}
+              {!cycleOptions.some(c => c.value === frequency) && (
+                <option value={frequency}>{frequency}</option>
+              )}
             </select>
           </div>
           {isClosing && (
@@ -134,10 +154,14 @@ export default function DealValueModal({
           )}
         </div>
 
-        {frequency === 'annual' && mrr && (
+        {monthsForBillingCycle(frequency) > 1 && mrr && (
           <div className={styles.annualHint}>
-            Platform fee is per month. Annual cycle: {currency}{' '}
-            {((parseFloat(mrr) || 0) * 12).toLocaleString()}/year
+            Platform fee is per month. This cycle:{' '}
+            {currency}{' '}
+            {(
+              (parseFloat(mrr) || 0) * monthsForBillingCycle(frequency)
+            ).toLocaleString()}{' '}
+            billed {cycleOptions.find(c => c.value === frequency)?.label ?? ''}
           </div>
         )}
 

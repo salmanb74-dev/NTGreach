@@ -24,9 +24,14 @@ type ModalType = 'email' | 'email_log' | 'whatsapp' | 'call' | 'visit' | null
 interface LeadActionsProps {
   lead:          Lead
   inputCurrency?: string
+  billingCycles?: { value: string; label: string }[]
 }
 
-export default function LeadActions({ lead, inputCurrency = 'PKR' }: LeadActionsProps) {
+export default function LeadActions({
+  lead,
+  inputCurrency = 'PKR',
+  billingCycles = [],
+}: LeadActionsProps) {
   const router = useRouter()
   const [modal,               setModal]               = useState<ModalType>(null)
   const [stage,               setStage]               = useState<PipelineStage>(lead.stage)
@@ -233,6 +238,8 @@ export default function LeadActions({ lead, inputCurrency = 'PKR' }: LeadActions
           existingSetupFee={lead.quoted_setup_fee}
           existingMrr={lead.quoted_mrr}
           currency={inputCurrency}
+          billingCycles={billingCycles}
+          existingFrequency={lead.payment_frequency}
           onClose={() => setPendingStage(null)}
           onSaved={handleDealSaved}
         />

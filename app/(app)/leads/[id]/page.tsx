@@ -16,12 +16,18 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
     { data: lead },
     inputCurrency,
     { data: currencies },
+    { data: billingCycles },
   ] = await Promise.all([
     supabase.from('leads').select('*').eq('id', params.id).single(),
     getInputCurrency(),
     supabase.from('enumerations')
       .select('value, label')
       .eq('category', 'currency')
+      .eq('is_active', true)
+      .order('sort_order'),
+    supabase.from('enumerations')
+      .select('value, label')
+      .eq('category', 'billing_cycle')
       .eq('is_active', true)
       .order('sort_order'),
   ])
@@ -109,7 +115,11 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               </div>
 
               {/* All interactive actions — client component */}
-              <LeadActions lead={lead} inputCurrency={inputCurrency} />
+              <LeadActions
+                lead={lead}
+                inputCurrency={inputCurrency}
+                billingCycles={billingCycles ?? []}
+              />
 
               <Link href={`/leads/${lead.id}/edit`} className={styles.editLink}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -132,6 +142,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               paymentStartDate={lead.payment_start_date}
               quotedSubscription={lead.quoted_subscription ?? null}
               currencies={currencies ?? []}
+              billingCycles={billingCycles ?? []}
               inputCurrency={inputCurrency}
             />
 

@@ -7,6 +7,7 @@ import { prefillQuotationFromLead } from '@/lib/quotations'
 import { getInputCurrency } from '@/lib/dataCache'
 import { getEnumerations } from '@/lib/enumerations'
 import { currencyLabelsFromOptions } from '@/lib/currency-display'
+import { billingCycleLabelsFromOptions } from '@/lib/subscription-quote'
 import styles from '@/app/(app)/contracts/new/contract.module.css'
 
 export default async function NewQuotationPage({
@@ -20,13 +21,16 @@ export default async function NewQuotationPage({
     { data: templates },
     inputCurrency,
     currencyOptions,
+    billingCycleOptions,
   ] = await Promise.all([
     supabase.from('quotation_templates').select('id, name, is_default').order('created_at'),
     getInputCurrency(),
     getEnumerations('currency'),
+    getEnumerations('billing_cycle'),
   ])
 
   const currencyLabels = currencyLabelsFromOptions(currencyOptions)
+  const billingCycleLabels = billingCycleLabelsFromOptions(billingCycleOptions)
 
   let lead: any = null
   let prefilled: Record<string, string> = {}
@@ -38,7 +42,13 @@ export default async function NewQuotationPage({
       .eq('id', searchParams.lead)
       .single()
     lead = data
-    if (lead) prefilled = prefillQuotationFromLead(lead, inputCurrency, currencyLabels)
+    if (lead)
+      prefilled = prefillQuotationFromLead(
+        lead,
+        inputCurrency,
+        currencyLabels,
+        billingCycleLabels
+      )
   }
 
   if (!templates || templates.length === 0) {

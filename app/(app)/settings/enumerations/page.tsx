@@ -7,6 +7,7 @@ const CATEGORIES = [
   { key: 'lead_source',  label: 'Lead Sources'  },
   { key: 'city',         label: 'Cities'         },
   { key: 'currency',     label: 'Currencies'     },
+  { key: 'billing_cycle', label: 'Billing Cycles' },
 ]
 
 export default async function EnumerationsPage() {

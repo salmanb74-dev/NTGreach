@@ -4,8 +4,10 @@
 
 | UI | Template token |
 |---|---|
-| Platform fee | `{{platform_fee}}` |
-| Billing cycle (Monthly / Annual) | `{{billing_cycle}}` |
+| Platform fee / month | `{{platform_fee}}` |
+| Platform fee billed | `{{platform_fee_invoice}}` |
+| Billing cycle suffix | `{{billing_cycle}}` |
+| Duration in months | `{{duration_months}}` |
 | Setup fee | `{{setup_fee}}` |
 | Branches | `{{branches}}` |
 | Call center / mo | `{{call_center}}` |
@@ -16,7 +18,15 @@
 | Web ordering revenue % | `{{web_ordering_revenue_pct}}` |
 | Trial starts | `{{trial_starts}}` |
 
-`quoted_mrr` is the **total monthly** recurring (base platform fee + enabled feature fees). Billing cycle is `payment_frequency` (`monthly` \| `annual`); term months are derived (1 or 12).
+`quoted_mrr` is the **total monthly** recurring (base platform fee + enabled feature fees). Billing cycle comes from Lists & Values (`billing_cycle`): **value** = months (`1`, `12`), **label** = suffix (`per month`, `per year`). Stored on the lead as `payment_frequency` / `quoted_subscription.durationMonths`.
+
+Use `{{platform_fee_invoice}}` in quotations/contracts (includes currency, billed amount, and monthly breakdown when the cycle is longer than a month):
+
+```text
+{{platform_fee_invoice}}
+```
+
+→ `US$ 27 per month` or `US$ 324 per year (US$ 27/month × 12)`
 
 Feature add-ons (call center, KDS, inventory, ops support, web ordering): enable + monthly `$`. Off → row omitted from PDF. Web ordering also stores `webOrderingRevenuePercent` for month-end invoice revenue share (Nest billing not wired yet).
 
@@ -27,7 +37,7 @@ Both quotation and contract templates support simple math:
 ```text
 {{= platform_fee + call_center + kds }}
 {{= setup_fee + platform_fee }}
-{{= round(platform_fee * 12, 2) }}
+{{= round(platform_fee * duration_months, 2)}}
 {{= if(call_center > 0, call_center, 0) }}
 ```
 

@@ -24,7 +24,7 @@ export interface LeadFormData {
   tax_rate?:          number | null
   closed_at?:         string | null
   payment_start_date?: string | null
-  payment_frequency?: 'monthly' | 'annual' | null
+  payment_frequency?: string | null
   quoted_subscription?: Record<string, unknown> | null
   lost_reason?: string | null
 }

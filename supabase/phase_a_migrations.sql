@@ -92,7 +92,15 @@ insert into public.enumerations (category, value, label, sort_order) values
   ('currency', 'USD', 'US Dollar (USD)',        2),
   ('currency', 'CAD', 'Canadian Dollar (CAD)',  3),
   ('currency', 'AED', 'UAE Dirham (AED)',       4),
-  ('currency', 'SAR', 'Saudi Riyal (SAR)',      5)
+  ('currency', 'SAR', 'Saudi Riyal (SAR)',      5),
+
+  -- Billing cycles (value = months, label = template suffix)
+  ('billing_cycle', '1',  'per month',     1),
+  ('billing_cycle', '3',  'per quarter',   2),
+  ('billing_cycle', '6',  'per 6 months',  3),
+  ('billing_cycle', '12', 'per year',      4),
+  ('billing_cycle', '24', 'per 2 years',   5),
+  ('billing_cycle', '36', 'per 3 years',   6)
 
 on conflict (category, value) do nothing;
 

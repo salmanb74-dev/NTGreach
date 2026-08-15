@@ -6,6 +6,7 @@ import { prefillFromLead } from '@/lib/contracts'
 import { getInputCurrency } from '@/lib/dataCache'
 import { getEnumerations } from '@/lib/enumerations'
 import { currencyLabelsFromOptions } from '@/lib/currency-display'
+import { billingCycleLabelsFromOptions } from '@/lib/subscription-quote'
 import styles from './contract.module.css'
 
 export default async function NewContractPage({
@@ -15,16 +16,23 @@ export default async function NewContractPage({
 }) {
   const supabase = createClient()
 
-  const [{ data: templates }, inputCurrency, currencyOptions] = await Promise.all([
+  const [
+    { data: templates },
+    inputCurrency,
+    currencyOptions,
+    billingCycleOptions,
+  ] = await Promise.all([
     supabase
       .from('contract_templates')
       .select('id, name, is_default')
       .order('created_at'),
     getInputCurrency(),
     getEnumerations('currency'),
+    getEnumerations('billing_cycle'),
   ])
 
   const currencyLabels = currencyLabelsFromOptions(currencyOptions)
+  const billingCycleLabels = billingCycleLabelsFromOptions(billingCycleOptions)
 
   let lead: any = null
   let prefilled: Record<string, string> = {}
@@ -38,7 +46,13 @@ export default async function NewContractPage({
       .eq('id', searchParams.lead)
       .single()
     lead = data
-    if (lead) prefilled = prefillFromLead(lead, inputCurrency, currencyLabels)
+    if (lead)
+      prefilled = prefillFromLead(
+        lead,
+        inputCurrency,
+        currencyLabels,
+        billingCycleLabels
+      )
   }
 
   if (!templates || templates.length === 0) {

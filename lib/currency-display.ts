@@ -20,7 +20,14 @@ export function currencySuffixFromLabel(
   return fallbackCode
 }
 
-/** Template {{currency}}: bracket suffix from Lists & Values label, else ISO code. */
+/** Dropdown / UI: bracket suffix when present, otherwise the full label. */
+export function currencyDropdownLabel(
+  option: { value: string; label: string }
+): string {
+  return currencySuffixFromLabel(option.label, option.label)
+}
+
+/** Template {{currency}}: bracket suffix from Lists & Values label, else the label. */
 export function resolveCurrencyDisplay(
   code: string,
   labels?: Record<string, string> | null
@@ -28,5 +35,5 @@ export function resolveCurrencyDisplay(
   if (!labels) return code
   const label = labels[code] ?? labels[code.toUpperCase()]
   if (!label) return code
-  return currencySuffixFromLabel(label, code)
+  return currencySuffixFromLabel(label, label)
 }

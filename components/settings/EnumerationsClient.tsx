@@ -32,6 +32,8 @@ export default function EnumerationsClient({
   const [editLabel, setEditLabel] = useState('')
   const [editActive, setEditActive] = useState(true)
   const [newLabel, setNewLabel] = useState('')
+  const [newMonths, setNewMonths] = useState('')
+  const [editValue, setEditValue] = useState('')
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +44,7 @@ export default function EnumerationsClient({
     setError(null)
     setEditingId(item.id)
     setEditLabel(item.label)
+    setEditValue(item.value)
     setEditActive(item.is_active)
   }
 
@@ -49,7 +52,12 @@ export default function EnumerationsClient({
     startTransition(async () => {
       try {
         setError(null)
-        await updateEnumeration(id, editLabel, editActive)
+        await updateEnumeration(
+          id,
+          editLabel,
+          editActive,
+          activeTab === 'billing_cycle' ? editValue : undefined
+        )
         setEditingId(null)
         router.refresh()
       } catch (err) {
@@ -59,12 +67,19 @@ export default function EnumerationsClient({
   }
 
   function handleAdd() {
-    if (!newLabel.trim()) return
+    const isCycle = activeTab === 'billing_cycle'
+    if (isCycle) {
+      if (!newLabel.trim() || !newMonths.trim()) return
+    } else if (!newLabel.trim()) {
+      return
+    }
     startTransition(async () => {
       try {
         setError(null)
-        await addEnumeration(activeTab, newLabel.trim(), newLabel.trim())
+        const value = isCycle ? newMonths.trim() : newLabel.trim()
+        await addEnumeration(activeTab, value, newLabel.trim())
         setNewLabel('')
+        setNewMonths('')
         router.refresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to add')
@@ -105,7 +120,12 @@ export default function EnumerationsClient({
           <button
             key={c.key}
             className={`${styles.tab} ${activeTab === c.key ? styles.activeTab : ''}`}
-            onClick={() => { setActiveTab(c.key); setEditingId(null) }}
+            onClick={() => {
+              setActiveTab(c.key)
+              setEditingId(null)
+              setNewLabel('')
+              setNewMonths('')
+            }}
           >
             {c.label}
             <span className={styles.tabCount}>{grouped[c.key]?.length ?? 0}</span>
@@ -124,6 +144,14 @@ export default function EnumerationsClient({
             Deal currency uses the value (e.g. <code>USD</code>); quotation templates use the text
             in brackets (e.g. <code>US$</code> from &quot;US Dollar (US$)&quot;).
           </>
+        ) : activeTab === 'billing_cycle' ? (
+          <>
+            {' '}
+            <strong>Value</strong> is duration in months (e.g. <code>12</code> →{' '}
+            <code>{'{{duration_months}}'}</code>). <strong>Label</strong> is the suffix
+            (e.g. <code>per year</code> → <code>{'{{billing_cycle}}'}</code>). Invoice amount:{' '}
+            <code>{'{{= platform_fee * duration_months}}'}</code> <code>{'{{billing_cycle}}'}</code>.
+          </>
         ) : (
           <>
             {' '}
@@ -141,11 +169,23 @@ export default function EnumerationsClient({
           <div key={item.id} className={`${styles.row} ${!item.is_active ? styles.inactive : ''}`}>
             {editingId === item.id ? (
               <div className={styles.editRow}>
+                {activeTab === 'billing_cycle' && (
+                  <input
+                    className={styles.monthsInput}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    placeholder="Months"
+                    title="Duration in months"
+                  />
+                )}
                 <input
                   className={styles.editInput}
                   value={editLabel}
                   onChange={e => setEditLabel(e.target.value)}
-                  autoFocus
+                  autoFocus={activeTab !== 'billing_cycle'}
                 />
                 <label className={styles.activeToggle}>
                   <input
@@ -187,14 +227,38 @@ export default function EnumerationsClient({
 
         {/* Add new */}
         <div className={styles.addRow}>
+          {activeTab === 'billing_cycle' && (
+            <input
+              className={styles.monthsInput}
+              type="number"
+              min={1}
+              step={1}
+              value={newMonths}
+              onChange={e => setNewMonths(e.target.value)}
+              placeholder="Months (e.g. 12)"
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            />
+          )}
           <input
             className={styles.addInput}
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
-            placeholder={`Add new ${categories.find(c => c.key === activeTab)?.label.slice(0, -1).toLowerCase()}…`}
+            placeholder={
+              activeTab === 'billing_cycle'
+                ? 'Label (e.g. per year)'
+                : `Add new ${categories.find(c => c.key === activeTab)?.label.slice(0, -1).toLowerCase()}…`
+            }
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
           />
-          <button className={styles.addBtn} onClick={handleAdd} disabled={!newLabel.trim() || isPending}>
+          <button
+            className={styles.addBtn}
+            onClick={handleAdd}
+            disabled={
+              isPending ||
+              !newLabel.trim() ||
+              (activeTab === 'billing_cycle' && !newMonths.trim())
+            }
+          >
             {isPending ? '…' : '+ Add'}
           </button>
         </div>

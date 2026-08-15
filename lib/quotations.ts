@@ -41,13 +41,19 @@ export function prefillQuotationFromLead(
     company_name: string
   },
   inputCurrency: string,
-  currencyLabels?: Record<string, string> | null
+  currencyLabels?: Record<string, string> | null,
+  billingCycleLabels?: Record<string, string> | null
 ): Record<string, string> {
   const today = new Date()
   const validUntil = new Date(today)
   validUntil.setDate(validUntil.getDate() + QUOTATION_VALIDITY_DAYS)
 
-  const subVars = subscriptionVarsFromLead(lead, inputCurrency, currencyLabels)
+  const subVars = subscriptionVarsFromLead(
+    lead,
+    inputCurrency,
+    currencyLabels,
+    billingCycleLabels
+  )
 
   return {
     client_name: lead.company_name,

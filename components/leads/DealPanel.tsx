@@ -14,9 +14,12 @@ import {
   FEATURE_ADDONS,
   SAVE_FLASH_MS,
   DEFAULT_PAID_TRIAL_DAYS,
+  STARTER_BILLING_CYCLES,
+  fmtBillingCycle,
   type BillingCycle,
   type QuotedSubscription,
 } from '@/lib/subscription-quote'
+import { currencyDropdownLabel } from '@/lib/currency-display'
 import styles from './DealPanel.module.css'
 
 interface Currency {
@@ -29,12 +32,13 @@ interface DealPanelProps {
   dealCurrency: string | null
   setupFee: number | null
   recurringFee: number | null
-  frequency: 'monthly' | 'annual' | null
+  frequency: string | null
   discount: number | null
   taxRate: number | null
   paymentStartDate: string | null
   quotedSubscription: unknown
   currencies: Currency[]
+  billingCycles?: { value: string; label: string }[]
   inputCurrency: string
 }
 
@@ -49,6 +53,7 @@ export default function DealPanel({
   paymentStartDate,
   quotedSubscription,
   currencies,
+  billingCycles = [],
   inputCurrency,
 }: DealPanelProps) {
   const router = useRouter()
@@ -76,6 +81,10 @@ export default function DealPanel({
   const monthly = totalMonthlyRecurring(sub)
   const baseMonthly = sub.monthlyPrice ?? 0
   const cycle = sub.billingCycle
+  const cycleOptions =
+    billingCycles.length > 0 ? billingCycles : [...STARTER_BILLING_CYCLES]
+  const cycleLabel =
+    cycleOptions.find(c => c.value === cycle)?.label ?? fmtBillingCycle(cycle)
   const discNum = parseFloat(disc) || 0
   const taxNum = parseFloat(tax) || 0
   const { setupFees, total: firstBase } = estimateFirstPaymentBase(sub)
@@ -164,7 +173,8 @@ export default function DealPanel({
           <span className={styles.headerSummary}>
             {currency}{' '}
             {(sub.monthlyPrice ?? recurringFee ?? 0).toLocaleString()}/mo
-            {cycle === 'annual' ? ' · Annual' : ' · Monthly'}
+            {' · '}
+            {cycleLabel}
           </span>
         ) : null}
         <svg
@@ -198,7 +208,7 @@ export default function DealPanel({
             >
               {currencies.map(c => (
                 <option key={c.value} value={c.value}>
-                  {c.value} — {c.label}
+                  {currencyDropdownLabel(c)}
                 </option>
               ))}
             </select>
@@ -223,7 +233,11 @@ export default function DealPanel({
               <label className={styles.label}>Billing cycle</label>
               <select
                 className={styles.select}
-                value={sub.billingCycle}
+                value={
+                  cycleOptions.some(c => c.value === sub.billingCycle)
+                    ? sub.billingCycle
+                    : cycle
+                }
                 onChange={e => {
                   const next = e.target.value as BillingCycle
                   patchSub({
@@ -232,8 +246,14 @@ export default function DealPanel({
                   })
                 }}
               >
-                <option value="monthly">Monthly</option>
-                <option value="annual">Annual</option>
+                {cycleOptions.map(c => (
+                  <option key={c.value} value={c.value}>
+                    {c.label} ({c.value} mo)
+                  </option>
+                ))}
+                {!cycleOptions.some(c => c.value === cycle) && (
+                  <option value={cycle}>{cycleLabel}</option>
+                )}
               </select>
             </div>
           </div>

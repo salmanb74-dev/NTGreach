@@ -16,6 +16,22 @@ async function requireCrmAdmin() {
   }
 }
 
+function parseBillingCycleMonths(raw: string): string {
+  const n = Number.parseInt(raw.trim(), 10)
+  if (!Number.isFinite(n) || n < 1) {
+    throw new Error('Billing cycle value must be months as a whole number (e.g. 12)')
+  }
+  return String(n)
+}
+
+function revalidateEnumerations() {
+  revalidatePath('/settings/enumerations')
+  revalidatePath('/settings')
+  revalidatePath('/settings/quotation-templates')
+  revalidatePath('/settings/contracts')
+  revalidatePath('/leads')
+}
+
 export async function addEnumeration(category: string, value: string, label: string) {
   await requireCrmAdmin()
   const supabase = getServiceRoleClient()
@@ -32,7 +48,9 @@ export async function addEnumeration(category: string, value: string, label: str
   const storedValue =
     category === 'currency'
       ? value.trim().toUpperCase().replace(/\s+/g, '_')
-      : value.toLowerCase().replace(/\s+/g, '_')
+      : category === 'billing_cycle'
+        ? parseBillingCycleMonths(value)
+        : value.toLowerCase().replace(/\s+/g, '_')
 
   const { data, error } = await supabase
     .from('enumerations')
@@ -45,20 +63,40 @@ export async function addEnumeration(category: string, value: string, label: str
     .select('id')
   assertNoError(error)
   assertRows(data, 'Could not add item')
-  revalidatePath('/settings/enumerations')
+  revalidateEnumerations()
 }
 
-export async function updateEnumeration(id: string, label: string, isActive: boolean) {
+export async function updateEnumeration(
+  id: string,
+  label: string,
+  isActive: boolean,
+  value?: string
+) {
   await requireCrmAdmin()
   const supabase = getServiceRoleClient()
+  const patch: { label: string; is_active: boolean; value?: string } = {
+    label: label.trim(),
+    is_active: isActive,
+  }
+  if (value != null) {
+    const { data: item, error: fetchError } = await supabase
+      .from('enumerations')
+      .select('category')
+      .eq('id', id)
+      .single()
+    assertNoError(fetchError)
+    if (item?.category === 'billing_cycle') {
+      patch.value = parseBillingCycleMonths(value)
+    }
+  }
   const { data, error } = await supabase
     .from('enumerations')
-    .update({ label: label.trim(), is_active: isActive })
+    .update(patch)
     .eq('id', id)
     .select('id')
   assertNoError(error)
   assertRows(data, 'Could not save — item not found')
-  revalidatePath('/settings/enumerations')
+  revalidateEnumerations()
 }
 
 export async function deleteEnumeration(id: string) {
@@ -71,7 +109,7 @@ export async function deleteEnumeration(id: string) {
     .select('id')
   assertNoError(error)
   assertRows(data, 'Could not delete — item not found')
-  revalidatePath('/settings/enumerations')
+  revalidateEnumerations()
 }
 
 export async function reorderEnumeration(id: string, direction: 'up' | 'down') {
@@ -112,7 +150,7 @@ export async function reorderEnumeration(id: string, direction: 'up' | 'down') {
     .select('id')
   assertNoError(moveError)
   assertRows(moved)
-  revalidatePath('/settings/enumerations')
+  revalidateEnumerations()
 }
 
 // ─── Users & Roles ────────────────────────────────────────────
@@ -142,7 +180,7 @@ export async function updateAppSetting(key: string, value: string) {
 
 export async function saveDealQuoteDefaults(payload: {
   currency: string
-  billingCycle: 'monthly' | 'annual'
+  billingCycle: string
   subscription: Record<string, unknown>
 }) {
   const {

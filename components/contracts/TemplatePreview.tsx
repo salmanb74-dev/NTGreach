@@ -2,10 +2,12 @@
 
 import { useLayoutEffect, useMemo, useState } from 'react'
 import {
+  DOC_LOGO_PATH,
   openTemplatePrintWindow,
   packHtmlIntoPageChunks,
   renderTemplatePreview,
   splitHtmlByPageBreaks,
+  withDocLogo,
   type TemplateVarDef,
 } from '@/lib/template-print'
 import styles from './ContractTemplates.module.css'
@@ -89,7 +91,10 @@ export default function TemplatePreview({
           <div key={i} className={styles.previewPage}>
             <div
               className={styles.previewPageInner}
-              dangerouslySetInnerHTML={{ __html: pageHtml }}
+              dangerouslySetInnerHTML={{
+                __html:
+                  i === 0 ? withDocLogo(pageHtml, DOC_LOGO_PATH) : pageHtml,
+              }}
             />
             <div className={styles.previewPageNum}>
               {i + 1} / {pages.length}

@@ -203,6 +203,20 @@
 }
 .addInput:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-subtle); }
 
+.monthsInput {
+  width: 120px;
+  flex: 0 0 120px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+}
+.monthsInput:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-subtle); }
+
 .addBtn {
   padding: 7px 14px;
   background: var(--color-primary);

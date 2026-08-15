@@ -9,7 +9,29 @@ import { resolveCurrencyDisplay } from '@/lib/currency-display'
 
 export type QuotedLimit = number | null // null + unlimited flag → Unlimited
 
-export type BillingCycle = 'monthly' | 'annual'
+/** Enumeration value: duration in months as a decimal string ("1", "12"). */
+export type BillingCycle = string
+
+export type BillingCycleOption = { value: string; label: string }
+
+/** Built-in cycles (also seeded in Lists & Values). */
+export const STARTER_BILLING_CYCLES: readonly BillingCycleOption[] = [
+  { value: '1', label: 'per month' },
+  { value: '3', label: 'per quarter' },
+  { value: '6', label: 'per 6 months' },
+  { value: '12', label: 'per year' },
+  { value: '24', label: 'per 2 years' },
+  { value: '36', label: 'per 3 years' },
+]
+
+const LEGACY_CYCLE_MONTHS: Record<string, number> = {
+  monthly: 1,
+  month: 1,
+  annual: 12,
+  annually: 12,
+  yearly: 12,
+  year: 12,
+}
 
 /** Canonical starter commercial terms (TS source of truth for app defaults). */
 export const STARTER_PLATFORM_FEE = 35
@@ -24,8 +46,24 @@ export const QUOTATION_VALIDITY_DAYS = 30
 export const SAVE_FLASH_MS = 2000
 export const TEMPLATE_DATE_LOCALE = 'en-GB'
 
+export function parseDurationMonths(raw: unknown): number {
+  if (raw == null || raw === '') return 1
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return Math.round(raw)
+  }
+  const t = String(raw).trim().toLowerCase()
+  if (LEGACY_CYCLE_MONTHS[t] != null) return LEGACY_CYCLE_MONTHS[t]
+  const n = Number(t)
+  if (Number.isFinite(n) && n > 0) return Math.round(n)
+  return 1
+}
+
+export function billingCycleValue(months: number): BillingCycle {
+  return String(Math.max(1, Math.round(months)))
+}
+
 export function monthsForBillingCycle(cycle: BillingCycle): number {
-  return cycle === 'annual' ? 12 : 1
+  return parseDurationMonths(cycle)
 }
 
 export function billingCycleFromStored(opts: {
@@ -33,20 +71,63 @@ export function billingCycleFromStored(opts: {
   durationMonths?: number | null
   paymentFrequency?: unknown
 }): BillingCycle {
-  const raw = opts.billingCycle
-  if (raw === 'annual' || raw === 'monthly') return raw
-  if (opts.paymentFrequency === 'annual') return 'annual'
-  if (opts.paymentFrequency === 'monthly') return 'monthly'
-  if (opts.durationMonths != null && opts.durationMonths >= 12) return 'annual'
-  return 'monthly'
+  if (
+    opts.durationMonths != null &&
+    Number.isFinite(opts.durationMonths) &&
+    opts.durationMonths > 0
+  ) {
+    return billingCycleValue(opts.durationMonths)
+  }
+  if (opts.billingCycle != null && String(opts.billingCycle).trim() !== '') {
+    return billingCycleValue(parseDurationMonths(opts.billingCycle))
+  }
+  if (
+    opts.paymentFrequency != null &&
+    String(opts.paymentFrequency).trim() !== ''
+  ) {
+    return billingCycleValue(parseDurationMonths(opts.paymentFrequency))
+  }
+  return '1'
 }
 
-export function fmtBillingCycle(cycle: BillingCycle): string {
-  return cycle === 'annual' ? 'Annual' : 'Monthly'
+export function billingCycleLabelsFromOptions(
+  options: readonly BillingCycleOption[]
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const { value, label } of options) {
+    out[value] = label
+    const months = parseDurationMonths(value)
+    out[String(months)] = label
+    if (months === 1) out.monthly = label
+    if (months === 12) {
+      out.annual = label
+      out.yearly = label
+    }
+  }
+  return out
+}
+
+export function fmtBillingCycle(
+  cycle: BillingCycle,
+  labels?: Record<string, string> | null
+): string {
+  if (labels) {
+    const hit =
+      labels[cycle] ?? labels[billingCycleValue(parseDurationMonths(cycle))]
+    if (hit) return hit
+  }
+  const m = parseDurationMonths(cycle)
+  if (m === 1) return 'per month'
+  if (m === 3) return 'per quarter'
+  if (m === 12) return 'per year'
+  if (m === 24) return 'per 2 years'
+  if (m === 36) return 'per 3 years'
+  return `per ${m} months`
 }
 
 export function contractTermLabel(cycle: BillingCycle): string {
-  return cycle === 'annual' ? '12 months' : '1 month'
+  const m = parseDurationMonths(cycle)
+  return m === 1 ? '1 month' : `${m} months`
 }
 
 export function formatTemplateDate(d: Date | string | null | undefined): string {
@@ -102,7 +183,7 @@ export type QuotedSubscription = {
   /** Platform fee charged per month (stored as monthlyPrice for Nest/legacy). */
   monthlyPrice: number | null
   billingCycle: BillingCycle
-  /** Derived from billingCycle: 1 monthly, 12 annual. Kept for stored JSON. */
+  /** Duration in months — matches Lists & Values billing_cycle value. */
   durationMonths: number | null
   setupFee: number | null
   locations: number | null
@@ -134,7 +215,7 @@ export type QuotedSubscription = {
 
 export const EMPTY_QUOTED_SUBSCRIPTION: QuotedSubscription = {
   monthlyPrice: null,
-  billingCycle: 'monthly',
+  billingCycle: '1',
   durationMonths: 1,
   setupFee: null,
   locations: null,
@@ -168,7 +249,7 @@ export const EMPTY_QUOTED_SUBSCRIPTION: QuotedSubscription = {
  */
 export const STARTER_QUOTED_SUBSCRIPTION: QuotedSubscription = {
   monthlyPrice: STARTER_PLATFORM_FEE,
-  billingCycle: 'monthly',
+  billingCycle: '1',
   durationMonths: 1,
   setupFee: STARTER_SETUP_FEE,
   locations: STARTER_LOCATIONS,
@@ -264,7 +345,7 @@ export type DealQuoteDefaults = {
 
 export const STARTER_DEAL_QUOTE_DEFAULTS: DealQuoteDefaults = {
   currency: STARTER_CURRENCY,
-  billingCycle: 'monthly',
+  billingCycle: '1',
   subscription: { ...STARTER_QUOTED_SUBSCRIPTION },
 }
 
@@ -369,10 +450,16 @@ export const DEAL_QUOTE_DEFAULTS_JSON = serializeDealQuoteDefaults(
 export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
   {
     key: 'platform_fee',
-    label: 'Platform fee',
+    label: 'Platform fee / month',
     example: String(STARTER_PLATFORM_FEE),
   },
-  { key: 'billing_cycle', label: 'Billing cycle', example: 'Monthly' },
+  {
+    key: 'platform_fee_invoice',
+    label: 'Platform fee (billed)',
+    example: `US$ ${STARTER_PLATFORM_FEE} per month`,
+  },
+  { key: 'billing_cycle', label: 'Billing cycle', example: 'per month' },
+  { key: 'duration_months', label: 'Duration (months)', example: '1' },
   {
     key: 'setup_fee',
     label: 'Setup fee',
@@ -566,6 +653,24 @@ function fmtAddonFee(
   return formatAmount(fee ?? 0)
 }
 
+/** Billed amount + cycle suffix; adds (monthly × months) when term is longer than a month. */
+function fmtCyclePrice(
+  monthly: number | null | undefined,
+  months: number,
+  currency: string,
+  cycleSuffix: string
+): string {
+  if (monthly == null || !Number.isFinite(monthly)) return ''
+  const monthlyStr = formatAmount(monthly)
+  if (!monthlyStr) return ''
+  const billed = formatAmount(monthly * months)
+  const money = (n: string) => `${currency} ${n}`.trim()
+  if (months > 1) {
+    return `${money(billed)} ${cycleSuffix} (${money(monthlyStr)}/month × ${months})`
+  }
+  return `${money(monthlyStr)} ${cycleSuffix}`
+}
+
 function fmtPercent(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return ''
   return String(n)
@@ -623,7 +728,8 @@ export function hydrateQuotedSubscriptionFromLead(
 export function subscriptionVarsFromLead(
   lead: LeadQuoteSource,
   inputCurrency: string,
-  currencyLabels?: Record<string, string> | null
+  currencyLabels?: Record<string, string> | null,
+  billingCycleLabels?: Record<string, string> | null
 ): Record<string, string> {
   const sub = hydrateQuotedSubscriptionFromLead(lead)
   const baseMonthly = sub.monthlyPrice
@@ -656,11 +762,20 @@ export function subscriptionVarsFromLead(
     : formatAmount(setupDisplay ?? setup)
 
   const currencyCode = lead.deal_currency ?? inputCurrency
+  const currency = resolveCurrencyDisplay(currencyCode, currencyLabels)
+  const cycleSuffix = fmtBillingCycle(cycle, billingCycleLabels)
+  const platformFeeInvoice = fmtCyclePrice(
+    baseMonthly,
+    months,
+    currency,
+    cycleSuffix
+  )
 
   return {
-    currency: resolveCurrencyDisplay(currencyCode, currencyLabels),
+    currency,
     platform_fee: platformFee,
-    billing_cycle: fmtBillingCycle(cycle),
+    platform_fee_invoice: platformFeeInvoice,
+    billing_cycle: cycleSuffix,
     setup_fee: setupFeeVar,
     pre_trial_setup_fee: formatAmount(preSetup),
     post_trial_setup_fee: formatAmount(postSetup),
@@ -690,7 +805,7 @@ export function subscriptionVarsFromLead(
     locations: branches,
     support: opsSupport,
     access_starts: sub.paidTrial ? trialStarts : '',
-    payment_frequency: fmtBillingCycle(cycle),
+    payment_frequency: cycleSuffix,
     contract_term: contractTermLabel(cycle),
   }
 }

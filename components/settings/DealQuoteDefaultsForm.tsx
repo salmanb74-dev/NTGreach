@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { saveDealQuoteDefaults } from '@/lib/actions/settings'
+import { currencyDropdownLabel } from '@/lib/currency-display'
 import {
   normalizeQuotedSubscriptionForSave,
   totalMonthlyRecurring,
@@ -10,7 +11,9 @@ import {
   FEATURE_ADDONS,
   SAVE_FLASH_MS,
   DEFAULT_PAID_TRIAL_DAYS,
+  STARTER_BILLING_CYCLES,
   type BillingCycle,
+  type BillingCycleOption,
   type DealQuoteDefaults,
   type QuotedSubscription,
 } from '@/lib/subscription-quote'
@@ -24,9 +27,11 @@ interface Currency {
 export default function DealQuoteDefaultsForm({
   initial,
   currencies,
+  billingCycles = [],
 }: {
   initial: DealQuoteDefaults
   currencies: Currency[]
+  billingCycles?: BillingCycleOption[]
 }) {
   const [currency, setCurrency] = useState(initial.currency)
   const [cycle, setCycle] = useState<BillingCycle>(initial.billingCycle)
@@ -76,7 +81,7 @@ export default function DealQuoteDefaultsForm({
           >
             {currencies.map(c => (
               <option key={c.value} value={c.value}>
-                {c.label}
+                {currencyDropdownLabel(c)}
               </option>
             ))}
             {!currencies.some(c => c.value === currency) && (
@@ -91,8 +96,17 @@ export default function DealQuoteDefaultsForm({
             value={cycle}
             onChange={e => setCycle(e.target.value as BillingCycle)}
           >
-            <option value="monthly">Monthly</option>
-            <option value="annual">Annual</option>
+            {(billingCycles.length > 0
+              ? billingCycles
+              : STARTER_BILLING_CYCLES
+            ).map(c => (
+              <option key={c.value} value={c.value}>
+                {c.label} ({c.value} mo)
+              </option>
+            ))}
+            {!(billingCycles.length > 0 ? billingCycles : STARTER_BILLING_CYCLES).some(
+              c => c.value === cycle
+            ) && <option value={cycle}>{cycle}</option>}
           </select>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { updateAppSetting } from '@/lib/actions/settings'
+import { currencyDropdownLabel } from '@/lib/currency-display'
 import RefreshRatesButton from '@/components/settings/RefreshRatesButton'
 import DealQuoteDefaultsForm from '@/components/settings/DealQuoteDefaultsForm'
 import {
@@ -29,6 +30,13 @@ export default async function SettingsGeneralPage() {
     .from('enumerations')
     .select('value, label')
     .eq('category', 'currency')
+    .eq('is_active', true)
+    .order('sort_order')
+
+  const { data: billingCycles } = await supabase
+    .from('enumerations')
+    .select('value, label')
+    .eq('category', 'billing_cycle')
     .eq('is_active', true)
     .order('sort_order')
 
@@ -86,7 +94,7 @@ export default async function SettingsGeneralPage() {
               >
                 {currencies?.map(c => (
                   <option key={c.value} value={c.value}>
-                    {c.label}
+                    {currencyDropdownLabel(c)}
                   </option>
                 ))}
               </select>
@@ -115,7 +123,7 @@ export default async function SettingsGeneralPage() {
                     disabled={c.value === 'USD'}
                     className={styles.checkbox}
                   />
-                  {c.label}
+                  {currencyDropdownLabel(c)}
                   {c.value === 'USD' && (
                     <span
                       style={{
@@ -152,6 +160,7 @@ export default async function SettingsGeneralPage() {
         <DealQuoteDefaultsForm
           initial={dealDefaults}
           currencies={currencies ?? []}
+          billingCycles={billingCycles ?? []}
         />
       </div>
 

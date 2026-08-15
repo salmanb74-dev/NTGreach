@@ -31,7 +31,8 @@ export function previewVariablesFromDealDefaults(
   defs: readonly TemplateVarDef[],
   defaults: DealQuoteDefaults,
   kind: 'contract' | 'quotation',
-  currencyLabels?: Record<string, string> | null
+  currencyLabels?: Record<string, string> | null,
+  billingCycleLabels?: Record<string, string> | null
 ): Record<string, string> {
   const examples = sampleVariablesFromDefs(defs)
   const fields = leadFieldsFromDealDefaults(defaults)
@@ -52,8 +53,18 @@ export function previewVariablesFromDealDefaults(
 
   const fromDeal =
     kind === 'quotation'
-      ? prefillQuotationFromLead(fakeLead, defaults.currency, currencyLabels)
-      : prefillFromLead(fakeLead, defaults.currency, currencyLabels)
+      ? prefillQuotationFromLead(
+          fakeLead,
+          defaults.currency,
+          currencyLabels,
+          billingCycleLabels
+        )
+      : prefillFromLead(
+          fakeLead,
+          defaults.currency,
+          currencyLabels,
+          billingCycleLabels
+        )
 
   return { ...examples, ...fromDeal }
 }
@@ -138,8 +149,29 @@ export function packHtmlIntoPageChunks(
 }
 
 /** Shared print / PDF stylesheet (contracts, quotations, Settings preview). */
+export const DOC_LOGO_PATH = '/branding/ntg-logo.png'
+
+/** Absolute URL for print windows (blank document origin). */
+export function docLogoSrc(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${DOC_LOGO_PATH}`
+  }
+  return DOC_LOGO_PATH
+}
+
+/** Hardcoded letterhead logo — top-left, does not push title down. */
+export function docLogoHtml(src = docLogoSrc()): string {
+  return `<div class="doc-logo"><img src="${src}" alt="NTG Clarity Networks Inc." /></div>`
+}
+
+export function withDocLogo(bodyHtml: string, src = docLogoSrc()): string {
+  if (/class=["']doc-logo["']/.test(bodyHtml)) return bodyHtml
+  return `${docLogoHtml(src)}${bodyHtml}`
+}
+
 export const TEMPLATE_PRINT_STYLES = `
   body {
+    position: relative;
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 12pt;
     line-height: 1.7;
@@ -148,7 +180,30 @@ export const TEMPLATE_PRINT_STYLES = `
     margin: 40px auto;
     padding: 0 40px;
   }
-  h1 { font-size: 18pt; text-align: center; margin-bottom: 20px; }
+  /* Logo overlays top-left; h1 stays full-width centered on the first line. */
+  .doc-logo {
+    position: absolute;
+    top: 0;
+    left: 40px;
+    margin: 0;
+    width: 75px;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .doc-logo img {
+    display: block;
+    width: 75px;
+    height: auto;
+  }
+  h1 {
+    font-size: 18pt;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 20px;
+    /* Keep title optically centered while clearing the logo */
+    padding-left: 85px;
+    padding-right: 85px;
+  }
   h2 { font-size: 13pt; margin-top: 24px; margin-bottom: 8px; }
   p { margin: 0 0 10px; }
   ul, ol { padding-left: 20px; margin: 0 0 8px; }
@@ -176,6 +231,7 @@ export const TEMPLATE_PRINT_STYLES = `
   .page-break-label { display: none; }
   @media print {
     body { margin: 0; max-width: none; padding: 0 24px; }
+    .doc-logo { left: 24px; top: 0; }
     .page-break {
       page-break-after: always;
       break-after: page;
@@ -183,9 +239,47 @@ export const TEMPLATE_PRINT_STYLES = `
   }
 `
 
+function waitForImages(doc: Document, timeoutMs = 1500): Promise<void> {
+  const imgs = Array.from(doc.images)
+  const pending = imgs.filter(img => !img.complete)
+  if (pending.length === 0) return Promise.resolve()
+
+  return new Promise(resolve => {
+    let left = pending.length
+    const done = () => {
+      left -= 1
+      if (left <= 0) resolve()
+    }
+    const timer = window.setTimeout(() => resolve(), timeoutMs)
+    for (const img of pending) {
+      img.addEventListener(
+        'load',
+        () => {
+          done()
+          if (left <= 0) window.clearTimeout(timer)
+        },
+        { once: true }
+      )
+      img.addEventListener(
+        'error',
+        () => {
+          done()
+          if (left <= 0) window.clearTimeout(timer)
+        },
+        { once: true }
+      )
+    }
+  })
+}
+
 export function openTemplatePrintWindow(title: string, bodyHtml: string) {
   const win = window.open('', '_blank')
   if (!win) return
+
+  // Prefetch so the print window can reuse cache.
+  const warm = new window.Image()
+  warm.src = docLogoSrc()
+
   win.document.write(`<!DOCTYPE html>
 <html>
   <head>
@@ -193,11 +287,26 @@ export function openTemplatePrintWindow(title: string, bodyHtml: string) {
     <title>${escapeHtml(title)}</title>
     <style>${TEMPLATE_PRINT_STYLES}</style>
   </head>
-  <body>${bodyHtml}</body>
+  <body>${withDocLogo(bodyHtml)}</body>
 </html>`)
   win.document.close()
-  win.focus()
-  win.print()
+
+  let printed = false
+  const runPrint = () => {
+    if (printed) return
+    printed = true
+    try {
+      win.focus()
+      win.print()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Prefer printing after images load, but always open the dialog
+  // (image wait / decode must never block indefinitely).
+  waitForImages(win.document, 800).then(() => setTimeout(runPrint, 50))
+  setTimeout(runPrint, 1000)
 }
 
 function escapeHtml(s: string): string {
