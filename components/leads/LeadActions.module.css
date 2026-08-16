@@ -127,7 +127,7 @@
   border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-2);
+  color: var(--color-text);
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
   font-family: var(--font-sans);
