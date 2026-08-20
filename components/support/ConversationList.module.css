@@ -71,6 +71,41 @@
   background: var(--color-error-bg);
 }
 
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filterLabel {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.filterSelect {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.filterSelect:focus {
+  border-color: var(--color-primary);
+}
+
 .listScroll {
   flex: 1;
   overflow-y: auto;
@@ -239,6 +274,23 @@
   gap: 8px;
   font-size: 11px;
   color: var(--color-text-3);
+}
+
+.branchLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-weight: 500;
+  color: var(--color-text-2);
+}
+
+.convMetaSecondary {
+  font-size: 10px;
+  color: var(--color-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chatPanel {

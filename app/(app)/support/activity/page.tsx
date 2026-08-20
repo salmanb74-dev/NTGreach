@@ -74,6 +74,7 @@ function addMessage(counts: DirectionCounts, messageType: string) {
   if (messageType === 'image') counts.image += 1
   if (messageType === 'voice') counts.voice += 1
   if (messageType === 'video') counts.video += 1
+  if (messageType === 'file')  counts.file  += 1
 }
 
 /**

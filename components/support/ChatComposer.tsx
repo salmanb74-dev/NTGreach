@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { SupportMessageRow } from '@/lib/support/realtime'
 import Button from '@/components/ui/Button'
-import ImageUploader from './ImageUploader'
+import FileUploader from './FileUploader'
 import ScreenshotCapture from './ScreenshotCapture'
 import ScreenRecorder from './ScreenRecorder'
 import VoiceRecorder from './VoiceRecorder'
@@ -29,10 +29,10 @@ export default function ChatComposer({
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [voiceActive, setVoiceActive] = useState(false)
-  const [imageActive, setImageActive] = useState(false)
+  const [fileActive, setFileActive] = useState(false)
   const [shotActive, setShotActive] = useState(false)
   const [recActive, setRecActive] = useState(false)
-  const mediaActive = voiceActive || imageActive || shotActive || recActive
+  const mediaActive = voiceActive || fileActive || shotActive || recActive
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
@@ -59,24 +59,24 @@ export default function ChatComposer({
 
   return (
     <form className={styles.composer} onSubmit={handleSend}>
-      <ImageUploader
+      <FileUploader
         {...mediaProps}
         disabled={closed || voiceActive || shotActive || recActive}
-        onActiveChange={setImageActive}
+        onActiveChange={setFileActive}
       />
       <ScreenshotCapture
         {...mediaProps}
-        disabled={closed || voiceActive || imageActive || recActive}
+        disabled={closed || voiceActive || fileActive || recActive}
         onActiveChange={setShotActive}
       />
       <VoiceRecorder
         {...mediaProps}
-        disabled={closed || imageActive || shotActive || recActive}
+        disabled={closed || fileActive || shotActive || recActive}
         onActiveChange={setVoiceActive}
       />
       <ScreenRecorder
         {...mediaProps}
-        disabled={closed || voiceActive || imageActive || shotActive}
+        disabled={closed || voiceActive || fileActive || shotActive}
         onActiveChange={setRecActive}
       />
       <input

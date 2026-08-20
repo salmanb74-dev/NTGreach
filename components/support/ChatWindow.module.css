@@ -232,6 +232,21 @@
   color: var(--color-text-3);
 }
 
+.branchBadge {
+  flex-shrink: 0;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .error {
   margin: 0;
   padding: 8px 16px;

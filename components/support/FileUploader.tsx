@@ -2,16 +2,15 @@
 
 import { useRef, useState } from 'react'
 import type { SupportMessageRow } from '@/lib/support/realtime'
+import { FILE_MAX_BYTES, IMAGE_MAX_BYTES } from '@/lib/support/media-limits'
 import {
   compressImageForChat,
+  fileStoragePath,
   imageStoragePath,
   insertMediaMessage,
   uploadSupportFile,
 } from '@/lib/support/upload'
 import styles from './ImageUploader.module.css'
-
-const MAX_BYTES = 5 * 1024 * 1024
-const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp'
 
 interface Props {
   conversationId: string
@@ -25,7 +24,16 @@ interface Props {
 
 type Phase = 'idle' | 'uploading'
 
-export default function ImageUploader({
+function formatMb(bytes: number) {
+  return `${Math.round(bytes / (1024 * 1024))}MB`
+}
+
+function safeFileName(name: string) {
+  const trimmed = name.trim() || 'attachment'
+  return trimmed.slice(0, 120)
+}
+
+export default function FileUploader({
   conversationId,
   senderId,
   senderType,
@@ -35,7 +43,7 @@ export default function ImageUploader({
   onActiveChange,
 }: Props) {
   const [phase, setPhase] = useState<Phase>('idle')
-  const galleryRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function reportError(msg: string) {
     onError?.(msg)
@@ -43,18 +51,25 @@ export default function ImageUploader({
 
   function resetToIdle() {
     setPhase('idle')
-    if (galleryRef.current) galleryRef.current.value = ''
+    if (inputRef.current) inputRef.current.value = ''
     onActiveChange?.(false)
   }
 
   async function processAndSend(file: File) {
-    if (!file.type.startsWith('image/')) {
-      reportError('Please choose an image file')
+    const isImage = file.type.startsWith('image/')
+    const maxBytes = isImage ? IMAGE_MAX_BYTES : FILE_MAX_BYTES
+
+    if (file.size <= 0) {
+      reportError('File is empty')
       return
     }
 
-    if (file.size > MAX_BYTES) {
-      reportError('Image must be 5MB or smaller')
+    if (file.size > maxBytes) {
+      reportError(
+        isImage
+          ? `Image must be ${formatMb(IMAGE_MAX_BYTES)} or smaller (before compression)`
+          : `File must be ${formatMb(FILE_MAX_BYTES)} or smaller`
+      )
       return
     }
 
@@ -62,12 +77,46 @@ export default function ImageUploader({
     onActiveChange?.(true)
 
     try {
-      const compressed = await compressImageForChat(file)
-      const path = imageStoragePath(conversationId)
+      if (isImage) {
+        const compressed = await compressImageForChat(file)
+        const path = imageStoragePath(conversationId)
+        const upload = await uploadSupportFile({
+          path,
+          file: compressed,
+          contentType: 'image/jpeg',
+        })
+
+        if ('error' in upload) {
+          reportError(upload.error)
+          resetToIdle()
+          return
+        }
+
+        const inserted = await insertMediaMessage({
+          conversationId,
+          senderId,
+          senderType,
+          messageType: 'image',
+          fileUrl: upload.publicUrl,
+        })
+
+        if ('error' in inserted) {
+          reportError(inserted.error)
+          resetToIdle()
+          return
+        }
+
+        onSent(inserted.row)
+        resetToIdle()
+        return
+      }
+
+      const fileName = safeFileName(file.name)
+      const path = fileStoragePath(conversationId, fileName)
       const upload = await uploadSupportFile({
         path,
-        file: compressed,
-        contentType: 'image/jpeg',
+        file,
+        contentType: file.type || 'application/octet-stream',
       })
 
       if ('error' in upload) {
@@ -80,8 +129,9 @@ export default function ImageUploader({
         conversationId,
         senderId,
         senderType,
-        messageType: 'image',
+        messageType: 'file',
         fileUrl: upload.publicUrl,
+        content: fileName,
       })
 
       if ('error' in inserted) {
@@ -93,14 +143,14 @@ export default function ImageUploader({
       onSent(inserted.row)
       resetToIdle()
     } catch {
-      reportError('Could not process image')
+      reportError(isImage ? 'Could not process image' : 'Could not upload file')
       resetToIdle()
     }
   }
 
-  function openGallery() {
+  function openPicker() {
     if (disabled || phase !== 'idle') return
-    galleryRef.current?.click()
+    inputRef.current?.click()
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -110,12 +160,16 @@ export default function ImageUploader({
     e.target.value = ''
   }
 
+  const title =
+    phase === 'uploading'
+      ? 'Uploading…'
+      : `Attach file (max ${formatMb(FILE_MAX_BYTES)}; images ${formatMb(IMAGE_MAX_BYTES)} original, then compressed)`
+
   return (
     <div className={styles.wrap}>
       <input
-        ref={galleryRef}
+        ref={inputRef}
         type="file"
-        accept={ACCEPT}
         className={styles.hiddenInput}
         onChange={onFileChange}
         tabIndex={-1}
@@ -124,10 +178,10 @@ export default function ImageUploader({
       <button
         type="button"
         className={styles.iconBtn}
-        onClick={openGallery}
+        onClick={openPicker}
         disabled={disabled || phase === 'uploading'}
-        aria-label="Attach image"
-        title={phase === 'uploading' ? 'Uploading…' : 'Attach image'}
+        aria-label="Attach file"
+        title={title}
       >
         {phase === 'uploading' ? (
           <span aria-hidden="true">…</span>

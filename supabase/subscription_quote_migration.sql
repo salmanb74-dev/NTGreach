@@ -42,6 +42,8 @@ info@ntgclarity.com</p>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Setup fee</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{setup_fee}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Pre-trial setup</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{pre_trial_setup_fee}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Post-trial setup</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{post_trial_setup_fee}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering setup</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering revenue %</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering_revenue_pct}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Branches</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{branches}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Users</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{users}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Counters</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{counters}}</td></tr>
@@ -50,8 +52,6 @@ info@ntgclarity.com</p>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Kitchen display / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{kds}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Inventory / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{inventory}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Ops support / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{ops_support}}</td></tr>
-<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering}}</td></tr>
-<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering revenue %</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering_revenue_pct}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Paid trial</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Trial days</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial_days}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Trial starts</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{trial_starts}}</td></tr>
@@ -102,6 +102,8 @@ and<br>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Setup fee</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{setup_fee}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Pre-trial setup</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{pre_trial_setup_fee}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Post-trial setup</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{post_trial_setup_fee}}</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Web ordering setup</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{web_ordering}}</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Web ordering revenue %</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{web_ordering_revenue_pct}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Branches</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{branches}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Users</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{users}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Counters</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{counters}}</td></tr>
@@ -110,7 +112,6 @@ and<br>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Kitchen display</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{kds}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Inventory</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{inventory}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Support</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{support}}</td></tr>
-<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Web ordering</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{web_ordering}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Paid trial</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{paid_trial}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Trial days</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{paid_trial_days}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Service start / access</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{access_starts}}</td></tr>

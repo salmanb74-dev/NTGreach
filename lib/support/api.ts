@@ -65,6 +65,8 @@ export type ApiConversation = {
   product: string
   support_category: 'platform' | 'operational'
   logged_minutes: number
+  branch_id: string | null
+  branch_name: string | null
 }
 
 export type ApiMessage = {
@@ -73,7 +75,7 @@ export type ApiMessage = {
   sender_id: string
   sender_type: 'agent' | 'customer'
   sender_display_name: string | null
-  message_type: 'text' | 'image' | 'voice' | 'video'
+  message_type: 'text' | 'image' | 'voice' | 'video' | 'file'
   content: string | null
   file_url: string | null
   created_at: string
@@ -96,13 +98,24 @@ export function serializeConversation(row: Record<string, unknown>): ApiConversa
     product: String(row.product ?? 'resto'),
     support_category: row.support_category === 'operational' ? 'operational' : 'platform',
     logged_minutes: Number(row.logged_minutes ?? 0) || 0,
+    branch_id:
+      typeof row.branch_id === 'string' && row.branch_id.trim()
+        ? row.branch_id.trim()
+        : null,
+    branch_name:
+      typeof row.branch_name === 'string' && row.branch_name.trim()
+        ? row.branch_name.trim()
+        : null,
   }
 }
 
 export function serializeMessage(row: Record<string, unknown>): ApiMessage {
   const messageType = row.message_type
   const type =
-    messageType === 'image' || messageType === 'voice' || messageType === 'video'
+    messageType === 'image' ||
+    messageType === 'voice' ||
+    messageType === 'video' ||
+    messageType === 'file'
       ? messageType
       : 'text'
 

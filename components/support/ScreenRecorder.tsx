@@ -356,23 +356,33 @@ export default function ScreenRecorder({
 
   if (phase === 'recording') {
     return (
-      <div className={styles.wrap}>
-        <div className={styles.recordingBar}>
-          <span className={styles.recordingIndicator} aria-hidden="true" />
-          <span
-            className={`${styles.timer} ${
+      <div className={styles.recordingOverlay} role="status" aria-live="polite">
+        <div className={styles.recordingPanel}>
+          <div className={styles.recordingHeader}>
+            <span className={styles.recordingIndicator} aria-hidden="true" />
+            <span className={styles.recordingLabel}>Recording screen</span>
+          </div>
+          <div
+            className={`${styles.recordingTimer} ${
               seconds >= SCREEN_WARN_SECONDS ? styles.timerWarn : ''
             }`}
           >
-            {formatDuration(seconds)}/{formatDuration(SCREEN_MAX_SECONDS)}
-          </span>
-          <span className={styles.hint}>or Stop Sharing</span>
-          <button type="button" className={styles.stopBtn} onClick={stopRecording}>
-            Stop
-          </button>
-          <button type="button" className={styles.cancelBtn} onClick={cancelRecording}>
-            Cancel
-          </button>
+            {formatDuration(seconds)}
+            <span className={styles.recordingMax}>
+              / {formatDuration(SCREEN_MAX_SECONDS)}
+            </span>
+          </div>
+          <p className={styles.recordingHint}>
+            Stops automatically at {SCREEN_MAX_SECONDS}s — or stop anytime.
+          </p>
+          <div className={styles.recordingActions}>
+            <button type="button" className={styles.stopBtn} onClick={stopRecording}>
+              Stop &amp; send
+            </button>
+            <button type="button" className={styles.cancelBtn} onClick={cancelRecording}>
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     )

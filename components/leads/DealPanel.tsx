@@ -333,6 +333,65 @@ export default function DealPanel({
             </div>
           </div>
 
+          <label className={styles.checkLabelBlock}>
+            <input
+              type="checkbox"
+              checked={sub.webOrdering}
+              onChange={e => {
+                const on = e.target.checked
+                patchSub({
+                  webOrdering: on,
+                  ...(on
+                    ? {}
+                    : {
+                        webOrderingFee: null,
+                        webOrderingRevenuePercent: null,
+                      }),
+                })
+              }}
+            />
+            Web ordering
+          </label>
+          {sub.webOrdering && (
+            <div className={styles.twoCol}>
+              <div className={styles.field}>
+                <label className={styles.label}>
+                  Web ordering setup ({currency})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className={styles.input}
+                  value={numStr(sub.webOrderingFee)}
+                  onChange={e =>
+                    patchSub({
+                      webOrderingFee: parseOptNum(e.target.value),
+                    })
+                  }
+                  placeholder="0.00"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Revenue share (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  className={styles.input}
+                  value={numStr(sub.webOrderingRevenuePercent)}
+                  onChange={e =>
+                    patchSub({
+                      webOrderingRevenuePercent: parseOptNum(e.target.value),
+                    })
+                  }
+                  placeholder="e.g. 2.5"
+                />
+              </div>
+            </div>
+          )}
+
           <div className={styles.sectionTitle}>Limits</div>
           <LimitField
             label="Branches"
@@ -365,9 +424,7 @@ export default function DealPanel({
 
           <div className={styles.sectionTitle}>Features (monthly add-ons)</div>
           <p className={styles.sectionHint}>
-            Enable a feature to add its monthly $ to the platform fee. Web
-            ordering also takes a % of revenue on the month-end invoice
-            (Nest billing placeholder).
+            Enable a feature to add its monthly $ to the platform fee.
           </p>
           {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
             <div key={key} className={styles.addonBlock}>
@@ -379,14 +436,7 @@ export default function DealPanel({
                     const on = e.target.checked
                     patchSub({
                       [key]: on,
-                      ...(on
-                        ? {}
-                        : key === 'webOrdering'
-                          ? {
-                              [feeKey]: null,
-                              webOrderingRevenuePercent: null,
-                            }
-                          : { [feeKey]: null }),
+                      ...(on ? {} : { [feeKey]: null }),
                     })
                   }}
                 />
@@ -410,29 +460,6 @@ export default function DealPanel({
                       placeholder="0.00"
                     />
                   </div>
-                  {key === 'webOrdering' && (
-                    <div className={styles.field}>
-                      <label className={styles.label}>
-                        Revenue share (%)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step="0.01"
-                        className={styles.input}
-                        value={numStr(sub.webOrderingRevenuePercent)}
-                        onChange={e =>
-                          patchSub({
-                            webOrderingRevenuePercent: parseOptNum(
-                              e.target.value
-                            ),
-                          })
-                        }
-                        placeholder="e.g. 2.5"
-                      />
-                    </div>
-                  )}
                 </div>
               )}
             </div>

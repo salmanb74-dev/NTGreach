@@ -1,5 +1,10 @@
 -- Update default quotation template (subscription table only; no discount/tax/first-payment vars).
 -- Run in Supabase SQL Editor. Updates every is_default quotation template.
+--
+-- ⚠️  WARNING: This OVERWRITES the full HTML content of your default template.
+-- If you customized the template in Settings (formulas, {{#if}}, column widths),
+-- do NOT run this — edit the template in the UI instead.
+-- Supabase does not keep template version history unless you use PITR/backups.
 
 update public.quotation_templates
 set

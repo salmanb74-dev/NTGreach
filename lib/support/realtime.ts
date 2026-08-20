@@ -21,7 +21,7 @@ export type SupportMessageRow = {
   sender_id: string
   sender_type: 'agent' | 'customer'
   sender_display_name?: string | null
-  message_type: 'text' | 'image' | 'voice' | 'video'
+  message_type: 'text' | 'image' | 'voice' | 'video' | 'file'
   content: string | null
   file_url: string | null
   created_at: string

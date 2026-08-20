@@ -30,5 +30,5 @@ export function mapSupportRowToChatMessage(
 }
 
 export function isMediaMessageType(type: ChatMessage['message_type']): boolean {
-  return type === 'image' || type === 'voice' || type === 'video'
+  return type === 'image' || type === 'voice' || type === 'video' || type === 'file'
 }

@@ -52,12 +52,13 @@ Create once in Supabase Auth (e.g. `resto-support-api@ntgclarity.com`) and set t
 
 ## 1. List conversations
 
-`GET /api/support/conversations?tenant_id={id}&status={open|closed}&limit={n}`
+`GET /api/support/conversations?tenant_id={id}&status={open|closed}&branch_id={id}&limit={n}`
 
 | Query | Required | Notes |
 |---|---|---|
 | `tenant_id` | yes | Nest-bound restaurant id |
 | `status` | no | `open` \| `closed` |
+| `branch_id` | no | Filter to one originating branch |
 | `limit` | no | Default `50`, max `200` |
 
 **Response `200`:**
@@ -78,7 +79,9 @@ Create once in Supabase Auth (e.g. `resto-support-api@ntgclarity.com`) and set t
       "last_message_at": "ISO-8601",
       "product": "resto",
       "support_category": "platform",
-      "logged_minutes": 0
+      "logged_minutes": 0,
+      "branch_id": "uuid-or-null",
+      "branch_name": "Gulberg"
     }
   ]
 }
@@ -87,6 +90,7 @@ Create once in Supabase Auth (e.g. `resto-support-api@ntgclarity.com`) and set t
 - Ordered by `last_message_at` desc.
 - `support_category` and `logged_minutes` are **read-only** for Resto (agents set them in Reach).
 - Many open conversations per tenant are allowed; **no** “return active” behaviour.
+- `branch_id` / `branch_name` are snapshotted at create; older chats may be `null`.
 
 ---
 
@@ -99,7 +103,9 @@ Create once in Supabase Auth (e.g. `resto-support-api@ntgclarity.com`) and set t
   "tenant_id": "clay_handi",
   "tenant_name": "Clay Handi",
   "title": null,
-  "product": "resto"
+  "product": "resto",
+  "branch_id": "uuid-of-branch",
+  "branch_name": "Gulberg"
 }
 ```
 
@@ -109,8 +115,12 @@ Create once in Supabase Auth (e.g. `resto-support-api@ntgclarity.com`) and set t
 | `tenant_name` | yes | Display name for agents |
 | `title` | no | |
 | `product` | no | Default `resto` |
+| `branch_id` | no | Resto branch UUID at chat open; omit/`null` for HQ / unknown |
+| `branch_name` | no | Snapshot display label (e.g. `Gulberg`); agents filter/label by this |
 
 **Always creates a new conversation** (`status: open`).
+
+Existing chats without branch stay `branch_id` / `branch_name` = `null` (shown as “No branch” in Reach). Do not backfill.
 
 **Response `201`:** `{ "conversation": { ...same fields as list item... } }`
 
@@ -177,8 +187,9 @@ Nested under conversations so it does not collide with agent `DELETE /api/suppor
 |---|---|---|
 | `tenant_id` | yes | |
 | `conversation_id` | yes | Must belong to tenant |
-| `message_type` | yes | `text` \| `image` \| `voice` \| `video` |
+| `message_type` | yes | `text` \| `image` \| `voice` \| `video` \| `file` |
 | `content` | for `text` | Non-empty string |
+| `content` | for `file` | Optional original filename (shown in agent UI) |
 | `file_url` | for media | Public URL from upload endpoint |
 | `sender_display_name` | no | Shown in Reach agent UI for customer messages |
 | `expires_at` | no | ISO; for `video`, defaults to now + **7 days** if omitted |
@@ -198,16 +209,17 @@ Nested under conversations so it does not collide with agent `DELETE /api/suppor
 |---|---|---|
 | `tenant_id` | yes | |
 | `conversation_id` | yes | Must belong to tenant |
-| `message_type` | yes | `image` \| `voice` \| `video` |
+| `message_type` | yes | `image` \| `voice` \| `video` \| `file` |
 | `file` | yes | Binary |
 
 **Limits**
 
 | Type | Max size | Notes |
 |---|---|---|
-| `image` | 5 MB | Screenshots/photos |
+| `image` | 5 MB | **Original** file before client compression (resize to 1280px edge, JPEG) |
+| `file` | 3 MB | PDF, audio, docs, etc. — not compressed |
 | `voice` | 2 MB | Prefer short Opus/WebM |
-| `video` | 12 MB | Max **15s** client-side; **7-day** retention |
+| `video` | 20 MB | Max **30s** client-side; **7-day** retention |
 
 **Response `201`:**
 
@@ -215,7 +227,8 @@ Nested under conversations so it does not collide with agent `DELETE /api/suppor
 {
   "file_url": "https://….supabase.co/storage/v1/object/public/support-files/…",
   "expires_at": "ISO-8601 or null",
-  "message_type": "video"
+  "message_type": "video",
+  "file_name": "report.pdf"
 }
 ```
 

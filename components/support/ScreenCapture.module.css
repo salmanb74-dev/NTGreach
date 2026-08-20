@@ -157,6 +157,69 @@
   background: var(--color-error-bg);
 }
 
+.recordingOverlay {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.recordingPanel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(280px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-error);
+  box-shadow: var(--shadow-lg);
+}
+
+.recordingHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recordingLabel {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--color-error);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recordingTimer {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-error);
+}
+
+.recordingMax {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-3);
+  margin-left: 4px;
+}
+
+.recordingHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-2);
+}
+
+.recordingActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .recordingIndicator {
   width: 8px;
   height: 8px;

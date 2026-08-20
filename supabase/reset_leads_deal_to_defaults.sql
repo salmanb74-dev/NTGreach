@@ -116,8 +116,6 @@ set
                                then coalesce((n.quoted_subscription->>'inventoryFee')::numeric, 0) else 0 end
                         + case when coalesce((n.quoted_subscription->>'support')::boolean, false)
                                then coalesce((n.quoted_subscription->>'supportFee')::numeric, 0) else 0 end
-                        + case when coalesce((n.quoted_subscription->>'webOrdering')::boolean, false)
-                               then coalesce((n.quoted_subscription->>'webOrderingFee')::numeric, 0) else 0 end
 from normalized n;
 
 -- After check

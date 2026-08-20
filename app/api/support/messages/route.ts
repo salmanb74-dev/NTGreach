@@ -10,7 +10,7 @@ import {
 } from '@/lib/support/api'
 import { screenRecordingExpiresAt } from '@/lib/support/media-limits'
 
-const MESSAGE_TYPES = new Set(['text', 'image', 'voice', 'video'])
+const MESSAGE_TYPES = new Set(['text', 'image', 'voice', 'video', 'file'])
 
 export async function POST(request: NextRequest) {
   const authError = assertSupportApiKey(request)
@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
   if (!tenantId) return supportApiError('tenant_id is required')
   if (!conversationId) return supportApiError('conversation_id is required')
   if (!MESSAGE_TYPES.has(messageType)) {
-    return supportApiError('message_type must be text, image, voice, or video')
+    return supportApiError(
+      'message_type must be text, image, voice, video, or file'
+    )
   }
 
   const content =
@@ -72,6 +74,10 @@ export async function POST(request: NextRequest) {
 
     const actorId = getSupportApiActorUserId()
 
+    // Filename for file attachments lives in content; other media keep content null.
+    const storedContent =
+      messageType === 'text' || messageType === 'file' ? content : null
+
     const { data, error } = await admin
       .from('support_messages')
       .insert({
@@ -80,7 +86,7 @@ export async function POST(request: NextRequest) {
         sender_type: 'customer',
         sender_display_name: senderDisplayName,
         message_type: messageType,
-        content: messageType === 'text' ? content : null,
+        content: storedContent,
         file_url: messageType === 'text' ? null : fileUrl,
         expires_at: expiresAt,
       })

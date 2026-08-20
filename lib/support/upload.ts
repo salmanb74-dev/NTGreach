@@ -65,8 +65,10 @@ export async function insertMediaMessage(opts: {
   conversationId: string
   senderId: string
   senderType: 'agent' | 'customer'
-  messageType: 'image' | 'voice' | 'video'
+  messageType: 'image' | 'voice' | 'video' | 'file'
   fileUrl: string
+  /** Original filename for file attachments (shown in chat). */
+  content?: string | null
   /** ISO timestamp — required for video (7-day retention). */
   expiresAt?: string | null
 }): Promise<{ row: SupportMessageRow } | { error: string }> {
@@ -78,7 +80,7 @@ export async function insertMediaMessage(opts: {
       sender_id:       opts.senderId,
       sender_type:     opts.senderType,
       message_type:    opts.messageType,
-      content:         null,
+      content:         opts.content ?? null,
       file_url:        opts.fileUrl,
       expires_at:      opts.expiresAt ?? null,
     })
@@ -98,6 +100,17 @@ export function voiceStoragePath(conversationId: string) {
 
 export function imageStoragePath(conversationId: string) {
   return `images/${conversationId}/${Date.now()}.jpg`
+}
+
+export function fileStoragePath(conversationId: string, fileName: string) {
+  const safe = fileName
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/^\.+/, '')
+    .slice(0, 80)
+  const extMatch = safe.match(/\.([a-zA-Z0-9]+)$/)
+  const ext = extMatch ? extMatch[1].toLowerCase() : 'bin'
+  const base = extMatch ? safe.slice(0, -(ext.length + 1)) : safe || 'file'
+  return `files/${conversationId}/${Date.now()}-${base.slice(0, 40)}.${ext}`
 }
 
 export function screenshotStoragePath(conversationId: string, extension: 'png' | 'jpg') {

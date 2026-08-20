@@ -152,31 +152,20 @@ export function parseOptNum(s: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-export type FeatureAddonKey =
-  | 'callCenter'
-  | 'kds'
-  | 'inventory'
-  | 'support'
-  | 'webOrdering'
+export type FeatureAddonKey = 'callCenter' | 'kds' | 'inventory' | 'support'
 
 export type FeatureAddonDef = {
   key: FeatureAddonKey
-  feeKey:
-    | 'callCenterFee'
-    | 'kdsFee'
-    | 'inventoryFee'
-    | 'supportFee'
-    | 'webOrderingFee'
+  feeKey: 'callCenterFee' | 'kdsFee' | 'inventoryFee' | 'supportFee'
   label: string
 }
 
-/** Feature toggles + monthly fee fields (Deal Panel + Settings defaults). */
+/** Recurring feature toggles + monthly fee fields (Deal Panel + Settings defaults). */
 export const FEATURE_ADDONS: readonly FeatureAddonDef[] = [
   { key: 'callCenter', feeKey: 'callCenterFee', label: 'Call center' },
   { key: 'kds', feeKey: 'kdsFee', label: 'Kitchen display (KDS)' },
   { key: 'inventory', feeKey: 'inventoryFee', label: 'Inventory' },
   { key: 'support', feeKey: 'supportFee', label: 'Ops support' },
-  { key: 'webOrdering', feeKey: 'webOrderingFee', label: 'Web ordering' },
 ] as const
 
 export type QuotedSubscription = {
@@ -194,7 +183,7 @@ export type QuotedSubscription = {
   countersUnlimited: boolean
   ordersPerMonth: number | null
   ordersUnlimited: boolean
-  /** Feature on/off — monthly $ add to platform fee when on. */
+  /** Recurring feature on/off — monthly $ add to platform fee when on. */
   callCenter: boolean
   callCenterFee: number | null
   kds: boolean
@@ -204,6 +193,7 @@ export type QuotedSubscription = {
   support: boolean
   supportFee: number | null
   webOrdering: boolean
+  /** One-time setup fee when web ordering is on (not monthly). */
   webOrderingFee: number | null
   /** % of revenue on month-end invoice (web ordering). Nest placeholder. */
   webOrderingRevenuePercent: number | null
@@ -277,13 +267,18 @@ export const STARTER_QUOTED_SUBSCRIPTION: QuotedSubscription = {
   postTrialSetupFee: 0,
 }
 
-/** Sum of enabled feature monthly $ fees (excludes base platform fee). */
+/** Sum of enabled feature monthly $ fees (excludes base platform fee and web ordering). */
 export function addonMonthlyFees(sub: QuotedSubscription): number {
   let total = 0
   for (const addon of FEATURE_ADDONS) {
     if (sub[addon.key]) total += sub[addon.feeKey] ?? 0
   }
   return total
+}
+
+/** One-time web ordering setup when the feature is enabled. */
+export function webOrderingSetupFee(sub: QuotedSubscription): number {
+  return sub.webOrdering ? sub.webOrderingFee ?? 0 : 0
 }
 
 /** Base platform fee + enabled addon monthly fees. */
@@ -332,7 +327,7 @@ export function estimateFirstPaymentBase(sub: QuotedSubscription): {
   const setup = sub.paidTrial ? 0 : sub.setupFee ?? 0
   const pre = sub.paidTrial ? sub.preTrialSetupFee ?? 0 : 0
   const post = sub.paidTrial ? sub.postTrialSetupFee ?? 0 : 0
-  const setupFees = setup + pre + post
+  const setupFees = setup + pre + post + webOrderingSetupFee(sub)
   const cycleRecurring = monthly * months
   return { setupFees, cycleRecurring, total: setupFees + cycleRecurring }
 }
@@ -471,6 +466,12 @@ export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
     label: 'Post-trial setup',
     example: String(STARTER_SETUP_FEE),
   },
+  { key: 'web_ordering', label: 'Web ordering setup', example: '20' },
+  {
+    key: 'web_ordering_revenue_pct',
+    label: 'Web ordering revenue %',
+    example: '2.5',
+  },
   { key: 'branches', label: 'Branches', example: String(STARTER_LOCATIONS) },
   { key: 'users', label: 'Users', example: String(STARTER_USERS) },
   { key: 'counters', label: 'Counters', example: String(STARTER_COUNTERS) },
@@ -483,12 +484,6 @@ export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
   { key: 'kds', label: 'Kitchen display / mo', example: '10' },
   { key: 'inventory', label: 'Inventory / mo', example: '12' },
   { key: 'ops_support', label: 'Ops support / mo', example: '25' },
-  { key: 'web_ordering', label: 'Web ordering / mo', example: '20' },
-  {
-    key: 'web_ordering_revenue_pct',
-    label: 'Web ordering revenue %',
-    example: '2.5',
-  },
   { key: 'paid_trial', label: 'Paid trial', example: 'Yes' },
   {
     key: 'paid_trial_days',

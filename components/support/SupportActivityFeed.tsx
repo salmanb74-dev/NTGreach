@@ -15,6 +15,7 @@ function typeBreakdown(counts: DirectionCounts) {
   if (counts.image) parts.push(`${counts.image} image`)
   if (counts.voice) parts.push(`${counts.voice} voice`)
   if (counts.video) parts.push(`${counts.video} video`)
+  if (counts.file)  parts.push(`${counts.file} file`)
   return parts.join(' · ')
 }
 

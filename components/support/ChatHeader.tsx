@@ -95,6 +95,11 @@ export default function ChatHeader({
           closed
         </span>
       )}
+      {conversation.branch_name?.trim() && (
+        <span className={styles.branchBadge} title="Originating branch">
+          {conversation.branch_name.trim()}
+        </span>
+      )}
       {onDelete && (
         <button
           type="button"

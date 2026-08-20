@@ -21,6 +21,12 @@ export async function GET(request: NextRequest) {
     return supportApiError('status must be open or closed')
   }
 
+  const branchIdRaw = request.nextUrl.searchParams.get('branch_id')
+  const branchId =
+    typeof branchIdRaw === 'string' && branchIdRaw.trim()
+      ? branchIdRaw.trim()
+      : null
+
   const limit = clampLimit(request.nextUrl.searchParams.get('limit'), 50, 200)
 
   try {
@@ -33,6 +39,7 @@ export async function GET(request: NextRequest) {
       .limit(limit)
 
     if (status) query = query.eq('status', status)
+    if (branchId) query = query.eq('branch_id', branchId)
 
     const { data, error } = await query
     if (error) return supportApiError(error.message, 500)
@@ -77,6 +84,15 @@ export async function POST(request: NextRequest) {
       ? body.product.trim()
       : 'resto'
 
+  const branchId =
+    typeof body.branch_id === 'string' && body.branch_id.trim()
+      ? body.branch_id.trim()
+      : null
+  const branchName =
+    typeof body.branch_name === 'string' && body.branch_name.trim()
+      ? body.branch_name.trim().slice(0, 120)
+      : null
+
   try {
     const admin = getSupportAdmin()
     const actorId = getSupportApiActorUserId()
@@ -90,6 +106,8 @@ export async function POST(request: NextRequest) {
         status: 'open',
         created_by: actorId,
         product,
+        branch_id: branchId,
+        branch_name: branchName,
       })
       .select('*')
       .single()

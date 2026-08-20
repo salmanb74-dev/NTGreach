@@ -40,12 +40,39 @@ export default function ConversationList({
   const [listOpen, setListOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [collapsedTenants, setCollapsedTenants] = useState<Set<string>>(() => new Set())
+  /** `all` | `none` (no branch) | branch_id */
+  const [branchFilter, setBranchFilter] = useState<string>('all')
   // Tick so relative "X mins ago" labels refresh without new messages.
   const [, setNowTick] = useState(0)
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
 
   const flat = groups.flatMap(g => g.conversations)
+  const branchOptions = (() => {
+    const map = new Map<string, string>()
+    for (const c of flat) {
+      if (c.branch_id && c.branch_name) map.set(c.branch_id, c.branch_name)
+      else if (c.branch_id) map.set(c.branch_id, c.branch_id)
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  })()
+  const hasUnlabeled = flat.some(c => !c.branch_id)
+
+  function matchesBranchFilter(c: ConversationItem) {
+    if (branchFilter === 'all') return true
+    if (branchFilter === 'none') return !c.branch_id
+    return c.branch_id === branchFilter
+  }
+
+  const filteredGroups = groups
+    .map(g => ({
+      ...g,
+      conversations: g.conversations.filter(matchesBranchFilter),
+    }))
+    .filter(g => g.conversations.length > 0)
+
   const selected = flat.find(c => c.id === selectedId) ?? null
 
   useEffect(() => {
@@ -349,12 +376,38 @@ export default function ConversationList({
 
         {error && <p className={styles.error}>{error}</p>}
 
+        {(branchOptions.length > 0 || hasUnlabeled) && (
+          <div className={styles.filterRow}>
+            <label className={styles.filterLabel} htmlFor="branch-filter">
+              Branch
+            </label>
+            <select
+              id="branch-filter"
+              className={styles.filterSelect}
+              value={branchFilter}
+              onChange={e => setBranchFilter(e.target.value)}
+            >
+              <option value="all">All branches</option>
+              {hasUnlabeled && <option value="none">No branch</option>}
+              {branchOptions.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className={styles.listScroll}>
-          {groups.length === 0 && (
-            <p className={styles.empty}>No conversations yet. Waiting for customers to start a chat.</p>
+          {filteredGroups.length === 0 && (
+            <p className={styles.empty}>
+              {groups.length === 0
+                ? 'No conversations yet. Waiting for customers to start a chat.'
+                : 'No conversations match this branch filter.'}
+            </p>
           )}
 
-          {groups.map(group => {
+          {filteredGroups.map(group => {
             const collapsed = collapsedTenants.has(group.tenant_id)
             const groupUnreadMsgs = group.conversations.reduce((sum, c) => {
               if (c.id === selectedId) return sum
@@ -418,8 +471,13 @@ export default function ConversationList({
                               )}
                             </div>
                             <div className={styles.convMeta}>
-                              <span>{conv.assigned_name ?? 'Unassigned'}</span>
+                              <span className={styles.branchLabel}>
+                                {conv.branch_name?.trim() || 'No branch'}
+                              </span>
                               <span>{formatLastMessageAgo(conv.last_message_at ?? conv.created_at)}</span>
+                            </div>
+                            <div className={styles.convMetaSecondary}>
+                              {conv.assigned_name ?? 'Unassigned'}
                             </div>
                           </button>
                         </li>

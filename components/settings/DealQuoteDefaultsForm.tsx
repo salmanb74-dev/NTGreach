@@ -155,6 +155,66 @@ export default function DealQuoteDefaultsForm({
         </div>
       </div>
 
+      <div className={styles.field}>
+        <label className={styles.checkRow}>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={sub.webOrdering}
+            onChange={e => {
+              const on = e.target.checked
+              patchSub({
+                webOrdering: on,
+                ...(on
+                  ? {}
+                  : {
+                      webOrderingFee: null,
+                      webOrderingRevenuePercent: null,
+                    }),
+              })
+            }}
+          />
+          Web ordering
+        </label>
+        {sub.webOrdering && (
+          <div className={styles.grid2}>
+            <div className={styles.field}>
+              <label className={styles.label}>
+                Web ordering setup ({currency})
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={styles.input}
+                value={numStr(sub.webOrderingFee)}
+                onChange={e =>
+                  patchSub({
+                    webOrderingFee: parseOptNum(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Revenue share (%)</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                className={styles.input}
+                value={numStr(sub.webOrderingRevenuePercent)}
+                onChange={e =>
+                  patchSub({
+                    webOrderingRevenuePercent: parseOptNum(e.target.value),
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className={styles.grid2}>
         <div className={styles.field}>
           <label className={styles.label}>Users</label>
@@ -197,8 +257,7 @@ export default function DealQuoteDefaultsForm({
       </div>
 
       <p className={styles.sectionDesc} style={{ marginTop: 8 }}>
-        Feature add-ons — monthly $ added to platform fee when enabled. Web
-        ordering also stores a revenue % for month-end invoicing (Nest TBD).
+        Feature add-ons — monthly $ added to platform fee when enabled.
       </p>
 
       {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
@@ -212,14 +271,7 @@ export default function DealQuoteDefaultsForm({
                 const on = e.target.checked
                 patchSub({
                   [key]: on,
-                  ...(on
-                    ? {}
-                    : key === 'webOrdering'
-                      ? {
-                          [feeKey]: null,
-                          webOrderingRevenuePercent: null,
-                        }
-                      : { [feeKey]: null }),
+                  ...(on ? {} : { [feeKey]: null }),
                 })
               }}
             />
@@ -240,24 +292,6 @@ export default function DealQuoteDefaultsForm({
                   }
                 />
               </div>
-              {key === 'webOrdering' && (
-                <div className={styles.field}>
-                  <label className={styles.label}>Revenue share (%)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    className={styles.input}
-                    value={numStr(sub.webOrderingRevenuePercent)}
-                    onChange={e =>
-                      patchSub({
-                        webOrderingRevenuePercent: parseOptNum(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-              )}
             </div>
           )}
         </div>

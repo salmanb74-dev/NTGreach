@@ -21,6 +21,9 @@ export interface ConversationItem {
   product:         string
   support_category: SupportCategory
   logged_minutes:  number
+  /** Resto branch at chat open; null for older chats / HQ / unknown. */
+  branch_id:       string | null
+  branch_name:     string | null
 }
 
 /** Normalize DB / realtime rows into ConversationItem with safe defaults. */
@@ -49,6 +52,14 @@ export function mapConversationRow(
     product:         String(row.product ?? 'resto'),
     support_category: category,
     logged_minutes:  loggedMinutes,
+    branch_id:
+      typeof row.branch_id === 'string' && row.branch_id.trim()
+        ? row.branch_id.trim()
+        : null,
+    branch_name:
+      typeof row.branch_name === 'string' && row.branch_name.trim()
+        ? row.branch_name.trim()
+        : null,
   }
 }
 
@@ -79,6 +90,7 @@ export interface DirectionCounts {
   image: number
   voice: number
   video: number
+  file:  number
 }
 
 export interface SupportActivityRow {
@@ -107,7 +119,7 @@ export interface SupportTimeDay {
 }
 
 export function emptyCounts(): DirectionCounts {
-  return { total: 0, text: 0, image: 0, voice: 0, video: 0 }
+  return { total: 0, text: 0, image: 0, voice: 0, video: 0, file: 0 }
 }
 
 export interface ChatMessage {
@@ -116,7 +128,7 @@ export interface ChatMessage {
   sender_id:       string
   sender_type:     'agent' | 'customer'
   sender_name:     string
-  message_type:    'text' | 'image' | 'voice' | 'video'
+  message_type:    'text' | 'image' | 'voice' | 'video' | 'file'
   content:         string | null
   file_url:        string | null
   created_at:      string

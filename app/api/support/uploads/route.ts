@@ -7,6 +7,7 @@ import {
   supportApiError,
 } from '@/lib/support/api'
 import {
+  FILE_MAX_BYTES,
   IMAGE_MAX_BYTES,
   SCREEN_MAX_BYTES,
   SUPPORT_FILES_BUCKET,
@@ -14,11 +15,12 @@ import {
   screenRecordingExpiresAt,
 } from '@/lib/support/media-limits'
 
-const MEDIA_TYPES = new Set(['image', 'voice', 'video'])
+const MEDIA_TYPES = new Set(['image', 'voice', 'video', 'file'])
 
 function maxBytesFor(type: string) {
   if (type === 'voice') return VOICE_MAX_BYTES
   if (type === 'video') return SCREEN_MAX_BYTES
+  if (type === 'file') return FILE_MAX_BYTES
   return IMAGE_MAX_BYTES
 }
 
@@ -31,17 +33,22 @@ function extensionFor(file: File, messageType: string) {
   if (mime.includes('png')) return 'png'
   if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg'
   if (mime.includes('webp')) return 'webp'
+  if (mime.includes('gif')) return 'gif'
+  if (mime.includes('pdf')) return 'pdf'
   if (mime.includes('webm')) return 'webm'
   if (mime.includes('ogg')) return 'ogg'
   if (mime.includes('mp4')) return 'mp4'
+  if (mime.includes('mpeg') || mime.includes('mp3')) return 'mp3'
   if (messageType === 'image') return 'jpg'
   if (messageType === 'voice') return 'webm'
+  if (messageType === 'file') return 'bin'
   return 'webm'
 }
 
 function folderFor(messageType: string) {
   if (messageType === 'voice') return 'voice'
   if (messageType === 'video') return 'video'
+  if (messageType === 'file') return 'files'
   return 'images'
 }
 
@@ -70,7 +77,7 @@ export async function POST(request: NextRequest) {
   if (!tenantId) return supportApiError('tenant_id is required')
   if (!conversationId) return supportApiError('conversation_id is required')
   if (!MEDIA_TYPES.has(messageType)) {
-    return supportApiError('message_type must be image, voice, or video')
+    return supportApiError('message_type must be image, voice, video, or file')
   }
   if (!(file instanceof File)) return supportApiError('file is required')
   if (file.size <= 0) return supportApiError('file is empty')
@@ -117,6 +124,7 @@ export async function POST(request: NextRequest) {
         file_url: data.publicUrl,
         expires_at: expiresAt,
         message_type: messageType,
+        file_name: file.name || null,
       },
       { status: 201 }
     )
