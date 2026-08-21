@@ -129,7 +129,15 @@ export default async function DashboardPage({
     .sort((a, b) => b.value - a.value)
 
   // ── Funnel ─────────────────────────────────────────────────
-  const funnelStages: PipelineStage[] = ['new','contacted','demo_scheduled','proposal_sent','negotiation','closed_won']
+  const funnelStages: PipelineStage[] = [
+    'new',
+    'contacted',
+    'demo_scheduled',
+    'proposal_sent',
+    'negotiation',
+    'closed_won',
+    'payment_received',
+  ]
   const funnelData = funnelStages.map(stage => ({
     stage:  STAGE_LABELS[stage],
     count:  countsByStage[stage] ?? 0,

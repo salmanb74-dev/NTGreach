@@ -46,10 +46,20 @@
   --stage-won-border:         #86efac;
   --stage-won-bar:            #15803d;
 
+  --stage-paid-bg:            #ccfbf1;
+  --stage-paid-text:          #115e59;
+  --stage-paid-border:        #5eead4;
+  --stage-paid-bar:           #0d9488;
+
   --stage-lost-bg:            #f9fafb;
   --stage-lost-text:          #6b7280;
   --stage-lost-border:        #d1d5db;
   --stage-lost-bar:           #9ca3af;
+
+  --stage-early-exit-bg:      #f3f4f6;
+  --stage-early-exit-text:    #6b7280;
+  --stage-early-exit-border:  #d1d5db;
+  --stage-early-exit-bar:     #9ca3af;
 
   /* ─── Neutral Surface ────────────────────────────────────────── */
   --color-bg:               #f7f6f3;

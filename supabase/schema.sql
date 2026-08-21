@@ -49,7 +49,8 @@ create table if not exists public.leads (
   stage            text not null default 'new'
                    check (stage in (
                      'new','contacted','demo_scheduled',
-                     'proposal_sent','negotiation','closed_won','closed_lost'
+                     'proposal_sent','negotiation','closed_won',
+                     'payment_received','closed_lost','early_exit'
                    )),
   notes            text,
   created_by       uuid references auth.users(id),

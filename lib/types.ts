@@ -6,6 +6,7 @@ export type PipelineStage =
   | 'proposal_sent'
   | 'negotiation'
   | 'closed_won'
+  | 'payment_received'
   | 'closed_lost'
   | 'early_exit'
 
@@ -16,11 +17,12 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   'proposal_sent',
   'negotiation',
   'closed_won',
+  'payment_received',
   'closed_lost',
-  'early_exit'
+  'early_exit',
 ]
 
-/** Open pipeline (excludes closed / early exit). */
+/** Open pipeline (excludes closed / paid / early exit). */
 export const ACTIVE_PIPELINE_STAGES: PipelineStage[] = [
   'new',
   'contacted',
@@ -32,26 +34,28 @@ export const ACTIVE_PIPELINE_STAGES: PipelineStage[] = [
 export const PIPELINE_STAGE_SET = new Set<string>(PIPELINE_STAGES)
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
-  new:            'New',
-  contacted:      'Contacted',
-  demo_scheduled: 'Demo Scheduled',
-  proposal_sent:  'Proposal Sent',
-  negotiation:    'Negotiation',
-  closed_won:     'Closed Won',
-  closed_lost:    'Closed Lost',
-  early_exit:    'Early Exit',
+  new:               'New',
+  contacted:         'Contacted',
+  demo_scheduled:    'Demo Scheduled',
+  proposal_sent:     'Proposal Sent',
+  negotiation:       'Negotiation',
+  closed_won:        'Closed Won',
+  payment_received:  'Paid',
+  closed_lost:       'Closed Lost',
+  early_exit:        'Early Exit',
 }
 
 // Maps each stage to its CSS variable names from theme.css
 export const STAGE_CSS: Record<PipelineStage, string> = {
-  new:            'new',
-  contacted:      'contacted',
-  demo_scheduled: 'demo',
-  proposal_sent:  'proposal',
-  negotiation:    'negotiation',
-  closed_won:     'won',
-  closed_lost:    'lost',
-  early_exit:    'early_exit',
+  new:               'new',
+  contacted:         'contacted',
+  demo_scheduled:    'demo',
+  proposal_sent:     'proposal',
+  negotiation:       'negotiation',
+  closed_won:        'won',
+  payment_received:  'paid',
+  closed_lost:       'lost',
+  early_exit:        'early_exit',
 }
 
 // ─── Activity Types ───────────────────────────────────────────────────
