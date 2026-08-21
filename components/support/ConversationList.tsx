@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient, ensureRealtimeAuth } from '@/lib/supabase/client'
 import ConfirmModal from '@/components/modals/ConfirmModal'
 import ChatWindow from './ChatWindow'
+import TenantBranchFilter from './TenantBranchFilter'
 import type { ConversationItem, TenantGroup } from './types'
 import {
   formatLastMessageAgo,
@@ -12,9 +13,15 @@ import {
 } from './types'
 import {
   clearSupportUnread,
+  markSupportCustomerMessage,
   setActiveSupportConversation,
   subscribeSupportUnread,
+  subscribeSupportUnreadDom,
 } from '@/lib/support/unreadStore'
+import {
+  branchOptionsFor,
+  matchesBranchFilter,
+} from '@/lib/support/branch-filter'
 import { subscribeToConversationMeta } from '@/lib/support/realtime'
 import styles from './ConversationList.module.css'
 
@@ -36,69 +43,145 @@ export default function ConversationList({
   const [unreadIds, setUnreadIds] = useState<Set<string>>(() => new Set())
   const [messageCounts, setMessageCounts] = useState<Record<string, number>>({})
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: 'conversation'; id: string; label: string }
+    | { kind: 'tenant'; tenantId: string; label: string; conversationIds: string[] }
+    | null
+  >(null)
   const [listOpen, setListOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [collapsedTenants, setCollapsedTenants] = useState<Set<string>>(() => new Set())
-  /** `all` | `none` (no branch) | branch_id */
-  const [branchFilter, setBranchFilter] = useState<string>('all')
+  const [collapsedTenants, setCollapsedTenants] = useState<Set<string>>(
+    () => new Set(initialGroups.map(g => g.tenant_id))
+  )
+  /** Per-tenant branch filter: `all` | `none` | branch_id */
+  const [branchFilterByTenant, setBranchFilterByTenant] = useState<
+    Record<string, string>
+  >({})
   // Tick so relative "X mins ago" labels refresh without new messages.
   const [, setNowTick] = useState(0)
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
+  const groupsRef = useRef(groups)
+  groupsRef.current = groups
 
   const flat = groups.flatMap(g => g.conversations)
-  const branchOptions = (() => {
-    const map = new Map<string, string>()
-    for (const c of flat) {
-      if (c.branch_id && c.branch_name) map.set(c.branch_id, c.branch_name)
-      else if (c.branch_id) map.set(c.branch_id, c.branch_id)
-    }
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  })()
-  const hasUnlabeled = flat.some(c => !c.branch_id)
 
-  function matchesBranchFilter(c: ConversationItem) {
-    if (branchFilter === 'all') return true
-    if (branchFilter === 'none') return !c.branch_id
-    return c.branch_id === branchFilter
+  function branchFilterFor(tenantId: string) {
+    return branchFilterByTenant[tenantId] ?? 'all'
   }
-
-  const filteredGroups = groups
-    .map(g => ({
-      ...g,
-      conversations: g.conversations.filter(matchesBranchFilter),
-    }))
-    .filter(g => g.conversations.length > 0)
 
   const selected = flat.find(c => c.id === selectedId) ?? null
 
   useEffect(() => {
     setActiveSupportConversation(selectedId)
-    return () => setActiveSupportConversation(null)
   }, [selectedId])
+
+  useEffect(() => {
+    return () => setActiveSupportConversation(null)
+  }, [])
 
   useEffect(() => {
     const id = window.setInterval(() => setNowTick(t => t + 1), 30_000)
     return () => window.clearInterval(id)
   }, [])
 
-  // Keep local unread dots in sync with shared store
+  // Keep local unread dots in sync with shared store (+ DOM bridge)
   useEffect(() => {
-    return subscribeSupportUnread(snap => {
-      setUnreadIds(snap.conversationIds)
-      setMessageCounts(snap.messageCounts)
+    const unsubStore = subscribeSupportUnread(snap => {
+      setUnreadIds(new Set(snap.conversationIds))
+      setMessageCounts({ ...snap.messageCounts })
     })
+    const unsubDom = subscribeSupportUnreadDom(
+      detail => {
+        setUnreadIds(prev => {
+          if (prev.has(detail.conversationId)) return prev
+          const next = new Set(prev)
+          next.add(detail.conversationId)
+          return next
+        })
+        setMessageCounts(prev => ({
+          ...prev,
+          [detail.conversationId]: detail.totalForConversation,
+        }))
+      },
+      conversationId => {
+        if (!conversationId) {
+          setUnreadIds(new Set())
+          setMessageCounts({})
+          return
+        }
+        setUnreadIds(prev => {
+          if (!prev.has(conversationId)) return prev
+          const next = new Set(prev)
+          next.delete(conversationId)
+          return next
+        })
+        setMessageCounts(prev => {
+          if (!(conversationId in prev)) return prev
+          const { [conversationId]: _, ...rest } = prev
+          return rest
+        })
+      }
+    )
+    return () => {
+      unsubStore()
+      unsubDom()
+    }
   }, [])
+
+  // Expand any tenant that has unread so the chat row (and red dot) is visible
+  useEffect(() => {
+    if (unreadIds.size === 0) return
+    setCollapsedTenants(prev => {
+      let changed = false
+      const next = new Set(prev)
+      for (const group of groups) {
+        const hasUnread = group.conversations.some(
+          c => unreadIds.has(c.id)
+        )
+        if (hasUnread && next.has(group.tenant_id)) {
+          next.delete(group.tenant_id)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [unreadIds, groups])
 
   const bumpActivity = useCallback((conversationId: string, at: string) => {
     setGroups(prev => {
-      const all = prev.flatMap(g => g.conversations).map(c =>
-        c.id === conversationId ? { ...c, last_message_at: at } : c
+      const all = prev.flatMap(g => g.conversations)
+      if (!all.some(c => c.id === conversationId)) return prev
+      const next = all.map(c =>
+        c.id === conversationId
+          ? { ...c, last_message_at: at, has_messages: true }
+          : c
       )
-      return groupConversationsByTenant(all)
+      return groupConversationsByTenant(next)
+    })
+  }, [])
+
+  const ensureConversationInList = useCallback(async (conversationId: string) => {
+    if (groupsRef.current.flatMap(g => g.conversations).some(c => c.id === conversationId)) {
+      return
+    }
+
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('support_conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .maybeSingle()
+
+    if (!data) return
+
+    setGroups(prev => {
+      const flat = prev.flatMap(g => g.conversations)
+      if (flat.some(c => c.id === String(data.id))) return prev
+      return groupConversationsByTenant([
+        mapConversationRow(data as Record<string, unknown>, null, true),
+        ...flat,
+      ])
     })
   }, [])
 
@@ -221,7 +304,7 @@ export default function ConversationList({
             }
           }
         )
-        // Any new message → bump activity + re-sort (even if conversation UPDATE lags)
+        // Any new message → bump activity + mark unread for customer messages
         .on(
           'postgres_changes',
           {
@@ -230,9 +313,22 @@ export default function ConversationList({
             table:  'support_messages',
           },
           (payload) => {
-            const row = payload.new as { conversation_id?: string; created_at?: string }
-            if (!row.conversation_id || !row.created_at) return
-            bumpActivity(row.conversation_id, row.created_at)
+            const row = payload.new as {
+              id?: string
+              conversation_id?: string
+              created_at?: string
+              sender_type?: string
+            }
+            if (!row.conversation_id) return
+
+            if (row.created_at) {
+              bumpActivity(row.conversation_id, row.created_at)
+            }
+
+            if (row.sender_type === 'customer') {
+              markSupportCustomerMessage(row.conversation_id, row.id)
+              void ensureConversationInList(row.conversation_id)
+            }
           }
         )
         .subscribe()
@@ -244,7 +340,7 @@ export default function ConversationList({
       cancelled = true
       if (channel) supabase.removeChannel(channel)
     }
-  }, [bumpActivity])
+  }, [bumpActivity, ensureConversationInList])
 
   function handleTitleChange(id: string, title: string | null) {
     setGroups(prev =>
@@ -274,30 +370,60 @@ export default function ConversationList({
   function requestDelete(id: string) {
     const conv = flat.find(c => c.id === id)
     setPendingDelete({
+      kind: 'conversation',
       id,
       label: conv?.title?.trim() || 'New Chat',
     })
   }
 
+  function requestDeleteTenant(tenantId: string) {
+    const group = groups.find(g => g.tenant_id === tenantId)
+    if (!group) return
+    if (group.conversations.some(c => c.has_messages)) return
+    setPendingDelete({
+      kind: 'tenant',
+      tenantId,
+      label: group.tenant_name,
+      conversationIds: group.conversations.map(c => c.id),
+    })
+  }
+
   async function confirmDelete() {
     if (!pendingDelete) return
-    const { id } = pendingDelete
 
     setError(null)
-    setDeletingId(id)
+    const deletingKey =
+      pendingDelete.kind === 'tenant'
+        ? `tenant:${pendingDelete.tenantId}`
+        : pendingDelete.id
+    setDeletingId(deletingKey)
     let deleteError: string | null = null
 
     try {
-      const response = await fetch(
-        `/api/support/conversations/${encodeURIComponent(id)}`,
-        { method: 'DELETE' }
-      )
-      const result = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        deleteError = result.error ?? 'Failed to delete conversation'
+      if (pendingDelete.kind === 'tenant') {
+        const response = await fetch(
+          `/api/support/conversations/by-tenant?tenant_id=${encodeURIComponent(pendingDelete.tenantId)}`,
+          { method: 'DELETE' }
+        )
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          deleteError = result.error ?? 'Failed to delete tenant chats'
+        }
+      } else {
+        const response = await fetch(
+          `/api/support/conversations/${encodeURIComponent(pendingDelete.id)}`,
+          { method: 'DELETE' }
+        )
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          deleteError = result.error ?? 'Failed to delete conversation'
+        }
       }
     } catch {
-      deleteError = 'Failed to delete conversation'
+      deleteError =
+        pendingDelete.kind === 'tenant'
+          ? 'Failed to delete tenant chats'
+          : 'Failed to delete conversation'
     }
 
     setDeletingId(null)
@@ -307,11 +433,23 @@ export default function ConversationList({
       return
     }
 
-    const remaining = flat.filter(c => c.id !== id)
-    setGroups(groupConversationsByTenant(remaining))
-    clearSupportUnread(id)
-    if (selectedId === id) {
-      setSelectedId(remaining[0]?.id ?? null)
+    if (pendingDelete.kind === 'tenant') {
+      const remove = new Set(pendingDelete.conversationIds)
+      const remaining = flat.filter(c => !remove.has(c.id))
+      setGroups(groupConversationsByTenant(remaining))
+      for (const id of pendingDelete.conversationIds) {
+        clearSupportUnread(id)
+      }
+      if (selectedId && remove.has(selectedId)) {
+        setSelectedId(remaining[0]?.id ?? null)
+      }
+    } else {
+      const remaining = flat.filter(c => c.id !== pendingDelete.id)
+      setGroups(groupConversationsByTenant(remaining))
+      clearSupportUnread(pendingDelete.id)
+      if (selectedId === pendingDelete.id) {
+        setSelectedId(remaining[0]?.id ?? null)
+      }
     }
     setPendingDelete(null)
   }
@@ -331,15 +469,39 @@ export default function ConversationList({
     })
   }
 
+  const allCollapsed =
+    groups.length > 0 && groups.every(g => collapsedTenants.has(g.tenant_id))
+
+  function toggleCollapseAll() {
+    if (allCollapsed) {
+      setCollapsedTenants(new Set())
+      return
+    }
+    setCollapsedTenants(new Set(groups.map(g => g.tenant_id)))
+  }
+
   return (
     <div className={styles.shell}>
       {pendingDelete && (
         <ConfirmModal
-          title="Delete conversation"
-          message={`Delete “${pendingDelete.label}”? All messages and uploaded files in this chat will be permanently removed. This cannot be undone.`}
+          title={
+            pendingDelete.kind === 'tenant'
+              ? 'Delete empty tenant'
+              : 'Delete conversation'
+          }
+          message={
+            pendingDelete.kind === 'tenant'
+              ? `Remove “${pendingDelete.label}” and all ${pendingDelete.conversationIds.length} empty chat${pendingDelete.conversationIds.length === 1 ? '' : 's'}? None of these chats have messages. This cannot be undone.`
+              : `Delete “${pendingDelete.label}”? All messages and uploaded files in this chat will be permanently removed. This cannot be undone.`
+          }
           confirmLabel="Delete"
           danger
-          loading={deletingId === pendingDelete.id}
+          loading={
+            deletingId ===
+            (pendingDelete.kind === 'tenant'
+              ? `tenant:${pendingDelete.tenantId}`
+              : pendingDelete.id)
+          }
           onConfirm={confirmDelete}
           onClose={() => {
             if (deletingId) return
@@ -360,6 +522,31 @@ export default function ConversationList({
         <div className={styles.listHeader}>
           <h2 className={styles.listTitle}>Conversations</h2>
           <div className={styles.listHeaderActions}>
+            {groups.length > 1 && (
+              <button
+                type="button"
+                className={styles.collapseAllBtn}
+                onClick={toggleCollapseAll}
+                aria-label={allCollapsed ? 'Expand all tenants' : 'Collapse all tenants'}
+                title={allCollapsed ? 'Expand all tenants' : 'Collapse all tenants'}
+              >
+                {allCollapsed ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    strokeLinejoin="round" aria-hidden="true">
+                    <path d="M7 13l5 5 5-5" />
+                    <path d="M7 6l5 5 5-5" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    strokeLinejoin="round" aria-hidden="true">
+                    <path d="M7 11l5-5 5 5" />
+                    <path d="M7 18l5-5 5 5" />
+                  </svg>
+                )}
+              </button>
+            )}
             <button
               type="button"
               className={styles.closeListBtn}
@@ -376,81 +563,120 @@ export default function ConversationList({
 
         {error && <p className={styles.error}>{error}</p>}
 
-        {(branchOptions.length > 0 || hasUnlabeled) && (
-          <div className={styles.filterRow}>
-            <label className={styles.filterLabel} htmlFor="branch-filter">
-              Branch
-            </label>
-            <select
-              id="branch-filter"
-              className={styles.filterSelect}
-              value={branchFilter}
-              onChange={e => setBranchFilter(e.target.value)}
-            >
-              <option value="all">All branches</option>
-              {hasUnlabeled && <option value="none">No branch</option>}
-              {branchOptions.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         <div className={styles.listScroll}>
-          {filteredGroups.length === 0 && (
+          {groups.length === 0 && (
             <p className={styles.empty}>
-              {groups.length === 0
-                ? 'No conversations yet. Waiting for customers to start a chat.'
-                : 'No conversations match this branch filter.'}
+              No conversations yet. Waiting for customers to start a chat.
             </p>
           )}
 
-          {filteredGroups.map(group => {
+          {groups.map(group => {
+            const filter = branchFilterFor(group.tenant_id)
+            const { options: branchOptions, hasUnlabeled } = branchOptionsFor(
+              group.conversations
+            )
+            const showBranchFilter =
+              branchOptions.length > 0 || hasUnlabeled
+            const visibleConversations = group.conversations.filter(c =>
+              matchesBranchFilter(c, filter)
+            )
             const collapsed = collapsedTenants.has(group.tenant_id)
-            const groupUnreadMsgs = group.conversations.reduce((sum, c) => {
-              if (c.id === selectedId) return sum
-              return sum + (messageCounts[c.id] ?? 0)
+            const groupUnreadMsgs = visibleConversations.reduce((sum, c) => {
+              return sum + (messageCounts[c.id] ?? (unreadIds.has(c.id) ? 1 : 0))
             }, 0)
+            const groupHasUnread = groupUnreadMsgs > 0
+            const tenantEmpty =
+              group.conversations.length > 0 &&
+              group.conversations.every(c => !c.has_messages)
             return (
               <div key={group.tenant_id} className={styles.tenantGroup}>
-                <button
-                  type="button"
-                  className={styles.tenantHeader}
-                  onClick={() => toggleTenant(group.tenant_id)}
-                  aria-expanded={!collapsed}
-                >
-                  <svg
-                    className={`${styles.tenantChevron} ${collapsed ? styles.tenantChevronCollapsed : ''}`}
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    aria-hidden="true"
+                <div className={styles.tenantHeaderRow}>
+                  <button
+                    type="button"
+                    className={`${styles.tenantHeader} ${
+                      groupHasUnread ? styles.tenantHeaderUnread : ''
+                    }`}
+                    onClick={() => toggleTenant(group.tenant_id)}
+                    aria-expanded={!collapsed}
                   >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                  <span className={styles.tenantName}>{group.tenant_name}</span>
-                  <span className={styles.tenantCount}>
-                    {group.conversations.length}
-                  </span>
-                  {groupUnreadMsgs > 0 && collapsed && (
-                    <span
-                      className={styles.tenantUnread}
-                      aria-label={`${groupUnreadMsgs} new messages`}
+                    {groupHasUnread && (
+                      <span className={styles.tenantDot} aria-hidden="true" />
+                    )}
+                    <svg
+                      className={`${styles.tenantChevron} ${collapsed ? styles.tenantChevronCollapsed : ''}`}
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      aria-hidden="true"
                     >
-                      {groupUnreadMsgs > 99 ? '99+' : groupUnreadMsgs}
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                    <span className={styles.tenantName}>{group.tenant_name}</span>
+                    <span className={styles.tenantCount}>
+                      {visibleConversations.length}
+                      {filter !== 'all' && visibleConversations.length !== group.conversations.length
+                        ? `/${group.conversations.length}`
+                        : ''}
                     </span>
+                    {groupHasUnread && (
+                      <span
+                        className={styles.tenantUnread}
+                        aria-label={`${groupUnreadMsgs} new messages`}
+                      >
+                        {groupUnreadMsgs > 99 ? '99+' : groupUnreadMsgs}
+                      </span>
+                    )}
+                  </button>
+                  {!collapsed && showBranchFilter && (
+                    <TenantBranchFilter
+                      tenantId={group.tenant_id}
+                      tenantName={group.tenant_name}
+                      value={filter}
+                      options={branchOptions}
+                      hasUnlabeled={hasUnlabeled}
+                      onChange={value =>
+                        setBranchFilterByTenant(prev => ({
+                          ...prev,
+                          [group.tenant_id]: value,
+                        }))
+                      }
+                    />
                   )}
-                </button>
+                  {tenantEmpty && (
+                    <button
+                      type="button"
+                      className={styles.tenantDeleteBtn}
+                      title="Delete empty tenant chats"
+                      aria-label={`Delete empty tenant ${group.tenant_name}`}
+                      disabled={deletingId === `tenant:${group.tenant_id}`}
+                      onClick={e => {
+                        e.stopPropagation()
+                        requestDeleteTenant(group.tenant_id)
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                        strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
                 {!collapsed && (
                   <ul className={styles.convList} role="list">
-                    {group.conversations.map(conv => {
-                      const isUnread = unreadIds.has(conv.id) && selectedId !== conv.id
+                    {visibleConversations.length === 0 ? (
+                      <li className={styles.filterEmpty}>
+                        No chats for this branch
+                      </li>
+                    ) : (
+                      visibleConversations.map(conv => {
+                      const unreadCount = messageCounts[conv.id] ?? 0
+                      const isUnread =
+                        unreadCount > 0 || unreadIds.has(conv.id)
                       return (
                         <li key={conv.id}>
                           <button
@@ -463,6 +689,11 @@ export default function ConversationList({
                                 {isUnread && <span className={styles.unreadDot} aria-hidden="true" />}
                                 {conv.title?.trim() || 'New Chat'}
                               </span>
+                              {isUnread && (
+                                <span className={styles.unreadPill}>
+                                  {unreadCount > 1 ? unreadCount : 'New'}
+                                </span>
+                              )}
                               {/* Only show when closed — "open" is the default and just noise */}
                               {conv.status === 'closed' && (
                                 <span className={`${styles.badge} ${styles.badgeClosed}`}>
@@ -470,19 +701,22 @@ export default function ConversationList({
                                 </span>
                               )}
                             </div>
-                            <div className={styles.convMeta}>
-                              <span className={styles.branchLabel}>
+                            <div className={styles.convContext} title={`${conv.tenant_name} · ${conv.branch_name?.trim() || 'No branch'}`}>
+                              <span className={styles.convTenant}>{conv.tenant_name}</span>
+                              <span className={styles.convContextSep} aria-hidden="true">·</span>
+                              <span className={styles.convBranch}>
                                 {conv.branch_name?.trim() || 'No branch'}
                               </span>
-                              <span>{formatLastMessageAgo(conv.last_message_at ?? conv.created_at)}</span>
                             </div>
-                            <div className={styles.convMetaSecondary}>
-                              {conv.assigned_name ?? 'Unassigned'}
+                            <div className={styles.convMeta}>
+                              <span>{conv.assigned_name ?? 'Unassigned'}</span>
+                              <span>{formatLastMessageAgo(conv.last_message_at ?? conv.created_at)}</span>
                             </div>
                           </button>
                         </li>
                       )
-                    })}
+                    })
+                    )}
                   </ul>
                 )}
               </div>
@@ -501,6 +735,9 @@ export default function ConversationList({
           onDelete={requestDelete}
           onOpenList={() => setListOpen(true)}
           onMessageActivity={bumpActivity}
+          onComposerFocus={() => {
+            if (selectedId) clearSupportUnread(selectedId)
+          }}
           deleting={deletingId === selected?.id}
         />
       </section>

@@ -24,18 +24,26 @@ export interface ConversationItem {
   /** Resto branch at chat open; null for older chats / HQ / unknown. */
   branch_id:       string | null
   branch_name:     string | null
+  /** True once at least one support_messages row exists for this chat. */
+  has_messages:    boolean
 }
 
 /** Normalize DB / realtime rows into ConversationItem with safe defaults. */
 export function mapConversationRow(
   row: Record<string, unknown>,
-  assignedName: string | null = null
+  assignedName: string | null = null,
+  hasMessages = false
 ): ConversationItem {
   const category = row.support_category === 'operational' ? 'operational' : 'platform'
   const rawMinutes = Number(row.logged_minutes ?? 0)
   const loggedMinutes = Number.isFinite(rawMinutes)
     ? Math.max(0, Math.round(rawMinutes / 5) * 5)
     : 0
+
+  const fromRow =
+    typeof row.has_messages === 'boolean'
+      ? row.has_messages
+      : hasMessages
 
   return {
     id:              String(row.id),
@@ -60,6 +68,7 @@ export function mapConversationRow(
       typeof row.branch_name === 'string' && row.branch_name.trim()
         ? row.branch_name.trim()
         : null,
+    has_messages: fromRow,
   }
 }
 

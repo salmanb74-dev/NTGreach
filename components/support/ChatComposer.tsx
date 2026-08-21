@@ -16,6 +16,8 @@ type Props = {
   onError: (message: string) => void
   onSent: (row: SupportMessageRow) => void
   onSendText: (content: string) => Promise<boolean>
+  /** Agent focused the reply box — treat chat as read. */
+  onComposerFocus?: () => void
 }
 
 export default function ChatComposer({
@@ -25,6 +27,7 @@ export default function ChatComposer({
   onError,
   onSent,
   onSendText,
+  onComposerFocus,
 }: Props) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -83,6 +86,7 @@ export default function ChatComposer({
         className={styles.input}
         value={draft}
         onChange={e => setDraft(e.target.value)}
+        onFocus={() => onComposerFocus?.()}
         placeholder="Type a message…"
         disabled={sending || mediaActive || closed}
         aria-label="Message"

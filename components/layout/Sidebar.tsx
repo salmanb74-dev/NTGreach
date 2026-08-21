@@ -10,6 +10,7 @@ import {
   getSupportUnreadMessageTotal,
   subscribeSupportUnread,
 } from '@/lib/support/unreadStore'
+import SupportUnreadListener from '@/components/support/SupportUnreadListener'
 import styles from './Sidebar.module.css'
 
 type ItemDef = {
@@ -151,6 +152,7 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
   const clockedIn = useClockedIn()
   const [supportUnread, setSupportUnread] = useState(0)
   const family = familyOf(activeModule)
+  const hasCsRole = roles.some(r => r.startsWith('cs_'))
 
   useEffect(() => {
     return subscribeSupportUnread(snap =>
@@ -167,6 +169,7 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
 
   return (
     <nav className={styles.sidebar} aria-label="Main navigation">
+      {hasCsRole && <SupportUnreadListener />}
       <div className={styles.logoMark} aria-label="NTG Reach">NR</div>
 
       <ul className={styles.navList} role="list">

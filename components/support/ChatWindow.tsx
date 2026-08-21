@@ -25,9 +25,10 @@ interface Props {
     patch: Partial<Pick<ConversationItem, 'support_category' | 'logged_minutes' | 'title'>>
   ) => void
   onDelete?:        (id: string) => void
-  onOpenList?:      () => void
+  onOpenList?:       () => void
   onMessageActivity?: (conversationId: string, at: string) => void
-  deleting?:        boolean
+  onComposerFocus?:  () => void
+  deleting?:         boolean
 }
 
 export default function ChatWindow({
@@ -39,6 +40,7 @@ export default function ChatWindow({
   onDelete,
   onOpenList,
   onMessageActivity,
+  onComposerFocus,
   deleting = false,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -198,6 +200,7 @@ export default function ChatWindow({
         onError={setError}
         onSent={handleMediaSent}
         onSendText={handleSendText}
+        onComposerFocus={onComposerFocus}
       />
 
       <MessageDeleteModal

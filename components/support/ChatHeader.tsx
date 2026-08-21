@@ -59,45 +59,50 @@ export default function ChatHeader({
     )
   }
 
+  const branchLabel = conversation.branch_name?.trim() || 'No branch'
+  const contextLabel = `${conversation.tenant_name} · ${branchLabel}`
+
   return (
     <header className={styles.header}>
       {onOpenList && <MenuButton onClick={onOpenList} />}
-      {editingTitle ? (
-        <input
-          className={styles.titleInput}
-          value={titleDraft}
-          onChange={e => onTitleDraftChange(e.target.value)}
-          onBlur={onCommitTitle}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              ;(e.target as HTMLInputElement).blur()
-            }
-            if (e.key === 'Escape') {
-              onCancelEditTitle()
-            }
-          }}
-          autoFocus
-          aria-label="Conversation title"
-        />
-      ) : (
-        <button
-          type="button"
-          className={styles.titleBtn}
-          onClick={onStartEditTitle}
-          title="Click to rename"
-        >
-          {conversation.title?.trim() || 'New Chat'}
-        </button>
-      )}
+      <div className={styles.titleBlock}>
+        {editingTitle ? (
+          <input
+            className={styles.titleInput}
+            value={titleDraft}
+            onChange={e => onTitleDraftChange(e.target.value)}
+            onBlur={onCommitTitle}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                ;(e.target as HTMLInputElement).blur()
+              }
+              if (e.key === 'Escape') {
+                onCancelEditTitle()
+              }
+            }}
+            autoFocus
+            aria-label="Conversation title"
+          />
+        ) : (
+          <button
+            type="button"
+            className={styles.titleBtn}
+            onClick={onStartEditTitle}
+            title="Click to rename"
+          >
+            {conversation.title?.trim() || 'New Chat'}
+          </button>
+        )}
+        <p className={styles.contextLine} title={contextLabel}>
+          <span className={styles.contextTenant}>{conversation.tenant_name}</span>
+          <span className={styles.contextSep} aria-hidden="true">·</span>
+          <span className={styles.contextBranch}>{branchLabel}</span>
+        </p>
+      </div>
       {conversation.status === 'closed' && (
         <span className={`${styles.statusBadge} ${styles.statusClosed}`}>
           closed
-        </span>
-      )}
-      {conversation.branch_name?.trim() && (
-        <span className={styles.branchBadge} title="Originating branch">
-          {conversation.branch_name.trim()}
         </span>
       )}
       {onDelete && (

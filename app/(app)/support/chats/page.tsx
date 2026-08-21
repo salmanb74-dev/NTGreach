@@ -14,7 +14,7 @@ export default async function SupportChatsPage() {
     getCachedProfile(),
     supabase
       .from('support_conversations')
-      .select('*')
+      .select('*, support_messages(count)')
       .order('last_message_at', { ascending: false, nullsFirst: false }),
   ])
 
@@ -36,9 +36,18 @@ export default async function SupportChatsPage() {
     agentNames[a.id] = a.full_name?.trim() || a.email || 'Unknown'
   }
 
-  const items: ConversationItem[] = rows.map(c =>
-    mapConversationRow(c as Record<string, unknown>, c.assigned_to ? (agentNames[c.assigned_to] ?? null) : null)
-  )
+  const items: ConversationItem[] = rows.map(c => {
+    const msgMeta = c.support_messages as { count?: number }[] | null | undefined
+    const count = Array.isArray(msgMeta) ? Number(msgMeta[0]?.count ?? 0) : 0
+    const { support_messages: _, ...row } = c as Record<string, unknown> & {
+      support_messages?: unknown
+    }
+    return mapConversationRow(
+      row,
+      c.assigned_to ? (agentNames[c.assigned_to] ?? null) : null,
+      count > 0
+    )
+  })
 
   const groups = groupConversationsByTenant(items)
 
