@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createUserClient } from '@/lib/supabase/server'
 import { getServiceRoleClient } from '@/lib/supabase/admin'
 import {
-  assertSupportApiKey,
+  assertAnySupportApiKey,
   getConversationForTenant,
   getSupportApiActorUserId,
   requireTenantId,
@@ -49,8 +49,8 @@ export async function DELETE(
   const hasApiKey = Boolean(request.headers.get('x-api-key'))
 
   if (hasApiKey) {
-    const authError = assertSupportApiKey(request)
-    if (authError) return authError
+    const authResult = assertAnySupportApiKey(request)
+    if (authResult instanceof NextResponse) return authResult
 
     const tenantId = requireTenantId(request.nextUrl.searchParams.get('tenant_id'))
     if (!tenantId) return supportApiError('tenant_id is required')

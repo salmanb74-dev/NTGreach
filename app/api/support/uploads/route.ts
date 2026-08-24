@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  assertSupportApiKey,
+  assertAnySupportApiKey,
   getConversationForTenant,
   getSupportAdmin,
   requireTenantId,
@@ -53,8 +53,8 @@ function folderFor(messageType: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = assertSupportApiKey(request)
-  if (authError) return authError
+  const authResult = assertAnySupportApiKey(request)
+  if (authResult instanceof NextResponse) return authResult
 
   let form: FormData
   try {

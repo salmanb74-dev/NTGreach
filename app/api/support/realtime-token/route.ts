@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  assertSupportApiKey,
+  assertAnySupportApiKey,
   getConversationForTenant,
   getSupportAdmin,
   getSupportApiActorUserId,
@@ -13,8 +13,8 @@ import {
 } from '@/lib/support/realtime-token'
 
 export async function POST(request: NextRequest) {
-  const authError = assertSupportApiKey(request)
-  if (authError) return authError
+  const authResult = assertAnySupportApiKey(request)
+  if (authResult instanceof NextResponse) return authResult
 
   let body: Record<string, unknown>
   try {

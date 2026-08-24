@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  assertSupportApiKey,
+  assertAnySupportApiKey,
   clampLimit,
   getConversationForTenant,
   getSupportAdmin,
@@ -13,8 +13,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authError = assertSupportApiKey(request)
-  if (authError) return authError
+  const authResult = assertAnySupportApiKey(request)
+  if (authResult instanceof NextResponse) return authResult
 
   const conversationId = params.id?.trim()
   if (!conversationId) return supportApiError('conversation id is required')

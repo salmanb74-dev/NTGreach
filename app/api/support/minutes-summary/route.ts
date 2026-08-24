@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  assertSupportApiKey,
+  assertAnySupportApiKey,
   getSupportAdmin,
   requireTenantId,
   supportApiError,
@@ -24,8 +24,8 @@ function parseMonth(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const authError = assertSupportApiKey(request)
-  if (authError) return authError
+  const authResult = assertAnySupportApiKey(request)
+  if (authResult instanceof NextResponse) return authResult
 
   const tenantId = requireTenantId(request.nextUrl.searchParams.get('tenant_id'))
   if (!tenantId) return supportApiError('tenant_id is required')

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  assertSupportApiKey,
+  assertAnySupportApiKey,
   getSupportAdmin,
   supportApiError,
 } from '@/lib/support/api'
@@ -42,8 +42,8 @@ function nextAvailableAt(nowIso: string, shifts: ShiftRow[]): string | null {
 }
 
 export async function GET(request: NextRequest) {
-  const authError = assertSupportApiKey(request)
-  if (authError) return authError
+  const authResult = assertAnySupportApiKey(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const admin = getSupportAdmin()
