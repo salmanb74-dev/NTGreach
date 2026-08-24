@@ -20,6 +20,8 @@ type ItemDef = {
   svgPath: string
   adminOnly?: boolean
   csAdminOnly?: boolean
+  /** Platform Ops Settings — ops_admin only */
+  opsAdminOnly?: boolean
   families: Array<'crm' | 'cs' | 'ops_product' | 'ops_platform'>
 }
 
@@ -130,6 +132,21 @@ const NAV_DEFS: ItemDef[] = [
       'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
     families: ['ops_platform'],
   },
+  {
+    section: 'docs',
+    label: 'Docs',
+    svgPath:
+      'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+    families: ['ops_platform'],
+  },
+  {
+    section: 'settings',
+    label: 'Settings',
+    svgPath:
+      'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.071-3c0-.34-.027-.674-.08-1l2.116-1.65-2-3.464-2.49.998A7.002 7.002 0 0 0 14.5 5.8L14 3h-4l-.5 2.8a7.002 7.002 0 0 0-2.117 1.088L4.893 5.89l-2 3.464L4.99 11c-.053.326-.08.66-.08 1s.027.674.08 1L2.893 14.65l2 3.464 2.49-.998A7.002 7.002 0 0 0 9.5 18.2L10 21h4l.5-2.8a7.002 7.002 0 0 0 2.117-1.088l2.49.998 2-3.464L18.99 13c.053-.326.08-.66.08-1z',
+    opsAdminOnly: true,
+    families: ['ops_platform'],
+  },
 ]
 
 function familyOf(mod: Module): ItemDef['families'][number] {
@@ -148,6 +165,7 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
   const pathname = usePathname()
   const isCrmAdmin = roles.includes('crm_admin')
   const isCsAdmin = roles.includes('cs_admin')
+  const isOpsAdmin = roles.includes('ops_admin')
   const isAnyAdmin = isCrmAdmin || isCsAdmin
   const clockedIn = useClockedIn()
   const [supportUnread, setSupportUnread] = useState(0)
@@ -163,6 +181,7 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
   const visibleItems = NAV_DEFS.filter(item => {
     if (!item.families.includes(family)) return false
     if (item.csAdminOnly && !isCsAdmin) return false
+    if (item.opsAdminOnly && !isOpsAdmin) return false
     if (item.adminOnly && !isAnyAdmin) return false
     return true
   })

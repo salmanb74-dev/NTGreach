@@ -29,8 +29,8 @@ export default function OpsHomePage() {
               tools (list, inspect, logs) for NTG products.
             </li>
             <li>
-              <strong>Ops</strong> — Reach platform users, access, and rights across
-              modules.
+              <strong>Ops</strong> — Reach platform users, Docs (OneDrive links),
+              and rights across modules.
             </li>
           </ul>
         </section>

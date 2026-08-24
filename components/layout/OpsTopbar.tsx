@@ -8,6 +8,8 @@ const OPS_TITLES = [
   { match: '/tenants', title: 'Tenants' },
   { match: '/logs', title: 'Logs' },
   { match: '/users', title: 'Users' },
+  { match: '/docs', title: 'Docs' },
+  { match: '/settings', title: 'Settings' },
   { match: '/subscription', title: 'Subscription' },
   { match: '/reports', title: 'Reports' },
 ]
