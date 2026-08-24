@@ -1,22 +1,44 @@
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile } from '@/lib/dataCache'
+import { getAccessibleModules } from '@/lib/roles'
 import ConversationList from '@/components/support/ConversationList'
 import {
   groupConversationsByTenant,
   mapConversationRow,
   type ConversationItem,
 } from '@/components/support/types'
+import type { Module } from '@/lib/modules'
+
+/** Map a cs_* module to the product value stored in support_conversations. */
+function productForModule(mod: Module): 'resto' | 'alma' | null {
+  if (mod === 'cs_resto') return 'resto'
+  if (mod === 'cs_alma') return 'alma'
+  return null
+}
 
 export default async function SupportChatsPage() {
   const supabase = createClient()
 
-  const [profile, { data: conversations }] = await Promise.all([
-    getCachedProfile(),
-    supabase
-      .from('support_conversations')
-      .select('*, support_messages(count)')
-      .order('last_message_at', { ascending: false, nullsFirst: false }),
-  ])
+  const profile = await getCachedProfile()
+  const modules = getAccessibleModules(profile)
+  const saved = cookies().get('ntg-active-module')?.value as Module | undefined
+  const activeModule: Module = (
+    saved && modules.includes(saved) && saved.startsWith('cs_')
+      ? saved
+      : modules.find(m => m.startsWith('cs_')) ?? modules[0]
+  )!
+
+  const product = productForModule(activeModule)
+
+  let query = supabase
+    .from('support_conversations')
+    .select('*, support_messages(count)')
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+
+  if (product) query = query.eq('product', product)
+
+  const [{ data: conversations }] = await Promise.all([query])
 
   const rows = conversations ?? []
   const agentIds = [

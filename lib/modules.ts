@@ -28,6 +28,7 @@ export const ALL_MODULES: Module[] = [
 export const ASSIGNABLE_MODULES: Module[] = [
   'crm_resto',
   'cs_resto',
+  'cs_alma',
   'ops_resto',
   'ops',
 ]

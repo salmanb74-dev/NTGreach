@@ -26,6 +26,41 @@ export function assertSupportApiKey(request: Request): NextResponse | null {
   return null
 }
 
+/** Validate `x-api-key` against `SUPPORT_ALMA_API_KEY`. Returns an error response or null. */
+export function assertAlmaSupportApiKey(request: Request): NextResponse | null {
+  const expected = process.env.SUPPORT_ALMA_API_KEY
+  if (!expected) {
+    console.error('[support api] SUPPORT_ALMA_API_KEY is not configured')
+    return NextResponse.json({ error: 'Alma Support API is not configured' }, { status: 500 })
+  }
+
+  const key = request.headers.get('x-api-key')
+  if (!key || key !== expected) {
+    return supportApiUnauthorized()
+  }
+  return null
+}
+
+/**
+ * Validates `x-api-key` against either SUPPORT_API_KEY or SUPPORT_ALMA_API_KEY.
+ * Returns the matched product ('resto' | 'alma') or an error response.
+ * Use this on shared endpoints that both Resto Nest and Alma Nest call.
+ */
+export function assertAnySupportApiKey(
+  request: Request
+): { product: 'resto' | 'alma' } | NextResponse {
+  const key = request.headers.get('x-api-key')
+  if (!key) return supportApiUnauthorized()
+
+  const restoKey = process.env.SUPPORT_API_KEY
+  const almaKey = process.env.SUPPORT_ALMA_API_KEY
+
+  if (restoKey && key === restoKey) return { product: 'resto' }
+  if (almaKey && key === almaKey) return { product: 'alma' }
+
+  return supportApiUnauthorized()
+}
+
 export function getSupportAdmin(): SupabaseClient {
   return getServiceRoleClient()
 }

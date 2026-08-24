@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   assertSupportApiKey,
+  assertAnySupportApiKey,
   clampLimit,
   getSupportAdmin,
   getSupportApiActorUserId,
@@ -8,6 +9,7 @@ import {
   serializeConversation,
   supportApiError,
 } from '@/lib/support/api'
+import { NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const authError = assertSupportApiKey(request)
@@ -56,8 +58,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = assertSupportApiKey(request)
-  if (authError) return authError
+  const authResult = assertAnySupportApiKey(request)
+  if (authResult instanceof NextResponse) return authResult
+  const keyProduct = authResult.product
 
   let body: Record<string, unknown>
   try {
@@ -79,10 +82,9 @@ export async function POST(request: NextRequest) {
         ? body.title.trim() || null
         : null
 
-  const product =
-    typeof body.product === 'string' && body.product.trim()
-      ? body.product.trim()
-      : 'resto'
+  // Product is derived from the API key used, not from the request body.
+  // This prevents a caller from creating conversations for the wrong product.
+  const product = keyProduct
 
   const branchId =
     typeof body.branch_id === 'string' && body.branch_id.trim()
