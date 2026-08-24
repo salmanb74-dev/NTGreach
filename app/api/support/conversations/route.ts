@@ -9,7 +9,6 @@ import {
   serializeConversation,
   supportApiError,
 } from '@/lib/support/api'
-import { NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const authError = assertSupportApiKey(request)

@@ -5,7 +5,7 @@ import { isPlatformOpsAdmin } from '@/lib/roles'
 import OpsEnumerationsClient from '@/components/ops/OpsEnumerationsClient'
 import { OPS_DOC_ENUM_CATEGORIES } from '@/lib/ops-docs/types'
 import type { OpsEnumeration } from '@/lib/ops-docs/types'
-import styles from './settings.module.css'
+import styles from '../settings.module.css'
 
 export default async function OpsSettingsEnumerationsPage() {
   const profile = await getCachedProfile()
