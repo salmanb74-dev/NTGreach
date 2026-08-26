@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MODULE_LABELS, getModuleHomePath, type Module } from '@/lib/modules'
+import { MODULE_LABELS, getModuleHomePath, sortModulesForSwitcher, type Module } from '@/lib/modules'
 import styles from './ModuleSelector.module.css'
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 export default function ModuleSelector({ modules, activeModule }: Props) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  const ordered = sortModulesForSwitcher(modules)
 
   function handleSelect(mod: Module) {
     setOpen(false)
@@ -43,7 +44,7 @@ export default function ModuleSelector({ modules, activeModule }: Props) {
         <>
           <div className={styles.backdrop} onClick={() => setOpen(false)} />
           <ul className={styles.dropdown} role="listbox">
-            {modules.map(mod => (
+            {ordered.map(mod => (
               <li key={mod}>
                 <button
                   className={`${styles.option} ${mod === activeModule ? styles.optionActive : ''}`}

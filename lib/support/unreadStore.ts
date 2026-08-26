@@ -29,6 +29,8 @@ type StoreState = {
   listeners: Set<Listener>
   unreadIds: Set<string>
   messageCounts: Record<string, number>
+  /** conversationId → product (`resto` | `alma`) for module-scoped badges */
+  conversationProducts: Record<string, string>
   activeConversationId: string | null
   seenMessageIds: Set<string>
 }
@@ -44,9 +46,12 @@ function getState(): StoreState {
       listeners: new Set(),
       unreadIds: new Set(),
       messageCounts: {},
+      conversationProducts: {},
       activeConversationId: null,
       seenMessageIds: new Set(),
     }
+  } else if (!g[GLOBAL_KEY].conversationProducts) {
+    g[GLOBAL_KEY].conversationProducts = {}
   }
   return g[GLOBAL_KEY]
 }
@@ -73,9 +78,18 @@ function dispatchBrowserEvent(
 }
 
 export function getSupportUnreadMessageTotal(
-  snap: SupportUnreadSnapshot = snapshot()
+  snap: SupportUnreadSnapshot = snapshot(),
+  productFilter?: string | null
 ): number {
-  return Object.values(snap.messageCounts).reduce((a, b) => a + b, 0)
+  const s = getState()
+  if (!productFilter) {
+    return Object.values(snap.messageCounts).reduce((a, b) => a + b, 0)
+  }
+  let total = 0
+  for (const [id, count] of Object.entries(snap.messageCounts)) {
+    if (s.conversationProducts[id] === productFilter) total += count
+  }
+  return total
 }
 
 export function getSupportUnreadCount() {
@@ -92,10 +106,12 @@ export function setActiveSupportConversation(id: string | null) {
 /**
  * Increment unread for a customer message.
  * Returns false if ignored (empty id, focused tab already viewing this chat, or duplicate).
+ * Pass `product` so badges can be scoped to Support Resto vs Support Alma.
  */
 export function markSupportCustomerMessage(
   conversationId: string,
-  messageId?: string
+  messageId?: string,
+  product?: string | null
 ): boolean {
   const s = getState()
   if (!conversationId) return false
@@ -116,6 +132,7 @@ export function markSupportCustomerMessage(
     }
   }
 
+  if (product) s.conversationProducts[conversationId] = product
   s.unreadIds.add(conversationId)
   s.messageCounts[conversationId] = (s.messageCounts[conversationId] ?? 0) + 1
   emit()
@@ -139,6 +156,7 @@ export function clearSupportUnread(conversationId?: string) {
     if (s.unreadIds.size === 0 && Object.keys(s.messageCounts).length === 0) return
     s.unreadIds = new Set()
     s.messageCounts = {}
+    s.conversationProducts = {}
     emit()
     dispatchBrowserEvent(EVENT_CLEARED, { conversationId: null })
     return
@@ -149,6 +167,8 @@ export function clearSupportUnread(conversationId?: string) {
   s.unreadIds.delete(conversationId)
   const { [conversationId]: _, ...rest } = s.messageCounts
   s.messageCounts = rest
+  const { [conversationId]: __, ...productsRest } = s.conversationProducts
+  s.conversationProducts = productsRest
   emit()
   dispatchBrowserEvent(EVENT_CLEARED, { conversationId })
 }

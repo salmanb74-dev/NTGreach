@@ -15,6 +15,7 @@ export async function GET(
 ) {
   const authResult = assertAnySupportApiKey(request)
   if (authResult instanceof NextResponse) return authResult
+  const keyProduct = authResult.product
 
   const conversationId = params.id?.trim()
   if (!conversationId) return supportApiError('conversation id is required')
@@ -37,7 +38,8 @@ export async function GET(
     const { conversation, forbidden } = await getConversationForTenant(
       admin,
       conversationId,
-      tenantId
+      tenantId,
+      keyProduct
     )
     if (forbidden) return supportApiError('Forbidden', 403)
     if (!conversation) return supportApiError('Conversation not found', 404)

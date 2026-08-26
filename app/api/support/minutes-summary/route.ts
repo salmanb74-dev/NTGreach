@@ -26,6 +26,7 @@ function parseMonth(value: string | null) {
 export async function GET(request: NextRequest) {
   const authResult = assertAnySupportApiKey(request)
   if (authResult instanceof NextResponse) return authResult
+  const keyProduct = authResult.product
 
   const tenantId = requireTenantId(request.nextUrl.searchParams.get('tenant_id'))
   if (!tenantId) return supportApiError('tenant_id is required')
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       .from('support_conversations')
       .select('id, created_at, support_category, logged_minutes')
       .eq('tenant_id', tenantId)
+      .eq('product', keyProduct)
       .limit(5000)
 
     if (error) return supportApiError(error.message, 500)

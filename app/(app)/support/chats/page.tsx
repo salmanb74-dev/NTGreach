@@ -30,13 +30,20 @@ export default async function SupportChatsPage() {
   )!
 
   const product = productForModule(activeModule)
+  // Never show a mixed product list — if module is unknown, show nothing.
+  if (!product) {
+    return (
+      <p style={{ padding: '1.5rem', color: 'var(--color-text-muted)' }}>
+        Select Support Resto or Support Alma to view chats.
+      </p>
+    )
+  }
 
   let query = supabase
     .from('support_conversations')
     .select('*, support_messages(count)')
+    .eq('product', product)
     .order('last_message_at', { ascending: false, nullsFirst: false })
-
-  if (product) query = query.eq('product', product)
 
   const [{ data: conversations }] = await Promise.all([query])
 
@@ -78,6 +85,7 @@ export default async function SupportChatsPage() {
       initialGroups={groups}
       currentUserId={profile!.id}
       currentUserName={profile!.full_name?.trim() || profile!.email || 'Agent'}
+      productFilter={product}
     />
   )
 }

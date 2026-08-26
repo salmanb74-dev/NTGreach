@@ -172,17 +172,24 @@ export function serializeMessage(row: Record<string, unknown>): ApiMessage {
 export async function getConversationForTenant(
   admin: SupabaseClient,
   conversationId: string,
-  tenantId: string
+  tenantId: string,
+  product?: 'resto' | 'alma'
 ) {
-  const { data, error } = await admin
+  let query = admin
     .from('support_conversations')
     .select('*')
     .eq('id', conversationId)
-    .maybeSingle()
+
+  if (product) query = query.eq('product', product)
+
+  const { data, error } = await query.maybeSingle()
 
   assertNoError(error)
   if (!data) return { conversation: null as null, forbidden: false }
   if (String(data.tenant_id) !== tenantId) {
+    return { conversation: null as null, forbidden: true }
+  }
+  if (product && String(data.product ?? 'resto') !== product) {
     return { conversation: null as null, forbidden: true }
   }
   return { conversation: data as Record<string, unknown>, forbidden: false }

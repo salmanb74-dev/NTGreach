@@ -12,6 +12,7 @@ import {
 export async function GET(request: NextRequest) {
   const authResult = assertAnySupportApiKey(request)
   if (authResult instanceof NextResponse) return authResult
+  const keyProduct = authResult.product
 
   const tenantId = requireTenantId(request.nextUrl.searchParams.get('tenant_id'))
   if (!tenantId) return supportApiError('tenant_id is required')
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
       .from('support_conversations')
       .select('*')
       .eq('tenant_id', tenantId)
+      .eq('product', keyProduct)
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .limit(limit)
 

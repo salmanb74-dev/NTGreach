@@ -55,6 +55,7 @@ function folderFor(messageType: string) {
 export async function POST(request: NextRequest) {
   const authResult = assertAnySupportApiKey(request)
   if (authResult instanceof NextResponse) return authResult
+  const keyProduct = authResult.product
 
   let form: FormData
   try {
@@ -95,7 +96,8 @@ export async function POST(request: NextRequest) {
     const { conversation, forbidden } = await getConversationForTenant(
       admin,
       conversationId,
-      tenantId
+      tenantId,
+      keyProduct
     )
     if (forbidden) return supportApiError('Forbidden', 403)
     if (!conversation) return supportApiError('Conversation not found', 404)

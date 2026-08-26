@@ -52,6 +52,25 @@ export function isAssignableModule(value: string): value is Module {
 }
 
 /**
+ * Module switcher order: all Resto (A–Z by label), then all Alma (A–Z), then platform Ops.
+ */
+export function sortModulesForSwitcher(modules: Module[]): Module[] {
+  function brandRank(mod: Module): number {
+    if (mod === 'ops') return 2
+    if (mod.endsWith('_resto')) return 0
+    if (mod.endsWith('_alma')) return 1
+    return 3
+  }
+
+  return [...modules].sort((a, b) => {
+    const ra = brandRank(a)
+    const rb = brandRank(b)
+    if (ra !== rb) return ra - rb
+    return MODULE_LABELS[a].localeCompare(MODULE_LABELS[b])
+  })
+}
+
+/**
  * Prefer platform Ops, then product Ops (Resto/Alma), then other modules.
  * Used post-login and when falling back from CRM-only routes.
  */

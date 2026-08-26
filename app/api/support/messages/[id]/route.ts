@@ -51,6 +51,7 @@ export async function DELETE(
   if (hasApiKey) {
     const authResult = assertAnySupportApiKey(request)
     if (authResult instanceof NextResponse) return authResult
+    const keyProduct = authResult.product
 
     const tenantId = requireTenantId(request.nextUrl.searchParams.get('tenant_id'))
     if (!tenantId) return supportApiError('tenant_id is required')
@@ -75,7 +76,8 @@ export async function DELETE(
       const { conversation, forbidden } = await getConversationForTenant(
         admin,
         message.conversation_id,
-        tenantId
+        tenantId,
+        keyProduct
       )
       if (forbidden) return supportApiError('Forbidden', 403)
       if (!conversation) return supportApiError('Conversation not found', 404)

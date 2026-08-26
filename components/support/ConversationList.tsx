@@ -29,12 +29,15 @@ interface Props {
   initialGroups:   TenantGroup[]
   currentUserId:   string
   currentUserName: string
+  /** Only show / sync conversations for this product (`resto` | `alma`). */
+  productFilter:   'resto' | 'alma'
 }
 
 export default function ConversationList({
   initialGroups,
   currentUserId,
   currentUserName,
+  productFilter,
 }: Props) {
   const [groups, setGroups] = useState(initialGroups)
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -63,6 +66,8 @@ export default function ConversationList({
   selectedIdRef.current = selectedId
   const groupsRef = useRef(groups)
   groupsRef.current = groups
+  const productFilterRef = useRef(productFilter)
+  productFilterRef.current = productFilter
 
   const flat = groups.flatMap(g => g.conversations)
 
@@ -171,6 +176,7 @@ export default function ConversationList({
       .from('support_conversations')
       .select('*')
       .eq('id', conversationId)
+      .eq('product', productFilterRef.current)
       .maybeSingle()
 
     if (!data) return
@@ -276,6 +282,9 @@ export default function ConversationList({
           },
           (payload) => {
             const row = payload.new as Record<string, unknown>
+            const rowProduct = String(row.product ?? 'resto')
+            if (rowProduct !== productFilterRef.current) return
+
             setGroups(prev => {
               const all = prev.flatMap(g => g.conversations)
               if (all.some(c => c.id === String(row.id))) return prev
@@ -321,13 +330,42 @@ export default function ConversationList({
             }
             if (!row.conversation_id) return
 
-            if (row.created_at) {
-              bumpActivity(row.conversation_id, row.created_at)
+            const known = groupsRef.current
+              .flatMap(g => g.conversations)
+              .some(c => c.id === row.conversation_id)
+
+            // Only touch list/unread for chats in this product module.
+            // Unknown ids are fetched with product filter in ensureConversationInList.
+            if (known) {
+              if (row.created_at) {
+                bumpActivity(row.conversation_id, row.created_at)
+              }
+              if (row.sender_type === 'customer') {
+                markSupportCustomerMessage(
+                  row.conversation_id,
+                  row.id,
+                  productFilterRef.current
+                )
+              }
+              return
             }
 
             if (row.sender_type === 'customer') {
-              markSupportCustomerMessage(row.conversation_id, row.id)
-              void ensureConversationInList(row.conversation_id)
+              void (async () => {
+                await ensureConversationInList(row.conversation_id!)
+                const nowKnown = groupsRef.current
+                  .flatMap(g => g.conversations)
+                  .some(c => c.id === row.conversation_id)
+                if (!nowKnown) return
+                if (row.created_at) {
+                  bumpActivity(row.conversation_id!, row.created_at)
+                }
+                markSupportCustomerMessage(
+                  row.conversation_id!,
+                  row.id,
+                  productFilterRef.current
+                )
+              })()
             }
           }
         )

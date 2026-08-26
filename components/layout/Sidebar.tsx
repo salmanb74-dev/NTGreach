@@ -159,9 +159,10 @@ function familyOf(mod: Module): ItemDef['families'][number] {
 interface Props {
   roles: UserRole[]
   activeModule: Module
+  modules: Module[]
 }
 
-export default function Sidebar({ roles = [], activeModule }: Props) {
+export default function Sidebar({ roles = [], activeModule, modules = [] }: Props) {
   const pathname = usePathname()
   const isCrmAdmin = roles.includes('crm_admin')
   const isCsAdmin = roles.includes('cs_admin')
@@ -171,12 +172,25 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
   const [supportUnread, setSupportUnread] = useState(0)
   const family = familyOf(activeModule)
   const hasCsRole = roles.some(r => r.startsWith('cs_'))
+  const allowedSupportProducts = modules.flatMap(m => {
+    if (m === 'cs_resto') return ['resto' as const]
+    if (m === 'cs_alma') return ['alma' as const]
+    return []
+  })
+  const activeSupportProduct =
+    activeModule === 'cs_alma'
+      ? 'alma'
+      : activeModule === 'cs_resto'
+        ? 'resto'
+        : null
 
   useEffect(() => {
     return subscribeSupportUnread(snap =>
-      setSupportUnread(getSupportUnreadMessageTotal(snap))
+      setSupportUnread(
+        getSupportUnreadMessageTotal(snap, activeSupportProduct)
+      )
     )
-  }, [])
+  }, [activeSupportProduct])
 
   const visibleItems = NAV_DEFS.filter(item => {
     if (!item.families.includes(family)) return false
@@ -188,7 +202,9 @@ export default function Sidebar({ roles = [], activeModule }: Props) {
 
   return (
     <nav className={styles.sidebar} aria-label="Main navigation">
-      {hasCsRole && <SupportUnreadListener />}
+      {hasCsRole && (
+        <SupportUnreadListener allowedProducts={allowedSupportProducts} />
+      )}
       <div className={styles.logoMark} aria-label="NTG Reach">NR</div>
 
       <ul className={styles.navList} role="list">

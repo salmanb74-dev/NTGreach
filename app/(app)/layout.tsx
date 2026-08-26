@@ -31,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar
         roles={profile.roles}
         activeModule={activeModule}
+        modules={accessibleModules}
       />
       <main className={styles.main}>
         {children}
