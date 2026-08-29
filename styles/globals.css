@@ -1,4 +1,4 @@
-@import './theme.css';
+/* Theme lives in theme.css — imported from app/layout.tsx */
 
 *, *::before, *::after {
   box-sizing: border-box;

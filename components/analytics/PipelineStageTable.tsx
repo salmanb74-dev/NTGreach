@@ -1,6 +1,7 @@
 'use client'
 
-import { STAGE_LABELS, STAGE_CSS, type PipelineStage } from '@/lib/types'
+import StageBadge from '@/components/ui/StageBadge'
+import type { PipelineStage } from '@/lib/types'
 import styles from './charts.module.css'
 
 export type PipelineStageRow = {
@@ -27,26 +28,14 @@ export default function PipelineStageTable({ rows }: { rows: PipelineStageRow[] 
         </tr>
       </thead>
       <tbody>
-        {rows.map(({ stage, count }) => {
-          const cssKey = STAGE_CSS[stage]
-          return (
-            <tr key={stage}>
-              <td>
-                <span
-                  className={styles.pipelineStageBadge}
-                  style={{
-                    background: `var(--stage-${cssKey}-bg)`,
-                    color: `var(--stage-${cssKey}-text)`,
-                    borderColor: `var(--stage-${cssKey}-border)`,
-                  }}
-                >
-                  {STAGE_LABELS[stage]}
-                </span>
-              </td>
-              <td className={styles.pipelineCount}>{count}</td>
-            </tr>
-          )
-        })}
+        {rows.map(({ stage, count }) => (
+          <tr key={stage}>
+            <td>
+              <StageBadge stage={stage} size="sm" />
+            </td>
+            <td className={styles.pipelineCount}>{count}</td>
+          </tr>
+        ))}
       </tbody>
     </table>
   )

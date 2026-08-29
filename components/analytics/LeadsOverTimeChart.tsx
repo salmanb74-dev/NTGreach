@@ -3,6 +3,7 @@
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid
 } from 'recharts'
+import { CHART_TOOLTIP_STYLE } from './chart-tooltip'
 import { useChartWidth } from './useChartWidth'
 import styles from './charts.module.css'
 
@@ -55,13 +56,7 @@ export default function LeadsOverTimeChart({
             width={28}
           />
           <Tooltip
-            contentStyle={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: 'var(--color-text)',
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             cursor={{ fill: 'var(--color-primary-subtle)' }}
             formatter={(val: number) => [val, 'Leads']}
           />

@@ -5,6 +5,8 @@
   flex: 1;
   align-items: flex-start;
   padding-bottom: 16px;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ─── Column ─────────────────────────────────────────────────── */
@@ -67,6 +69,17 @@
   background: var(--color-primary-subtle);
 }
 
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-medium);
+}
+
+.cardOverlay {
+  cursor: grabbing;
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-border);
+}
+
 .addBtn {
   width: 20px;
   height: 20px;
@@ -103,21 +116,41 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  cursor: grab;
   transition: box-shadow 0.15s, border-color 0.15s;
   user-select: none;
+  display: flex;
+  align-items: stretch;
 }
 
-.card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--color-border-medium);
+.dragHandle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg) 12%);
+  color: var(--color-text-3);
+  cursor: grab;
+  touch-action: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
-.card:active { cursor: grabbing; }
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.card:active .dragHandle {
+  cursor: grabbing;
+}
 
 .cardLink {
   display: block;
-  padding: 10px 11px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 11px 10px 8px;
 }
 
 .cardHeader {

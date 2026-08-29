@@ -15,6 +15,7 @@ import {
   CHART_PAYMENT_SETUP,
 } from '@/lib/dashboard/chart-colors'
 import type { QuarterPaymentDatum } from '@/lib/dashboard/deal-values'
+import { CHART_TOOLTIP_STYLE } from './chart-tooltip'
 import { useChartWidth } from './useChartWidth'
 import styles from './charts.module.css'
 
@@ -66,12 +67,7 @@ function QuarterlyPaymentsChart({
               tickFormatter={v => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
             />
             <Tooltip
-              contentStyle={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(val: number, name: string) => [
                 formatCurrency(val, currency),
                 name === 'setup' ? 'Setup' : 'Recurring',

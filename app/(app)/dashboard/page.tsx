@@ -8,7 +8,7 @@ import { buildWeeklyLeadData } from '@/lib/dashboard/weekly-leads'
 import { getAppSettings, getCurrentRates, getCachedProfile } from '@/lib/dataCache'
 import { getModuleHomePath, pickDefaultModule, type Module } from '@/lib/modules'
 import { getAccessibleModules } from '@/lib/roles'
-import styles from './dashboard.module.css'
+import styles from '@/components/dashboard/dashboard.module.css'
 
 export default async function DashboardPage({
   searchParams,

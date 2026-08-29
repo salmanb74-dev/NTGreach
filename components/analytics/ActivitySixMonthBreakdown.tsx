@@ -11,6 +11,7 @@ import {
   breakdownRowsForChart,
   type SixMonthActivityBreakdown,
 } from '@/lib/dashboard/activity-breakdown'
+import { CHART_TOOLTIP_STYLE } from './chart-tooltip'
 import { useChartWidth } from './useChartWidth'
 import styles from './charts.module.css'
 
@@ -49,12 +50,7 @@ export default function ActivitySixMonthBreakdown({
             <XAxis type="number" hide allowDecimals={false} />
             <YAxis type="category" dataKey="name" hide width={0} />
             <Tooltip
-              contentStyle={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(val: number, key: string) => {
                 const item = chartRows.find(d => d.key === key)
                 const label = item?.label ?? key
