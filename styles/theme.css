@@ -100,6 +100,10 @@
   --activity-note-bg:       #f3f4f6;
   --activity-note-color:    #374151;
 
+  /* ─── Dashboard chart series (Recharts needs resolved hex) ─── */
+  --chart-payment-setup:     #e07b00;
+  --chart-payment-recurring: #7c3aed;
+
   /* ─── Sidebar ────────────────────────────────────────────────── */
   --sidebar-bg:             var(--color-primary);
   --sidebar-icon:           rgba(255, 255, 255, 0.60);

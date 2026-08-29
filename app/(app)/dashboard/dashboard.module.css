@@ -20,6 +20,41 @@
   box-shadow: var(--shadow-sm);
 }
 
+.statLabelRow,
+.chartTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.chartTitleRow {
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.chartTitleRow .chartTitle {
+  margin-bottom: 0;
+}
+
+.statLabelRow .statLabel {
+  margin-bottom: 0;
+}
+
+.scopeBadge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  line-height: 1.2;
+}
+
 .statLabel {
   font-size: 11px;
   font-weight: 600;
@@ -43,10 +78,13 @@
 }
 
 /* ─── Chart rows ─────────────────────────────────────────────── */
-.row {
-  display: flex;
+.chartsGrid {
+  --chart-card-height: 400px;
+  --chart-body-height: 300px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .chartCard {
@@ -56,6 +94,31 @@
   padding: 18px 20px;
   box-shadow: var(--shadow-sm);
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: var(--chart-card-height);
+}
+
+.chartContent {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chartContentScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chartPlot {
+  flex: 0 0 var(--chart-body-height);
+  height: var(--chart-body-height);
+  min-height: var(--chart-body-height);
+  width: 100%;
+  overflow: hidden;
 }
 
 .chartTitle {
@@ -64,13 +127,100 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--color-text-3);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+/* ─── Stage filters ──────────────────────────────────────────── */
+.stageFilters {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stageFiltersHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.stageFiltersLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-3);
+}
+
+.stageFilterActions {
+  display: flex;
+  gap: 8px;
+}
+
+.stageFilterAction {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stageFilterAction:hover {
+  color: var(--color-primary-dark);
+}
+
+.stageFilterList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stageFilterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  user-select: none;
+  transition: opacity 0.15s ease;
+}
+
+.stageFilterChipOn {
+  background: var(--chip-bg, var(--color-surface-2));
+  color: var(--chip-text, var(--color-text));
+  border-color: var(--chip-border, var(--color-border));
+}
+
+.stageFilterInput {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .chartsGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 1024px) {
   .statsRow { grid-template-columns: repeat(2, 1fr); }
-  .row { flex-direction: column; }
+  .chartsGrid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
@@ -82,7 +232,3 @@
 .statSuccess { color: var(--color-success); }
 .statWarning { color: var(--color-warning); }
 .statLarge   { font-size: 20px; }
-
-/* ─── Chart flex variants ────────────────────────────────────── */
-.chartFlex1  { flex: 1; }
-.chartFlex14 { flex: 1.4; }

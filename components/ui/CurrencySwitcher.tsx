@@ -1,6 +1,11 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  loadDashboardCurrency,
+  saveDashboardCurrency,
+} from '@/lib/dashboard/currency-storage'
 import styles from './CurrencySwitcher.module.css'
 
 interface Props {
@@ -12,14 +17,32 @@ interface Props {
 export default function CurrencySwitcher({ viewCurrencies, selected, rates }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const hydrated = useRef(false)
+
+  useEffect(() => {
+    if (hydrated.current) return
+    hydrated.current = true
+
+    const fromUrl = searchParams.get('currency')
+    if (fromUrl && viewCurrencies.includes(fromUrl)) {
+      saveDashboardCurrency(fromUrl)
+      return
+    }
+    const saved = loadDashboardCurrency(viewCurrencies, selected)
+    if (saved && saved !== selected) {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('currency', saved)
+      router.replace(`?${params.toString()}`)
+    }
+  }, [searchParams, viewCurrencies, selected, router])
 
   function handleChange(currency: string) {
+    saveDashboardCurrency(currency)
     const params = new URLSearchParams(searchParams.toString())
     params.set('currency', currency)
     router.push(`?${params.toString()}`)
   }
 
-  // Show when last updated
   const lastRate = rates[0]
   const lastUpdated = lastRate
     ? new Date(lastRate.fetched_at).toLocaleString('en-PK', {

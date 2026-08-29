@@ -1,12 +1,169 @@
-/* ─── Empty state ────────────────────────────────────────────── */
+/* ─── Shared chart body height ───────────────────────────────── */
+.chartBody {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fixedChart {
+  width: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.quarterlyChartWrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  justify-content: flex-end;
+}
+
+.quarterlyLegend {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--color-text-2);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.quarterlyLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quarterlyDotSetup,
+.quarterlyDotRecurring {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.quarterlyDotSetup {
+  background: var(--chart-payment-setup);
+}
+
+.quarterlyDotRecurring {
+  background: var(--chart-payment-recurring);
+}
+
+.activitySixMonthWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.activityTableScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.activityMonthTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.activityMonthTable th {
+  text-align: right;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: var(--color-text-3);
+  padding: 0 4px 6px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.activityMonthTable th:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.activityMonthTable th:last-child {
+  padding-right: 0;
+  font-weight: 800;
+}
+
+.activityMonthTable td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  text-align: right;
+  color: var(--color-text-2);
+}
+
+.activityMonthTable td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.activityMonthTable td:last-child {
+  padding-right: 0;
+}
+
+.activityMonthTable tr:last-child td {
+  border-bottom: none;
+}
+
+.activityTypeCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.activityMonthCount {
+  font-variant-numeric: tabular-nums;
+}
+
+.activityTotalCount {
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stackedBarWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.stackedBarWrap .chartBody {
+  flex: 0 0 28px;
+  height: 28px;
+  min-height: 28px;
+}
+
+.stackedBarWrap .legend {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .empty {
   font-size: 13px;
   color: var(--color-text-3);
   text-align: center;
-  padding: 32px 0;
+  padding: 16px 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
-/* ─── Funnel ─────────────────────────────────────────────────── */
 .funnel {
   display: flex;
   flex-direction: column;
@@ -66,7 +223,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .legendDot {
@@ -143,4 +300,55 @@
   height: 100%;
   border-radius: var(--radius-full);
   transition: width 0.5s ease;
+}
+
+
+/* ─── Funnel ─────────────────────────────────────────────────── */
+.pipelineTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.pipelineTable th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-3);
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pipelineTable th:last-child {
+  text-align: right;
+  width: 64px;
+}
+
+.pipelineTable td {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.pipelineTable tr:last-child td {
+  border-bottom: none;
+}
+
+.pipelineStageBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.pipelineCount {
+  text-align: right;
+  font-weight: 700;
+  color: var(--color-text);
+  font-size: 13px;
 }
