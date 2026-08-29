@@ -335,7 +335,7 @@ export function substituteTemplateConditionals(
 
     const openStart = openMatch.index
     const openEnd = openStart + openMatch[0].length
-    const condExpr = openMatch[1].trim()
+    const condExpr = sanitizeFormulaExpr(openMatch[1].trim())
     const inner = result.slice(openEnd, closeIdx)
     const elseIdx = inner.indexOf(IF_ELSE)
     const thenPart = elseIdx === -1 ? inner : inner.slice(0, elseIdx)
@@ -352,6 +352,15 @@ export function substituteTemplateConditionals(
   return result
 }
 
+/** Replace rich-text markup that breaks math (TipTap turns * into <em>). */
+function sanitizeFormulaExpr(expr: string): string {
+  return expr
+    .replace(/<\/?em>/gi, '*')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 /** Replace {{= expr}} tokens; leave failures highlighted. */
 export function substituteTemplateFormulas(
   content: string,
@@ -359,7 +368,8 @@ export function substituteTemplateFormulas(
 ): string {
   const nums = numericContextFromVariables(variables)
   return content.replace(FORMULA_RE, (_full, expr: string) => {
-    const result = evaluateTemplateFormula(expr, nums)
+    const cleaned = sanitizeFormulaExpr(expr)
+    const result = evaluateTemplateFormula(cleaned, nums)
     if (!result.ok) {
       return `<span style="background:#fee2e2;color:#991b1b;padding:1px 4px;border-radius:3px;" title="${escapeAttr(result.error)}">{{= ${expr.trim()}}}</span>`
     }
