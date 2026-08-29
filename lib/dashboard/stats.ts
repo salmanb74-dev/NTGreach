@@ -4,7 +4,7 @@ import {
   type PipelineStage,
 } from '@/lib/types'
 import { buildSixMonthActivityBreakdown } from '@/lib/dashboard/activity-breakdown'
-import type { LeadQuoteSource } from '@/lib/dashboard/deal-values'
+import type { LeadQuoteSource } from '@/lib/subscription-quote'
 
 export type DashboardLead = LeadQuoteSource & {
   id: string
