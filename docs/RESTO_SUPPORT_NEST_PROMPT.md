@@ -29,7 +29,7 @@ Do **not** change tenant_id binding or `x-api-key` auth. Nest still binds `tenan
 | `image` | **5 MB** | Limit applies to the **original** file before compression |
 | `file` | **3 MB** | No compression |
 | `voice` | 2 MB | Unchanged |
-| `video` | 20 MB | Screen recording (see §B) |
+| `video` | **12 MB** | Screen recording (see §B) — do **not** raise this |
 
 Reject oversize with a clear error (Reach returns `413`).
 
@@ -39,12 +39,19 @@ Reach DB must allow `message_type = 'file'` (`phase_c_support_file_attachments.s
 
 ## B. Screen recording
 
-- Max duration: **30 seconds** (was 15).
-- While recording, show a clear indicator with **elapsed / max** (e.g. `0:12 / 0:30`).
+- Max duration: **60 seconds** (1 min).
+- While recording, show a clear indicator with **elapsed / max** (e.g. `0:42 / 1:00`).
 - Allow **Stop & send** before the max; **Cancel** discards.
-- Auto-stop at 30s; still use 7-day retention (`expires_at` from upload response).
+- Auto-stop at 60s; still use 7-day retention (`expires_at` from upload response).
+- Encode so a full minute stays under **12 MB** (~9–10 MB typical):
+  - Capture **24 fps**
+  - `MediaRecorder`: `videoBitsPerSecond: 1_200_000`, `audioBitsPerSecond: 96_000`
+- Apply the same **12 MB** file-size check to video as other media types (no special-case skip).
 
-Constants on Reach: `SCREEN_MAX_SECONDS = 30`, `SCREEN_MAX_BYTES = 20MB`, `SCREEN_RETENTION_DAYS = 7`.
+Constants on Reach (`lib/support/media-limits.ts`):
+`SCREEN_MAX_SECONDS = 60`, `SCREEN_MAX_BYTES = 12MB`, `SCREEN_CAPTURE_FPS = 24`,
+`SCREEN_VIDEO_BITS_PER_SECOND = 1_200_000`, `SCREEN_AUDIO_BITS_PER_SECOND = 96_000`,
+`SCREEN_RETENTION_DAYS = 7`.
 
 ---
 
@@ -111,7 +118,7 @@ While a chat **is** open, keep using Reach Realtime (scoped JWT) or poll for liv
 - [ ] Proxy uploads with `message_type`: `image` \| `voice` \| `video` \| `file`
 - [ ] Enforce / surface 5MB image (original) and 3MB file limits
 - [ ] File messages: forward `content` = original filename
-- [ ] Screen record UI: 30s max + elapsed timer + early stop
+- [ ] Screen record UI: 60s max + elapsed timer + early stop; 12 MB video check; 24 fps / 1.2 Mbps encode
 - [ ] Create conversation: send `branch_id` + `branch_name` from session
 - [ ] List conversations: filter by `branch_id` for branch users
 - [ ] Unread badge on Support bubble + list; shared clear on open
@@ -123,7 +130,7 @@ While a chat **is** open, keep using Reach Realtime (scoped JWT) or poll for liv
 
 1. Attach PDF &lt; 3MB → appears as file card; &gt; 3MB rejected.
 2. Attach image &lt; 5MB original → image message; &gt; 5MB rejected before upload.
-3. Screen record: timer shows elapsed/30s; Stop early sends; Cancel discards; auto-stop at 30s.
+3. Screen record: timer shows elapsed/1:00; Stop early sends; Cancel discards; auto-stop at 60s; full clip &lt; 12 MB (no 413).
 4. Open chat from branch A → Reach agent sees branch label; list filter works; branch B users do not see that chat.
 5. Old chats (pre-branch) show “No branch” on Reach; still usable.
 6. Agent replies while Resto user is on another page → Support bubble badge increments; open chat clears badge for all branch users.

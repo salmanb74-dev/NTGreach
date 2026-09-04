@@ -8,6 +8,8 @@ import {
   SCREENSHOT_JPEG_QUALITY,
   SCREENSHOT_MAX_EDGE,
   SCREENSHOT_PNG_MAX_BYTES,
+  SCREEN_AUDIO_BITS_PER_SECOND,
+  SCREEN_CAPTURE_FPS,
   SCREEN_MAX_BYTES,
   SCREEN_MAX_SECONDS,
   SCREEN_RETENTION_DAYS,
@@ -27,6 +29,8 @@ export {
   SCREENSHOT_JPEG_QUALITY,
   SCREENSHOT_MAX_EDGE,
   SCREENSHOT_PNG_MAX_BYTES,
+  SCREEN_AUDIO_BITS_PER_SECOND,
+  SCREEN_CAPTURE_FPS,
   SCREEN_MAX_BYTES,
   SCREEN_MAX_SECONDS,
   SCREEN_RETENTION_DAYS,
@@ -125,7 +129,8 @@ export function videoStoragePath(conversationId: string) {
 export function displayMediaConstraints(): DisplayMediaStreamOptions {
   return {
     video: {
-      frameRate: { ideal: 15, max: 24 },
+      // Cap fps so a full 60s clip fits under SCREEN_MAX_BYTES at encode rates below.
+      frameRate: { ideal: SCREEN_CAPTURE_FPS, max: SCREEN_CAPTURE_FPS },
       width:     { ideal: 1280, max: 1920 },
       height:    { ideal: 720,  max: 1080 },
     },

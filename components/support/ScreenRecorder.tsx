@@ -7,6 +7,7 @@ import {
   insertMediaMessage,
   refocusAppWindow,
   screenRecordingExpiresAt,
+  SCREEN_AUDIO_BITS_PER_SECOND,
   SCREEN_MAX_BYTES,
   SCREEN_MAX_SECONDS,
   SCREEN_RETENTION_DAYS,
@@ -235,6 +236,7 @@ export default function ScreenRecorder({
       const mimeType = pickVideoMimeType()
       const options: MediaRecorderOptions = {
         videoBitsPerSecond: SCREEN_VIDEO_BITS_PER_SECOND,
+        audioBitsPerSecond: SCREEN_AUDIO_BITS_PER_SECOND,
       }
       if (mimeType) options.mimeType = mimeType
 

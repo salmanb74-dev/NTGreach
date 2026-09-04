@@ -227,7 +227,7 @@ Nested under conversations so it does not collide with agent `DELETE /api/suppor
 | `image` | 5 MB | **Original** file before client compression (resize to 1280px edge, JPEG) |
 | `file` | 3 MB | PDF, audio, docs, etc. — not compressed |
 | `voice` | 2 MB | Prefer short Opus/WebM |
-| `video` | 20 MB | Max **30s** client-side; **7-day** retention |
+| `video` | 12 MB | Max **60s** client-side (~24 fps, ~1.2 Mbps); **7-day** retention |
 
 **Response `201`:**
 
