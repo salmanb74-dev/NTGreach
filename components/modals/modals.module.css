@@ -110,6 +110,15 @@
   color: var(--color-text-3);
 }
 
+.optional {
+  font-weight: 400;
+  color: var(--color-text-3);
+}
+
+.required {
+  color: var(--color-error);
+}
+
 .footer {
   display: flex;
   align-items: center;

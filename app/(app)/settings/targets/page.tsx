@@ -25,7 +25,7 @@ export default async function TargetsSettingsPage() {
   const { data: targets } = await supabase
     .from('targets')
     .select('*')
-    .order('start_date', { ascending: false })
+    .order('start_date', { ascending: true })
 
   const { data: currencySetting } = await supabase
     .from('app_settings').select('value').eq('key', 'input_currency').single()
@@ -35,7 +35,7 @@ export default async function TargetsSettingsPage() {
     <div>
       <h2 className={styles.heading}>Manage Targets</h2>
       <p style={{ fontSize: 13, color: 'var(--color-text-2)', marginBottom: 24, lineHeight: 1.5 }}>
-        Set performance targets for each sales rep. Amounts are stored in the currency active at time of entry.
+        Set leads-closed and total-revenue targets for each sales rep. Amounts are stored in the currency active at time of entry.
       </p>
       <ManageTargets
         users={repUsers}

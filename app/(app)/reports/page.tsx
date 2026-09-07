@@ -47,15 +47,15 @@ export default async function ReportsPage({
   const [historyList, { data: repLeads }, { data: targets }] = await Promise.all([
     getRecentRateHistory(inputCurrency, viewCurrencies),
     supabase.from('leads')
-      .select('id, stage, quoted_setup_fee, quoted_mrr, payment_frequency, payment_start_date, closed_at, created_by')
+      .select(
+        'id, stage, company_name, contact_name, quoted_setup_fee, quoted_mrr, payment_frequency, payment_start_date, closed_at, created_by, updated_at, created_at'
+      )
       .eq('created_by', selectedRepId),
     supabase.from('targets').select('*').eq('user_id', selectedRepId)
-      .order('start_date', { ascending: false }),
+      .order('start_date', { ascending: true }),
   ])
 
-  // Filter client-side instead of two separate queries
-  const allLeads    = repLeads ?? []
-  const closedLeads = allLeads.filter(l => l.stage === 'closed_won' && l.closed_at)
+  const allLeads = repLeads ?? []
 
   const selectedUser = repUsers.find(u => u.id === selectedRepId) ?? repUsers[0]
 
@@ -79,7 +79,6 @@ export default async function ReportsPage({
         <PerformanceReport
           user={selectedUser}
           targets={targets ?? []}
-          closedLeads={closedLeads}
           allLeads={allLeads}
           currency={selectedCurrency}
           inputCurrency={inputCurrency}

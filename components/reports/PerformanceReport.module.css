@@ -200,4 +200,24 @@
   flex: 1;
   font-size: 12px;
   color: var(--color-text-2);
+  min-width: 0;
+}
+
+.closedDate {
+  color: var(--color-text-3);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.metricHint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-3);
+  line-height: 1.4;
+}
+
+.emptyPeriod {
+  font-size: 12px;
+  color: var(--color-text-3);
+  padding: 4px 0 0;
 }

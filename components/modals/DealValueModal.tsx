@@ -64,12 +64,16 @@ export default function DealValueModal({
 
     startTransition(async () => {
       try {
+        // Blank trial/subscription date = immediate (today)
+        const startIso = paymentDate
+          ? new Date(paymentDate).toISOString()
+          : new Date().toISOString()
         await updateLead(leadId, {
           stage:              newStage,
           quoted_setup_fee:   setupFee ? parseFloat(setupFee) : null,
           quoted_mrr:         mrr      ? parseFloat(mrr)      : null,
           payment_frequency:  frequency,
-          payment_start_date: paymentDate ? new Date(paymentDate).toISOString() : null,
+          payment_start_date: !isLost ? startIso : null,
           closed_at:          isClosing   ? new Date().toISOString() : null,
           lost_reason:        isLost ? lostReason.trim() : null,
         })
@@ -143,7 +147,10 @@ export default function DealValueModal({
           </div>
           {isClosing && (
             <div className={styles.field}>
-              <label className={styles.label}>Trial starts</label>
+              <label className={styles.label}>
+                Subscription start{' '}
+                <span className={styles.optional}>(blank = today)</span>
+              </label>
               <input
                 type="date"
                 className={styles.input}

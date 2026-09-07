@@ -98,6 +98,10 @@ export default function DealPanel({
   function handleSave() {
     setError(null)
     const payload = normalizeQuotedSubscriptionForSave(sub, sub.billingCycle)
+    // Blank date = immediate → stamp today when deal values are saved
+    const startIso = payDate
+      ? new Date(payDate).toISOString()
+      : new Date().toISOString()
 
     startTransition(async () => {
       try {
@@ -108,11 +112,11 @@ export default function DealPanel({
           payment_frequency: payload.billingCycle,
           discount: disc ? parseFloat(disc) : null,
           tax_rate: tax ? parseFloat(tax) : null,
-          payment_start_date: payDate
-            ? new Date(payDate).toISOString()
-            : null,
+          payment_start_date: startIso,
           quoted_subscription: payload,
         })
+        // Keep the field filled after an "immediate" save
+        if (!payDate) setPayDate(startIso.split('T')[0])
         setSaved(true)
         setTimeout(() => setSaved(false), SAVE_FLASH_MS)
         router.refresh()
@@ -484,7 +488,10 @@ export default function DealPanel({
           <div className={styles.sectionTitle}>Billing extras</div>
           <div className={styles.twoCol}>
             <div className={styles.field}>
-              <label className={styles.label}>Trial starts</label>
+              <label className={styles.label}>
+                Subscription start{' '}
+                <span className={styles.optional}>(blank = today)</span>
+              </label>
               <input
                 type="date"
                 className={styles.input}

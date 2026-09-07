@@ -80,7 +80,7 @@ export async function updateLead(id: string, data: Partial<LeadFormData>) {
   if (data.stage) {
     const { data: existing } = await supabase
       .from('leads')
-      .select('stage')
+      .select('stage, closed_at, payment_start_date')
       .eq('id', id)
       .single()
 
@@ -92,6 +92,27 @@ export async function updateLead(id: string, data: Partial<LeadFormData>) {
         metadata: { from: existing.stage, to: data.stage },
         created_by: user!.id,
       })
+
+      // Stamp closed_at + subscription start for Paid / Closed Won / Lost
+      // when not already set by caller. Blank/"immediate" → today.
+      const closing =
+        data.stage === 'payment_received' ||
+        data.stage === 'closed_won' ||
+        data.stage === 'closed_lost'
+      const now = new Date().toISOString()
+
+      if (data.closed_at === undefined) {
+        data = { ...data, closed_at: closing ? now : null }
+      }
+
+      // Only fill subscription start on Paid if still empty (immediate)
+      if (
+        data.stage === 'payment_received' &&
+        data.payment_start_date === undefined &&
+        !existing.payment_start_date
+      ) {
+        data = { ...data, payment_start_date: now }
+      }
     }
   }
 
@@ -104,6 +125,7 @@ export async function updateLead(id: string, data: Partial<LeadFormData>) {
 
   revalidatePath('/leads')
   revalidatePath(`/leads/${id}`)
+  revalidatePath('/reports')
 }
 
 export async function deleteLead(id: string) {

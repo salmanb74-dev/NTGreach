@@ -17,7 +17,7 @@ interface Props {
 
 const EMPTY_FORM = {
   label: '', start_date: '', end_date: '',
-  leads_target: '', setup_fee_target: '', mrr_target: '', revenue_target: ''
+  leads_target: '', revenue_target: '',
 }
 
 export default function ManageTargets({ users, targets, selectedRepId, currency }: Props) {
@@ -28,6 +28,7 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
   const [repId, setRepId]       = useState(selectedRepId)
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   function set(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -36,14 +37,13 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
   function startEdit(t: Target) {
     setEditId(t.id)
     setRepId(t.user_id)
+    setError(null)
     setForm({
-      label:            t.label,
-      start_date:       t.start_date,
-      end_date:         t.end_date,
-      leads_target:     t.leads_target?.toString()     ?? '',
-      setup_fee_target: t.setup_fee_target?.toString() ?? '',
-      mrr_target:       t.mrr_target?.toString()       ?? '',
-      revenue_target:   t.revenue_target?.toString()   ?? '',
+      label:          t.label,
+      start_date:     t.start_date,
+      end_date:       t.end_date,
+      leads_target:   t.leads_target?.toString()   ?? '',
+      revenue_target: t.revenue_target?.toString() ?? '',
     })
     setShowForm(true)
   }
@@ -53,37 +53,46 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
     setEditId(null)
     setForm(EMPTY_FORM)
     setRepId(selectedRepId)
+    setError(null)
   }
 
   function handleSave() {
     if (!form.label || !form.start_date || !form.end_date) return
+    setError(null)
     startTransition(async () => {
-      const data = {
-        user_id:          repId,
-        label:            form.label,
-        start_date:       form.start_date,
-        end_date:         form.end_date,
-        currency:         currency,
-        leads_target:     form.leads_target     ? parseInt(form.leads_target)       : null,
-        setup_fee_target: form.setup_fee_target ? parseFloat(form.setup_fee_target) : null,
-        mrr_target:       form.mrr_target       ? parseFloat(form.mrr_target)       : null,
-        revenue_target:   form.revenue_target   ? parseFloat(form.revenue_target)   : null,
+      try {
+        const data = {
+          user_id:        repId,
+          label:          form.label,
+          start_date:     form.start_date,
+          end_date:       form.end_date,
+          currency,
+          leads_target:   form.leads_target   ? parseInt(form.leads_target, 10) : null,
+          revenue_target: form.revenue_target ? parseFloat(form.revenue_target) : null,
+        }
+        if (editId) {
+          await updateTarget(editId, data)
+        } else {
+          await createTarget(data)
+        }
+        handleCancel()
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save target')
       }
-      if (editId) {
-        await updateTarget(editId, data)
-      } else {
-        await createTarget(data)
-      }
-      handleCancel()
-      router.refresh()
     })
   }
 
   function handleDelete(id: string) {
+    setError(null)
     startTransition(async () => {
-      await deleteTarget(id)
-      setConfirmDelete(null)
-      router.refresh()
+      try {
+        await deleteTarget(id)
+        setConfirmDelete(null)
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete target')
+      }
     })
   }
 
@@ -92,13 +101,14 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
       <div className={styles.header}>
         <div className={styles.title}>Targets</div>
         {!showForm && (
-          <button className={styles.addBtn} onClick={() => setShowForm(true)}>
+          <button className={styles.addBtn} onClick={() => { setError(null); setShowForm(true) }}>
             + New Target
           </button>
         )}
       </div>
 
-      {/* Form */}
+      {error && <div className={styles.error}>{error}</div>}
+
       {showForm && (
         <div className={styles.formCard}>
           <div className={styles.formTitle}>{editId ? 'Edit Target' : 'New Target'}</div>
@@ -127,20 +137,12 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
           </div>
 
           <div className={styles.formSubtitle}>
-            Targets — all amounts in <strong>{currency}</strong> (input currency)
+            Targets — amounts in <strong>{currency}</strong> (input currency)
           </div>
           <div className={styles.formGrid}>
             <div className={styles.field}>
               <label className={styles.label}>Leads Closed</label>
               <input type="number" min="0" className={styles.input} value={form.leads_target} onChange={e => set('leads_target', e.target.value)} placeholder="10" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Setup Fees ({currency})</label>
-              <input type="number" min="0" className={styles.input} value={form.setup_fee_target} onChange={e => set('setup_fee_target', e.target.value)} placeholder="500,000" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>MRR Added ({currency})</label>
-              <input type="number" min="0" className={styles.input} value={form.mrr_target} onChange={e => set('mrr_target', e.target.value)} placeholder="100,000" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Total Revenue ({currency})</label>
@@ -161,7 +163,6 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
         </div>
       )}
 
-      {/* Existing targets */}
       {targets.length === 0 && !showForm && (
         <div className={styles.empty}>No targets yet. Click "+ New Target" to add one.</div>
       )}
@@ -186,10 +187,10 @@ export default function ManageTargets({ users, targets, selectedRepId, currency 
               </div>
             </div>
             <div className={styles.targetNums}>
-              {t.leads_target     && <span>{t.leads_target} leads</span>}
-              {t.setup_fee_target && <span>{t.currency ?? currency} {t.setup_fee_target.toLocaleString()} setup</span>}
-              {t.mrr_target       && <span>{t.currency ?? currency} {t.mrr_target.toLocaleString()} MRR</span>}
-              {t.revenue_target   && <span>{t.currency ?? currency} {t.revenue_target.toLocaleString()} revenue</span>}
+              {t.leads_target != null && <span>{t.leads_target} leads</span>}
+              {t.revenue_target != null && (
+                <span>{t.currency ?? currency} {t.revenue_target.toLocaleString()} revenue</span>
+              )}
             </div>
             <div className={styles.targetActions}>
               {confirmDelete === t.id ? (
