@@ -9,6 +9,7 @@ import type {
   RestoTenant,
 } from '@/lib/resto-admin/types'
 import LogsClient from '@/components/ops/LogsClient'
+import TenantCashPanel from '@/components/ops/TenantCashPanel'
 import TenantDeletePanel from '@/components/ops/TenantDeletePanel'
 import TenantSubscriptionPanel from '@/components/ops/TenantSubscriptionPanel'
 import { moduleFromPathname, modulePath } from '@/lib/module-routing'
@@ -19,6 +20,7 @@ const TABS: { id: RestoAdminTenantTab; label: string }[] = [
   { id: 'overview',     label: 'Overview' },
   { id: 'reports',      label: 'Reports' },
   { id: 'subscription', label: 'Subscription' },
+  { id: 'cash',         label: 'Cash' },
   { id: 'delete',       label: 'Delete' },
   { id: 'logs',         label: 'Logs' },
 ]
@@ -86,12 +88,19 @@ export default function TenantDetailClient({
   }, [load])
 
   function selectTab(next: RestoAdminTenantTab) {
+    if (next === 'cash' && env !== 'production') return
     setTab(next)
     const url = new URL(window.location.href)
     url.searchParams.set('env', env)
     url.searchParams.set('tab', next)
     router.replace(`${url.pathname}?${url.searchParams.toString()}`)
   }
+
+  useEffect(() => {
+    if (tab === 'cash' && env !== 'production') {
+      setTab('overview')
+    }
+  }, [tab, env])
 
   const isProduction = env === 'production'
 
@@ -142,7 +151,7 @@ export default function TenantDetailClient({
           </div>
 
           <div className={styles.tabs} role="tablist" aria-label="Tenant sections">
-            {TABS.map(item => (
+            {TABS.filter(item => item.id !== 'cash' || isProduction).map(item => (
               <button
                 key={item.id}
                 type="button"
@@ -200,6 +209,14 @@ export default function TenantDetailClient({
 
           {tab === 'subscription' && (
             <TenantSubscriptionPanel
+              tenantId={state.tenant.id}
+              tenantName={state.tenant.name}
+              env={env}
+            />
+          )}
+
+          {tab === 'cash' && (
+            <TenantCashPanel
               tenantId={state.tenant.id}
               tenantName={state.tenant.name}
               env={env}

@@ -207,16 +207,17 @@
 }
 
 .actionsCol {
-  width: 72px;
+  width: 140px;
 }
 
 .actionsCell {
-  width: 72px;
+  width: 140px;
   text-align: right;
   white-space: nowrap;
 }
 
-.copyBtn {
+.copyBtn,
+.collectBtn {
   padding: 5px 10px;
   border: 1px solid var(--color-border-medium);
   border-radius: var(--radius-md);
@@ -227,12 +228,93 @@
   font-family: var(--font-sans);
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
+  margin-left: 6px;
 }
 
-.copyBtn:hover {
+.copyBtn:hover,
+.collectBtn:hover:not(:disabled) {
   background: var(--color-surface-2);
   color: var(--color-text);
   border-color: var(--color-border-medium);
+}
+
+.collectBtn {
+  margin-left: 0;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.collectBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.filterToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.filterBtn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-2);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.filterBtn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.filterBtnActive {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.rowDueSoon td {
+  background: var(--color-error-bg, #fde8e8);
+}
+
+.rowDueSoon:hover td {
+  background: #fbd5d5;
+}
+
+.dueAlert {
+  color: var(--color-error, #b91c1c);
+  font-weight: 700;
+}
+
+.dueOk {
+  color: var(--color-text-2);
+}
+
+.inlineError,
+.inlineOk {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.inlineError {
+  background: var(--color-error-bg, #fde8e8);
+  border: 1px solid var(--color-error, #b91c1c);
+  color: var(--color-error, #b91c1c);
+}
+
+.inlineOk {
+  background: var(--color-success-bg, #e8f7ee);
+  border: 1px solid var(--color-success, #15803d);
+  color: var(--color-success, #15803d);
 }
 
 .srOnly {

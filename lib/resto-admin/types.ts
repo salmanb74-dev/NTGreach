@@ -201,6 +201,7 @@ export type RestoAdminTenantTab =
   | 'overview'
   | 'reports'
   | 'subscription'
+  | 'cash'
   | 'delete'
   | 'logs'
 
@@ -208,6 +209,7 @@ const TENANT_TABS: ReadonlySet<RestoAdminTenantTab> = new Set([
   'overview',
   'reports',
   'subscription',
+  'cash',
   'delete',
   'logs',
 ])

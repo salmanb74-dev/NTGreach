@@ -1,8 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import type { RestoAdminEnv, RestoTenant } from '@/lib/resto-admin/types'
+import {
+  createCashCollection,
+  listCashTenantSummaries,
+  type CashTenantSummary,
+} from '@/lib/actions/ops-cash'
+import {
+  formatDueLabel,
+  formatMoney,
+  todayISO,
+} from '@/lib/ops/cash-collection'
 import { moduleFromPathname, modulePath } from '@/lib/module-routing'
 import type { Module } from '@/lib/modules'
 import styles from './TenantsClient.module.css'
@@ -15,6 +25,8 @@ type LoadState =
   | { status: 'loading' }
   | { status: 'ready'; tenants: RestoTenant[] }
   | { status: 'error'; message: string; code?: string }
+
+type CashFilter = 'all' | 'cash' | 'due_week'
 
 const COPY_FIELDS: { label: string; value: (t: RestoTenant) => string }[] = [
   { label: 'Restaurant', value: t => t.name || '—' },
@@ -77,8 +89,26 @@ export default function TenantsClient({ initialEnv }: Props) {
       : 'ops_resto'
   const [env, setEnv] = useState<RestoAdminEnv>(initialEnv)
   const [query, setQuery] = useState('')
+  const [cashFilter, setCashFilter] = useState<CashFilter>('all')
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [cashByTenant, setCashByTenant] = useState<
+    Record<string, CashTenantSummary>
+  >({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [cashMsg, setCashMsg] = useState<string | null>(null)
+  const [cashError, setCashError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const loadCash = useCallback(async () => {
+    try {
+      const rows = await listCashTenantSummaries()
+      const map: Record<string, CashTenantSummary> = {}
+      for (const row of rows) map[row.tenantId] = row
+      setCashByTenant(map)
+    } catch {
+      setCashByTenant({})
+    }
+  }, [])
 
   const load = useCallback(async (nextEnv: RestoAdminEnv) => {
     setState({ status: 'loading' })
@@ -106,6 +136,11 @@ export default function TenantsClient({ initialEnv }: Props) {
         status: 'ready',
         tenants: Array.isArray(body.tenants) ? body.tenants : [],
       })
+      if (nextEnv === 'production') {
+        void loadCash()
+      } else {
+        setCashByTenant({})
+      }
     } catch (err) {
       const timedOut =
         err instanceof Error &&
@@ -119,7 +154,7 @@ export default function TenantsClient({ initialEnv }: Props) {
     } finally {
       window.clearTimeout(timer)
     }
-  }, [])
+  }, [loadCash])
 
   useEffect(() => {
     void load(env)
@@ -129,8 +164,9 @@ export default function TenantsClient({ initialEnv }: Props) {
     if (next === env) return
     setEnv(next)
     setQuery('')
-    // Sync query string without an RSC soft-navigation (avoids flaky
-    // "Failed to fetch RSC payload" when the dev server is compiling/busy).
+    setCashFilter('all')
+    setCashMsg(null)
+    setCashError(null)
     const url = new URL(window.location.href)
     url.searchParams.set('env', next)
     window.history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}`)
@@ -139,19 +175,25 @@ export default function TenantsClient({ initialEnv }: Props) {
   const filtered = useMemo(() => {
     if (state.status !== 'ready') return []
     const q = query.trim().toLowerCase()
-    if (!q) return state.tenants
     return state.tenants.filter(t => {
-      const haystack = [
-        t.name,
-        t.ownerName ?? '',
-        t.ownerEmail ?? '',
-        t.id,
-      ]
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(q)
+      if (q) {
+        const haystack = [
+          t.name,
+          t.ownerName ?? '',
+          t.ownerEmail ?? '',
+          t.id,
+        ]
+          .join(' ')
+          .toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      if (env !== 'production' || cashFilter === 'all') return true
+      const cash = cashByTenant[t.id]
+      if (cashFilter === 'cash') return !!cash
+      if (cashFilter === 'due_week') return !!cash && cash.due.dueSoon
+      return true
     })
-  }, [state, query])
+  }, [state, query, env, cashFilter, cashByTenant])
 
   async function handleCopy(
     e: React.MouseEvent,
@@ -174,6 +216,49 @@ export default function TenantsClient({ initialEnv }: Props) {
     router.push(
       `${modulePath(productModule, 'management', tenantId)}?env=${env}`
     )
+  }
+
+  function markCollected(e: React.MouseEvent, tenantId: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    const cash = cashByTenant[tenantId]
+    if (!cash) return
+    const kind = cash.due.nextKind ?? 'recurring'
+    const amount =
+      kind === 'setup'
+        ? cash.settings.default_setup_amount
+        : cash.settings.default_recurring_amount
+    if (amount == null || !(amount >= 0)) {
+      setCashError(
+        'No default amount for this charge — open the tenant Cash tab to enter one.'
+      )
+      return
+    }
+    const dueDate = cash.due.nextDue ?? cash.settings.schedule_anchor
+    if (!dueDate) {
+      setCashError('No due date on schedule — set an anchor on the Cash tab.')
+      return
+    }
+    setCashError(null)
+    setCashMsg(null)
+    startTransition(async () => {
+      try {
+        await createCashCollection({
+          tenantId,
+          kind,
+          amount,
+          currency: cash.settings.currency,
+          dueDate,
+          collectedOn: todayISO(),
+        })
+        setCashMsg(`Recorded ${kind} collection for due ${dueDate}.`)
+        await loadCash()
+      } catch (err) {
+        setCashError(
+          err instanceof Error ? err.message : 'Failed to record collection'
+        )
+      }
+    })
   }
 
   const isProduction = env === 'production'
@@ -236,7 +321,7 @@ export default function TenantsClient({ initialEnv }: Props) {
           <span className={styles.metaStrong}>
             {state.status === 'ready' ? filtered.length : '—'}
           </span>
-          {state.status === 'ready' && query.trim()
+          {state.status === 'ready' && (query.trim() || cashFilter !== 'all')
             ? ` of ${state.tenants.length}`
             : ''}{' '}
           tenants in{' '}
@@ -244,7 +329,37 @@ export default function TenantsClient({ initialEnv }: Props) {
             {isProduction ? 'Production' : 'Staging'}
           </span>
         </span>
+
+        {isProduction && (
+          <div className={styles.filterToggle} role="group" aria-label="Cash filter">
+            {(
+              [
+                ['all', 'All'],
+                ['cash', 'Cash'],
+                ['due_week', 'Due ≤7d'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`${styles.filterBtn} ${
+                  cashFilter === id ? styles.filterBtnActive : ''
+                }`}
+                onClick={() => setCashFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {cashError && (
+        <div className={styles.inlineError} role="alert">
+          {cashError}
+        </div>
+      )}
+      {cashMsg && <div className={styles.inlineOk}>{cashMsg}</div>}
 
       {state.status === 'loading' && (
         <div className={styles.loadingBox} role="status">
@@ -272,8 +387,8 @@ export default function TenantsClient({ initialEnv }: Props) {
 
       {state.status === 'ready' && filtered.length === 0 && (
         <div className={styles.empty}>
-          {query.trim()
-            ? 'No tenants match your search.'
+          {query.trim() || cashFilter !== 'all'
+            ? 'No tenants match your filters.'
             : 'No tenants returned for this environment.'}
         </div>
       )}
@@ -286,63 +401,108 @@ export default function TenantsClient({ initialEnv }: Props) {
                 <th>Restaurant</th>
                 <th>Owner</th>
                 <th>Owner email</th>
+                {isProduction && <th>Cash due</th>}
                 <th>Tenant ID</th>
                 <th className={styles.actionsCol}>
-                  <span className={styles.srOnly}>Copy</span>
+                  <span className={styles.srOnly}>Actions</span>
                 </th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(tenant => (
-                <tr
-                  key={tenant.id}
-                  className={`${styles.rowLink} ${
-                    copiedId === tenant.id ? styles.rowCopied : ''
-                  }`}
-                  onClick={() => openTenant(tenant.id)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      openTenant(tenant.id)
-                    }
-                  }}
-                  tabIndex={0}
-                  role="link"
-                  aria-label={`Open ${tenant.name}`}
-                >
-                  <td className={styles.tenantName}>{tenant.name}</td>
-                  <td>
-                    {tenant.ownerName || (
-                      <span className={styles.muted}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    {tenant.ownerEmail || (
-                      <span className={styles.muted}>—</span>
-                    )}
-                  </td>
-                  <td className={styles.mono}>{tenant.id}</td>
-                  <td className={styles.actionsCell}>
-                    <button
-                      type="button"
-                      className={styles.copyBtn}
-                      onClick={e => void handleCopy(e, tenant)}
-                      aria-label={
-                        copiedId === tenant.id
-                          ? `Copied details for ${tenant.name}`
-                          : `Copy details for ${tenant.name}`
+              {filtered.map(tenant => {
+                const cash = cashByTenant[tenant.id]
+                const dueSoon = cash?.due.dueSoon === true
+                return (
+                  <tr
+                    key={tenant.id}
+                    className={`${styles.rowLink} ${
+                      copiedId === tenant.id ? styles.rowCopied : ''
+                    } ${dueSoon ? styles.rowDueSoon : ''}`}
+                    onClick={() => openTenant(tenant.id)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        openTenant(tenant.id)
                       }
-                      title={
-                        copiedId === tenant.id
-                          ? 'Copied'
-                          : 'Copy tenant details'
-                      }
-                    >
-                      Copy
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    }}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`Open ${tenant.name}`}
+                  >
+                    <td className={styles.tenantName}>{tenant.name}</td>
+                    <td>
+                      {tenant.ownerName || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {tenant.ownerEmail || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    {isProduction && (
+                      <td>
+                        {cash ? (
+                          <span
+                            className={
+                              dueSoon ? styles.dueAlert : styles.dueOk
+                            }
+                          >
+                            {formatDueLabel(cash.due)}
+                            {cash.due.nextKind
+                              ? ` · ${cash.due.nextKind}`
+                              : ''}
+                          </span>
+                        ) : (
+                          <span className={styles.muted}>—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className={styles.mono}>{tenant.id}</td>
+                    <td className={styles.actionsCell}>
+                      {isProduction && cash?.due.nextDue && (
+                        <button
+                          type="button"
+                          className={styles.collectBtn}
+                          disabled={isPending}
+                          onClick={e => markCollected(e, tenant.id)}
+                          title={
+                            cash.settings.default_recurring_amount != null ||
+                            cash.settings.default_setup_amount != null
+                              ? `Record ${formatMoney(
+                                  (cash.due.nextKind === 'setup'
+                                    ? cash.settings.default_setup_amount
+                                    : cash.settings.default_recurring_amount) ??
+                                    0,
+                                  cash.settings.currency
+                                )} ${cash.due.nextKind ?? 'recurring'}`
+                              : 'Mark collected'
+                          }
+                        >
+                          Collect
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.copyBtn}
+                        onClick={e => void handleCopy(e, tenant)}
+                        aria-label={
+                          copiedId === tenant.id
+                            ? `Copied details for ${tenant.name}`
+                            : `Copy details for ${tenant.name}`
+                        }
+                        title={
+                          copiedId === tenant.id
+                            ? 'Copied'
+                            : 'Copy tenant details'
+                        }
+                      >
+                        Copy
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
