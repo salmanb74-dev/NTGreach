@@ -37,6 +37,14 @@ callCenter, kds, inventory, support, webOrdering, paidTrial, paidTrialDays,
 preTrialSetupFee, postTrialSetupFee, accessStartsAt, enterpriseEnabled
 ```
 
+Reach Ops UI now:
+- Sends `paidTrialDays: null` always (trial length not collected).
+- Sends `postTrialSetupFee: 0` always (post-trial setup dropped).
+- **Start** (`accessStartsAt`): required in both modes; past timestamps allowed. Trial = trial start; Subscription = subscription start (no separate planned sub start).
+- On Trial (`paidTrial: true`): still sends `price`, `durationMonths`, `setupFee` as **planned subscription** terms for later convert (not charged until activation).
+- On Subscription: `preTrialSetupFee` forced to `0`.
+- **Internal notes**: Reach-only (Supabase `ops_resto_subscription_notes`); **not** on Nest PUT.
+
 Writes Enterprise **offer** (`enterprise_*`) only. Does **not** set `plan_id` to enterprise. Activation = portal checkout / Billing “Apply new terms”. Live = `current_enterprise_*`.
 
 ### Planned Nest fields (Reach UI placeholders — not sent yet)
@@ -75,13 +83,20 @@ Cancels a **pending** offer only (clears `enterprise_*`). Does not cancel live p
 ## UI
 
 - GET → form → PUT full payload
+- **Offer type** toggle: **Trial** (`paidTrial: true`) | **Subscription** (`paidTrial: false`)
+- On Trial: **Start** = trial start; limits/features + pre-trial setup apply now; Recurring / Duration / Term total / Setup fee are **planned** (saved for convert, not charged on trial). Trial is **open-ended** (no trial days) until ops converts to Subscription / Apply terms.
+- On Subscription: **Start** = subscription start; commercial fields apply; pre-trial setup disabled (sent as `0`) — Nest field `accessStartsAt`
+- **Internal notes** → Reach Supabase only (`GET/PUT /api/ops/tenants/:id/subscription-notes`)
+- **Duration** = cycle select → `durationMonths` 1 / 3 / 6 / 12 / 24
+- Dropped from UI: trial days, post-trial setup (still sent as `paidTrialDays: null`, `postTrialSetupFee: 0`)
+- Locations (not Branches)
 - Show `setupFeePaidUsd` as **Total setup fees paid** (both columns / reference; read-only)
 - **Cancel pending offer** → DELETE (force when tenant already on Enterprise / accepted terms)
 - Surface `notes[]` and `subscription.warnings[]`
 
 ### Setup fees (UI semantics)
 
-- New setup / pre / post trial amounts are **charges for this offer**.
+- New setup / pre-trial amounts are **charges for this offer** (setup fee on Trial = planned convert charge).
 - **0** = no charge this time (not highlighted as a change).
-- **Any amount > 0** = will bill; row is highlighted.
-- Trial **off** → only setup fee editable; trial **on** → only pre/post editable.
+- **Any amount > 0** = will bill / is planned; row is highlighted.
+- Subscription mode → pre-trial setup forced to `0` on PUT.

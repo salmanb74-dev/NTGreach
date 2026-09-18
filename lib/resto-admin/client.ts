@@ -168,6 +168,11 @@ async function fetchAdminJson(
   return { status: response.status, body: parsed }
 }
 
+function asDateOnly(value: unknown): string | null {
+  const raw = asTrimmedString(value)
+  return raw ? raw.slice(0, 10) : null
+}
+
 function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
   const id = asTrimmedString(raw.id)
   if (!id) return null
@@ -188,6 +193,33 @@ function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
     name,
     ownerName,
     ownerEmail,
+    planId: asTrimmedString(raw.planId) ?? asTrimmedString(raw.plan_id),
+    planStatus:
+      asTrimmedString(raw.planStatus) ?? asTrimmedString(raw.plan_status),
+    enterpriseInPaidTrial: asBoolean(
+      raw.enterpriseInPaidTrial ?? raw.enterprise_in_paid_trial
+    ),
+    subscriptionStart: asDateOnly(
+      raw.subscriptionStart ?? raw.subscription_start
+    ),
+    trialStartedAt: asDateOnly(
+      raw.trialStartedAt ?? raw.trial_started_at
+    ),
+    billingCycle:
+      asTrimmedString(raw.billingCycle) ?? asTrimmedString(raw.billing_cycle),
+    locationsUsed:
+      asNumber(raw.locationsUsed) ?? asNumber(raw.locations_used),
+    locationsLimit:
+      asNumber(raw.locationsLimit) ?? asNumber(raw.locations_limit),
+    countersUsed:
+      asNumber(raw.countersUsed) ?? asNumber(raw.counters_used),
+    countersLimit:
+      asNumber(raw.countersLimit) ?? asNumber(raw.counters_limit),
+    usersUsed: asNumber(raw.usersUsed) ?? asNumber(raw.users_used),
+    usersLimit: asNumber(raw.usersLimit) ?? asNumber(raw.users_limit),
+    ordersUsed: asNumber(raw.ordersUsed) ?? asNumber(raw.orders_used),
+    ordersLimit: asNumber(raw.ordersLimit) ?? asNumber(raw.orders_limit),
+    lastOrderAt: asDateOnly(raw.lastOrderAt ?? raw.last_order_at),
   }
 }
 
@@ -584,10 +616,11 @@ export function offerFromSubscription(
     support: sub.addonSupportEnabled,
     webOrdering: sub.addonWebOrderingEnabled,
     paidTrial,
-    paidTrialDays: paidTrial ? sub.enterprisePaidTrialDurationDays : null,
+    paidTrialDays: null,
     preTrialSetupFee: sub.enterprisePreTrialSetupFee,
-    postTrialSetupFee: sub.enterprisePostTrialSetupFee,
-    accessStartsAt: paidTrial ? null : sub.enterpriseAccessStartsAt,
+    postTrialSetupFee: 0,
+    // Keep planned start on trial offers for convert-later.
+    accessStartsAt: sub.enterpriseAccessStartsAt,
     enterpriseEnabled: sub.enterpriseEnabled !== false,
   }
 }

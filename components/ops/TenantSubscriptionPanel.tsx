@@ -14,16 +14,19 @@ import CompareRow from './subscription/CompareRow'
 import LimitField from './subscription/LimitField'
 import {
   type FormState,
+  type OfferMode,
   DEFAULT_OFFER,
+  DURATION_CYCLES,
   offerToForm,
   formToOffer,
   formOfferFromSubscription,
   formDiffs,
   currentValues,
   fmtMoney,
-  minAccessDatetimeLocal,
   newOfferStatusLabel,
   needsEnterpriseClearForce,
+  offerModeFromForm,
+  offerNotesDiff,
   subHasSavedOffer,
 } from './subscription/offer-form'
 import styles from './TenantSubscription.module.css'
@@ -40,6 +43,24 @@ interface Props {
   env: RestoAdminEnv
 }
 
+function SectionRow({
+  label,
+  hint,
+}: {
+  label: string
+  hint?: string
+}) {
+  return (
+    <>
+      <div className={styles.sectionLabel}>{label}</div>
+      <div className={styles.sectionNew}>
+        {hint ? <span className={styles.sectionHint}>{hint}</span> : null}
+      </div>
+      <div className={styles.sectionCur} />
+    </>
+  )
+}
+
 export default function TenantSubscriptionPanel({
   tenantId,
   tenantName,
@@ -50,7 +71,8 @@ export default function TenantSubscriptionPanel({
   const [loading, setLoading] = useState(true)
   const [subscription, setSubscription] =
     useState<RestoSubscriptionSnapshot | null>(null)
-  const [notes, setNotes] = useState<string[]>([])
+  const [responseNotes, setResponseNotes] = useState<string[]>([])
+  const [savedNotes, setSavedNotes] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(() => offerToForm(DEFAULT_OFFER))
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
@@ -58,6 +80,9 @@ export default function TenantSubscriptionPanel({
     null
   )
   const [isPending, startTransition] = useTransition()
+
+  const mode = offerModeFromForm(form)
+  const isTrial = mode === 'trial'
 
   const termTotalPreview = useMemo(() => {
     const monthly = Number(form.monthlyPrice)
@@ -73,7 +98,6 @@ export default function TenantSubscriptionPanel({
     return monthly * months
   }, [form.monthlyPrice, form.durationMonths])
 
-  const accessMin = minAccessDatetimeLocal()
   const activePlan = useMemo(
     () => resolveActivePlanView(subscription),
     [subscription]
@@ -92,15 +116,73 @@ export default function TenantSubscriptionPanel({
     () => formDiffs(form, activePlan, termTotalPreview),
     [form, activePlan, termTotalPreview]
   )
+  const notesDiff = useMemo(
+    () => offerNotesDiff(form.offerNotes, savedNotes),
+    [form.offerNotes, savedNotes]
+  )
   const setupFeePaidUsd = subscription?.setupFeePaidUsd ?? null
+
+  const applyReachNotes = useCallback((offerNotes: string | null) => {
+    setSavedNotes(offerNotes)
+    setForm(prev => ({ ...prev, offerNotes: offerNotes ?? '' }))
+  }, [])
 
   const applySubscription = useCallback(
     (sub: RestoSubscriptionSnapshot | null, bodyNotes?: string[]) => {
       setSubscription(sub)
-      if (bodyNotes) setNotes(bodyNotes)
-      setForm(offerToForm(formOfferFromSubscription(sub)))
+      if (bodyNotes) setResponseNotes(bodyNotes)
+      setForm(prev => ({
+        ...offerToForm(formOfferFromSubscription(sub)),
+        offerNotes: prev.offerNotes,
+      }))
     },
     []
+  )
+
+  const loadReachNotes = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription-notes?env=${encodeURIComponent(env)}`,
+        { cache: 'no-store' }
+      )
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) return null
+      return typeof body.offerNotes === 'string' ? body.offerNotes : null
+    } catch {
+      return null
+    }
+  }, [env, tenantId])
+
+  const saveReachNotes = useCallback(
+    async (offerNotes: string): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const res = await fetch(
+          `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription-notes?env=${encodeURIComponent(env)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ offerNotes: offerNotes.trim() || null }),
+          }
+        )
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          return {
+            ok: false,
+            error:
+              typeof body.error === 'string'
+                ? body.error
+                : `Notes save failed (${res.status})`,
+          }
+        }
+        const saved =
+          typeof body.offerNotes === 'string' ? body.offerNotes : null
+        applyReachNotes(saved)
+        return { ok: true }
+      } catch {
+        return { ok: false, error: 'Could not save internal notes' }
+      }
+    },
+    [applyReachNotes, env, tenantId]
   )
 
   const load = useCallback(
@@ -111,28 +193,36 @@ export default function TenantSubscriptionPanel({
       }
       setNoSubYet(false)
       try {
-        const res = await fetch(
-          `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription?env=${encodeURIComponent(env)}`,
-          { cache: 'no-store' }
-        )
-        const body = await res.json().catch(() => ({}))
-        if (res.status === 404) {
+        const [subRes, reachNotes] = await Promise.all([
+          fetch(
+            `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription?env=${encodeURIComponent(env)}`,
+            { cache: 'no-store' }
+          ),
+          loadReachNotes(),
+        ])
+        const body = await subRes.json().catch(() => ({}))
+        applyReachNotes(reachNotes)
+        if (subRes.status === 404) {
           setNoSubYet(true)
           applySubscription(null, [])
           setLoadError(null)
           return
         }
-        if (!res.ok) {
+        if (!subRes.ok) {
           setLoadError(
             typeof body.error === 'string'
               ? body.error
-              : `Failed to load subscription (${res.status})`
+              : `Failed to load subscription (${subRes.status})`
           )
           return
         }
         const sub = (body.subscription ?? null) as RestoSubscriptionSnapshot | null
         setNoSubYet(false)
         applySubscription(sub, Array.isArray(body.notes) ? body.notes : [])
+        setForm(prev => ({
+          ...prev,
+          offerNotes: reachNotes ?? '',
+        }))
       } catch {
         setLoadError(
           'Could not load subscription. Check connection and try again.'
@@ -141,7 +231,7 @@ export default function TenantSubscriptionPanel({
         if (!opts?.quiet) setLoading(false)
       }
     },
-    [applySubscription, env, tenantId]
+    [applyReachNotes, applySubscription, env, loadReachNotes, tenantId]
   )
 
   useEffect(() => {
@@ -152,6 +242,10 @@ export default function TenantSubscriptionPanel({
     setForm(prev => ({ ...prev, ...partial }))
     setSavedMsg(null)
     setSaveError(null)
+  }
+
+  function setOfferMode(next: OfferMode) {
+    patchForm({ paidTrial: next === 'trial' })
   }
 
   function requestCancelOffer() {
@@ -192,7 +286,6 @@ export default function TenantSubscriptionPanel({
       try {
         const { res, body } = await doDelete(force)
 
-        // Nest 409: already Enterprise / has current_enterprise_price — need force
         if (res.status === 409 && !force) {
           setCancelDialog({
             force: true,
@@ -222,7 +315,7 @@ export default function TenantSubscriptionPanel({
           )
         } else {
           await load({ quiet: true })
-          if (notesFromDelete.length) setNotes(notesFromDelete)
+          if (notesFromDelete.length) setResponseNotes(notesFromDelete)
         }
 
         setSavedMsg(
@@ -268,9 +361,7 @@ export default function TenantSubscriptionPanel({
         }
 
         let sub = (body.subscription ?? null) as RestoSubscriptionSnapshot | null
-        // Confirm Nest actually wrote offer fields (not only HTTP 200)
         if (!sub || !subHasSavedOffer(sub)) {
-          // Re-fetch once in case response body was partial
           const reload = await fetch(
             `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription?env=${encodeURIComponent(env)}`,
             { cache: 'no-store' }
@@ -286,7 +377,6 @@ export default function TenantSubscriptionPanel({
           return
         }
 
-        // Term price must match what we sent (allow tiny float noise)
         if (
           sub.enterprisePrice != null &&
           Math.abs(Number(sub.enterprisePrice) - offer.price) > 0.05
@@ -302,10 +392,17 @@ export default function TenantSubscriptionPanel({
         )
         setNoSubYet(false)
 
-        // Refresh full snapshot (current plan + live terms) after write
+        const notesResult = await saveReachNotes(form.offerNotes)
         await load({ quiet: true })
 
         const livePlan = sub.planId ?? 'unknown'
+        if (!notesResult.ok) {
+          setSaveError(
+            `Offer saved but internal notes failed: ${notesResult.error ?? 'unknown error'}`
+          )
+          return
+        }
+
         setSavedMsg(
           `Offer saved and pending. Current plan stays “${livePlan}” until the tenant accepts (portal / Apply terms) — only the New column is updated by Save.`
         )
@@ -347,10 +444,12 @@ export default function TenantSubscriptionPanel({
         <div>
           <h3 className={styles.title}>Subscription — {tenantName}</h3>
           <p className={styles.subline}>
-            New: Enterprise sales offer. Current: live plan. Setup fees on New
-            are charges for this offer (0 = no charge, not compared to prior).
-            Highlighted rows differ / are charging. Total setup charged = lifetime
-            paid to date (from API when available).
+            Choose Trial or Subscription for the New offer. Start is trial
+            start or subscription start (may be in the past). On Trial,
+            recurring/duration/setup are planned terms for convert later. Internal
+            notes are saved in Reach only (not sent to Nest). Setup fees on New are charges for
+            this offer (0 = no charge). Total setup fees paid is lifetime
+            collected (read-only).
             {noSubYet
               ? ' No subscription yet — save creates a free shell.'
               : ''}
@@ -420,6 +519,67 @@ export default function TenantSubscriptionPanel({
             currentCell={current.status}
           />
           <CompareRow
+            label="Offer type"
+            diff={diffs.offerType}
+            newCell={
+              <div className={styles.modeToggle} role="group" aria-label="Offer type">
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${
+                    isTrial ? styles.modeBtnActive : ''
+                  }`}
+                  onClick={() => setOfferMode('trial')}
+                >
+                  Trial
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${
+                    !isTrial ? styles.modeBtnActive : ''
+                  }`}
+                  onClick={() => setOfferMode('subscription')}
+                >
+                  Subscription
+                </button>
+              </div>
+            }
+            currentCell={current.offerType}
+          />
+          <CompareRow
+            label="Start"
+            diff={diffs.start}
+            newCell={
+              <input
+                className={styles.inputAccess}
+                type="datetime-local"
+                required
+                value={form.accessStartsAt}
+                onChange={e => {
+                  const v = e.target.value
+                  patchForm({
+                    accessStartsAt: v,
+                    accessStartsEmpty: !v,
+                  })
+                }}
+                title={
+                  isTrial
+                    ? 'When the trial started (may be in the past)'
+                    : 'When the subscription starts (may be in the past)'
+                }
+              />
+            }
+            currentCell={current.start}
+          />
+
+          <SectionRow
+            label={isTrial ? 'Planned subscription' : 'Subscription'}
+            hint={
+              isTrial
+                ? 'Saved for convert later — not charged on trial'
+                : undefined
+            }
+          />
+          <CompareRow
             label="Recurring (USD/mo)"
             diff={diffs.monthly}
             newCell={
@@ -436,18 +596,21 @@ export default function TenantSubscriptionPanel({
             currentCell={current.monthly}
           />
           <CompareRow
-            label="Duration (mo)"
+            label="Duration"
             diff={diffs.duration}
             newCell={
-              <input
+              <select
                 className={styles.inputSm}
-                type="number"
-                min={1}
-                step={1}
                 value={form.durationMonths}
                 onChange={e => patchForm({ durationMonths: e.target.value })}
                 required
-              />
+              >
+                {DURATION_CYCLES.map(c => (
+                  <option key={c.months} value={c.months}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
             }
             currentCell={current.duration}
           />
@@ -462,7 +625,29 @@ export default function TenantSubscriptionPanel({
             currentCell={current.termTotal}
           />
           <CompareRow
-            label="Branches"
+            label="Setup fee"
+            diff={diffs.setupFee}
+            newCell={
+              <input
+                className={styles.inputSm}
+                type="number"
+                min={0}
+                step="any"
+                value={form.setupFee}
+                onChange={e => patchForm({ setupFee: e.target.value })}
+                title={
+                  isTrial
+                    ? 'Planned subscription setup — charged on convert'
+                    : 'Setup fee for this subscription offer'
+                }
+              />
+            }
+            currentCell={current.setupFee}
+          />
+
+          <SectionRow label="Limits & features" />
+          <CompareRow
+            label="Locations"
             diff={diffs.locations}
             newCell={
               <LimitField
@@ -617,104 +802,10 @@ export default function TenantSubscriptionPanel({
               }
             />
           ))}
-          <CompareRow
-            label="Paid trial"
-            diff={diffs.paidTrial}
-            newCell={
-              <label className={styles.checkSm}>
-                <input
-                  type="checkbox"
-                  checked={form.paidTrial}
-                  onChange={e => {
-                    const paidTrial = e.target.checked
-                    if (paidTrial) {
-                      patchForm({
-                        paidTrial: true,
-                        accessStartsEmpty: true,
-                        accessStartsAt: '',
-                      })
-                    } else {
-                      patchForm({
-                        paidTrial: false,
-                        paidTrialDays: '',
-                      })
-                    }
-                  }}
-                />
-                {form.paidTrial ? 'Yes' : 'No'}
-              </label>
-            }
-            currentCell={current.paidTrial}
-          />
-          <CompareRow
-            label="Trial days"
-            diff={diffs.trialDays}
-            newCell={
-              <input
-                className={styles.inputSm}
-                type="number"
-                min={1}
-                step={1}
-                disabled={!form.paidTrial}
-                value={form.paidTrialDays}
-                onChange={e => patchForm({ paidTrialDays: e.target.value })}
-              />
-            }
-            currentCell={current.trialDays}
-          />
-          <CompareRow
-            label="Access starts"
-            diff={diffs.accessStarts}
-            newCell={
-              <div className={styles.accessStack}>
-                <label className={styles.checkSm}>
-                  <input
-                    type="checkbox"
-                    checked={form.accessStartsEmpty}
-                    disabled={form.paidTrial}
-                    onChange={e =>
-                      patchForm({
-                        accessStartsEmpty: e.target.checked,
-                        ...(e.target.checked ? { accessStartsAt: '' } : {}),
-                      })
-                    }
-                  />
-                  Immediate
-                </label>
-                <input
-                  className={styles.inputAccess}
-                  type="datetime-local"
-                  min={accessMin}
-                  disabled={form.paidTrial || form.accessStartsEmpty}
-                  value={form.accessStartsAt}
-                  onChange={e => {
-                    const v = e.target.value
-                    if (v && v < accessMin) {
-                      setSaveError('Access starts cannot be before today')
-                      return
-                    }
-                    patchForm({ accessStartsAt: v, accessStartsEmpty: false })
-                  }}
-                />
-              </div>
-            }
-            currentCell={current.accessStarts}
-          />
-          <CompareRow
-            label="Setup fee"
-            diff={diffs.setupFee}
-            newCell={
-              <input
-                className={styles.inputSm}
-                type="number"
-                min={0}
-                step="any"
-                disabled={form.paidTrial}
-                value={form.setupFee}
-                onChange={e => patchForm({ setupFee: e.target.value })}
-              />
-            }
-            currentCell={current.setupFee}
+
+          <SectionRow
+            label="Trial charges"
+            hint={isTrial ? undefined : 'Disabled in Subscription mode'}
           />
           <CompareRow
             label="Pre-trial setup"
@@ -725,30 +816,12 @@ export default function TenantSubscriptionPanel({
                 type="number"
                 min={0}
                 step="any"
-                disabled={!form.paidTrial}
+                disabled={!isTrial}
                 value={form.preTrialSetupFee}
                 onChange={e => patchForm({ preTrialSetupFee: e.target.value })}
               />
             }
             currentCell={current.preTrial}
-          />
-          <CompareRow
-            label="Post-trial setup"
-            diff={diffs.postTrial}
-            newCell={
-              <input
-                className={styles.inputSm}
-                type="number"
-                min={0}
-                step="any"
-                disabled={!form.paidTrial}
-                value={form.postTrialSetupFee}
-                onChange={e =>
-                  patchForm({ postTrialSetupFee: e.target.value })
-                }
-              />
-            }
-            currentCell={current.postTrial}
           />
           <CompareRow
             label="Total setup fees paid"
@@ -764,7 +837,7 @@ export default function TenantSubscriptionPanel({
             }
             currentCell={
               setupFeePaidUsd != null ? (
-                <span title="Regular + pre-trial + post-trial setup already collected">
+                <span title="Regular + pre-trial setup already collected">
                   {fmtMoney(setupFeePaidUsd)}
                 </span>
               ) : (
@@ -777,12 +850,34 @@ export default function TenantSubscriptionPanel({
             newCell={<span className={styles.mutedVal}>After activation</span>}
             currentCell={current.period}
           />
+          <CompareRow
+            label="Internal notes"
+            diff={notesDiff}
+            newCell={
+              <textarea
+                className={styles.notesInput}
+                rows={3}
+                value={form.offerNotes}
+                onChange={e => patchForm({ offerNotes: e.target.value })}
+                placeholder="Reach only — e.g. agreed sub start after trial"
+                title="Saved in Reach Supabase; not sent to Nest or the tenant"
+              />
+            }
+            currentCell={
+              savedNotes ? (
+                <span className={styles.notesDisplay}>{savedNotes}</span>
+              ) : (
+                <span className={styles.placeholderVal}>—</span>
+              )
+            }
+          />
         </div>
       </div>
 
-      {(notes.length > 0 || (subscription?.warnings?.length ?? 0) > 0) && (
+      {(responseNotes.length > 0 ||
+        (subscription?.warnings?.length ?? 0) > 0) && (
         <div className={styles.notesBlock}>
-          {notes.map((n, i) => (
+          {responseNotes.map((n, i) => (
             <span key={`n-${i}`} className={styles.noteChip}>
               {n}
             </span>

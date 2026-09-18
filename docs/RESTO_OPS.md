@@ -42,13 +42,30 @@ Response (Nest shape; bare array / `{ "tenants": [...] }` also accepted):
       "id": "uuid-or-slug",
       "name": "Clay Handi",
       "ownerName": "Salman Bakhtiyar",
-      "ownerEmail": "salman@example.com"
+      "ownerEmail": "salman@example.com",
+      "planId": "pro",
+      "planStatus": "active",
+      "enterpriseInPaidTrial": false,
+      "subscriptionStart": "2026-03-01",
+      "trialStartedAt": null,
+      "billingCycle": "1_month",
+      "locationsUsed": 1,
+      "locationsLimit": 1,
+      "countersUsed": 1,
+      "countersLimit": 2,
+      "usersUsed": 2,
+      "usersLimit": 5,
+      "ordersUsed": 120,
+      "ordersLimit": 500,
+      "lastOrderAt": "2026-03-20"
     }
   ]
 }
 ```
 
-`owner_name` / `owner_email` snake_case is also accepted.
+`owner_name` / `owner_email` snake_case is also accepted. Plan fields come from the tenant’s subscription row (`subscriptionStart` is null on free). Newer list fields (`trialStartedAt`, `billingCycle`, usage counts, `lastOrderAt`) are optional — Reach shows `—` until Nest returns them.
+
+Ops list columns: Restaurant, Owner, Email, Plan (`Ent/Sub` · `Ent/Trial` · `Pro` · `Starter` · `Free`), Sub start, Trial start, Billing cycle (blank on Free/Trial), Usage (`L/C/U/O` current/max; orders = subscription-period month), Last order, Cash due (prod), Actions, Tenant ID.
 
 ## Reach proxies
 

@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import type { RestoAdminEnv, RestoTenant } from '@/lib/resto-admin/types'
+import type {
+  RestoAdminEnv,
+  RestoPlanFilter,
+  RestoTenant,
+} from '@/lib/resto-admin/types'
+import {
+  restoBillingCycleLabel,
+  restoPlanBucket,
+  restoPlanLabel,
+  restoUsageLabel,
+} from '@/lib/resto-admin/types'
 import {
   createCashCollection,
   listCashTenantSummaries,
@@ -32,6 +42,12 @@ const COPY_FIELDS: { label: string; value: (t: RestoTenant) => string }[] = [
   { label: 'Restaurant', value: t => t.name || '—' },
   { label: 'Owner', value: t => t.ownerName || '—' },
   { label: 'Owner email', value: t => t.ownerEmail || '—' },
+  { label: 'Plan', value: t => restoPlanLabel(t) },
+  { label: 'Sub start', value: t => t.subscriptionStart || '—' },
+  { label: 'Trial start', value: t => t.trialStartedAt || '—' },
+  { label: 'Billing cycle', value: t => restoBillingCycleLabel(t) || '—' },
+  { label: 'Usage', value: t => restoUsageLabel(t) || '—' },
+  { label: 'Last order', value: t => t.lastOrderAt || '—' },
   { label: 'Tenant ID', value: t => t.id || '—' },
 ]
 
@@ -80,6 +96,20 @@ async function copyTenantDetails(tenant: RestoTenant): Promise<void> {
   await navigator.clipboard.writeText(plain)
 }
 
+/** Compact cash due for narrow tables. */
+function formatCashDueShort(cash: CashTenantSummary): string {
+  const label = formatDueLabel(cash.due)
+  const kind =
+    cash.due.nextKind === 'setup'
+      ? 'S'
+      : cash.due.nextKind === 'recurring'
+        ? 'R'
+        : cash.due.nextKind === 'other'
+          ? 'O'
+          : ''
+  return kind ? `${label} · ${kind}` : label
+}
+
 export default function TenantsClient({ initialEnv }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -90,6 +120,7 @@ export default function TenantsClient({ initialEnv }: Props) {
   const [env, setEnv] = useState<RestoAdminEnv>(initialEnv)
   const [query, setQuery] = useState('')
   const [cashFilter, setCashFilter] = useState<CashFilter>('all')
+  const [planFilter, setPlanFilter] = useState<RestoPlanFilter>('all')
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [cashByTenant, setCashByTenant] = useState<
     Record<string, CashTenantSummary>
@@ -165,12 +196,18 @@ export default function TenantsClient({ initialEnv }: Props) {
     setEnv(next)
     setQuery('')
     setCashFilter('all')
+    setPlanFilter('all')
     setCashMsg(null)
     setCashError(null)
     const url = new URL(window.location.href)
     url.searchParams.set('env', next)
     window.history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}`)
   }
+
+  const hasActiveFilters =
+    !!query.trim() ||
+    cashFilter !== 'all' ||
+    planFilter !== 'all'
 
   const filtered = useMemo(() => {
     if (state.status !== 'ready') return []
@@ -182,18 +219,20 @@ export default function TenantsClient({ initialEnv }: Props) {
           t.ownerName ?? '',
           t.ownerEmail ?? '',
           t.id,
+          restoPlanLabel(t),
         ]
           .join(' ')
           .toLowerCase()
         if (!haystack.includes(q)) return false
       }
+      if (planFilter !== 'all' && restoPlanBucket(t) !== planFilter) return false
       if (env !== 'production' || cashFilter === 'all') return true
       const cash = cashByTenant[t.id]
       if (cashFilter === 'cash') return !!cash
       if (cashFilter === 'due_week') return !!cash && cash.due.dueSoon
       return true
     })
-  }, [state, query, env, cashFilter, cashByTenant])
+  }, [state, query, env, cashFilter, planFilter, cashByTenant])
 
   async function handleCopy(
     e: React.MouseEvent,
@@ -321,7 +360,7 @@ export default function TenantsClient({ initialEnv }: Props) {
           <span className={styles.metaStrong}>
             {state.status === 'ready' ? filtered.length : '—'}
           </span>
-          {state.status === 'ready' && (query.trim() || cashFilter !== 'all')
+          {state.status === 'ready' && hasActiveFilters
             ? ` of ${state.tenants.length}`
             : ''}{' '}
           tenants in{' '}
@@ -330,28 +369,53 @@ export default function TenantsClient({ initialEnv }: Props) {
           </span>
         </span>
 
-        {isProduction && (
-          <div className={styles.filterToggle} role="group" aria-label="Cash filter">
+        <div className={styles.filterGroups}>
+          {isProduction && (
+            <div className={styles.filterToggle} role="group" aria-label="Cash filter">
+              {(
+                [
+                  ['all', 'All'],
+                  ['cash', 'Cash'],
+                  ['due_week', 'Due ≤7d'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`${styles.filterBtn} ${
+                    cashFilter === id ? styles.filterBtnActive : ''
+                  }`}
+                  onClick={() => setCashFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.filterToggle} role="group" aria-label="Plan filter">
             {(
               [
                 ['all', 'All'],
-                ['cash', 'Cash'],
-                ['due_week', 'Due ≤7d'],
+                ['free', 'Free'],
+                ['trial', 'Trial'],
+                ['pro', 'Pro'],
+                ['ent', 'Ent'],
               ] as const
             ).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
                 className={`${styles.filterBtn} ${
-                  cashFilter === id ? styles.filterBtnActive : ''
+                  planFilter === id ? styles.filterBtnActive : ''
                 }`}
-                onClick={() => setCashFilter(id)}
+                onClick={() => setPlanFilter(id)}
               >
                 {label}
               </button>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
       {cashError && (
@@ -387,7 +451,7 @@ export default function TenantsClient({ initialEnv }: Props) {
 
       {state.status === 'ready' && filtered.length === 0 && (
         <div className={styles.empty}>
-          {query.trim() || cashFilter !== 'all'
+          {hasActiveFilters
             ? 'No tenants match your filters.'
             : 'No tenants returned for this environment.'}
         </div>
@@ -400,18 +464,24 @@ export default function TenantsClient({ initialEnv }: Props) {
               <tr>
                 <th>Restaurant</th>
                 <th>Owner</th>
-                <th>Owner email</th>
+                <th>Email</th>
+                <th>Plan</th>
+                <th>Sub start</th>
+                <th>Trial start</th>
+                <th>Billing cycle</th>
+                <th>Usage</th>
+                <th>Last order</th>
                 {isProduction && <th>Cash due</th>}
-                <th>Tenant ID</th>
                 <th className={styles.actionsCol}>
                   <span className={styles.srOnly}>Actions</span>
                 </th>
+                <th>Tenant ID</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(tenant => {
                 const cash = cashByTenant[tenant.id]
-                const dueSoon = cash?.due.dueSoon === true
+                const dueSoon = isProduction && cash?.due.dueSoon === true
                 return (
                   <tr
                     key={tenant.id}
@@ -435,30 +505,52 @@ export default function TenantsClient({ initialEnv }: Props) {
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
-                    <td>
+                    <td className={styles.emailCell}>
                       {tenant.ownerEmail || (
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
+                    <td>{restoPlanLabel(tenant)}</td>
+                    <td className={styles.dateCell}>
+                      {tenant.subscriptionStart || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    <td className={styles.dateCell}>
+                      {tenant.trialStartedAt || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    <td className={styles.dateCell}>
+                      {restoBillingCycleLabel(tenant) || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    <td className={styles.usageCell}>
+                      {restoUsageLabel(tenant) || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    <td className={styles.dateCell}>
+                      {tenant.lastOrderAt || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
                     {isProduction && (
-                      <td>
+                      <td className={styles.cashCell}>
                         {cash ? (
                           <span
                             className={
                               dueSoon ? styles.dueAlert : styles.dueOk
                             }
                           >
-                            {formatDueLabel(cash.due)}
-                            {cash.due.nextKind
-                              ? ` · ${cash.due.nextKind}`
-                              : ''}
+                            {formatCashDueShort(cash)}
                           </span>
                         ) : (
                           <span className={styles.muted}>—</span>
                         )}
                       </td>
                     )}
-                    <td className={styles.mono}>{tenant.id}</td>
                     <td className={styles.actionsCell}>
                       {isProduction && cash?.due.nextDue && (
                         <button
@@ -500,6 +592,7 @@ export default function TenantsClient({ initialEnv }: Props) {
                         Copy
                       </button>
                     </td>
+                    <td className={styles.mono}>{tenant.id}</td>
                   </tr>
                 )
               })}

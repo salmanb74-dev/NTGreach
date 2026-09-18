@@ -44,12 +44,83 @@
 .compare {
   display: grid;
   /* name | new | current — fixed value cols so 2 & 3 stay next to each other */
-  grid-template-columns: 128px 170px 158px;
+  grid-template-columns: 140px 190px 158px;
   column-gap: 0;
   row-gap: 0;
   width: max-content;
   max-width: 100%;
   align-items: stretch;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-3);
+  padding: 12px 10px 6px 0;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sectionNew,
+.sectionCur {
+  padding: 12px 10px 6px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sectionNew {
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+}
+
+.sectionCur {
+  background: #374151;
+  border-bottom-color: #4b5563;
+}
+
+.sectionHint {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.modeToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-full);
+  background: #fff;
+}
+
+.modeBtn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-2);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.modeBtn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}
+
+.modeBtnActive {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .headName {
@@ -260,6 +331,35 @@
 .inputAccess:disabled {
   opacity: 0.5;
   background: var(--color-surface-2);
+}
+
+.notesInput {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-text);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.notesInput:focus {
+  outline: none;
+  border-color: var(--color-info, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.notesDisplay {
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #e5e7eb;
 }
 
 .notesBlock {

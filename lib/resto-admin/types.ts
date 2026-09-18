@@ -5,6 +5,152 @@ export type RestoTenant = {
   name: string
   ownerName: string | null
   ownerEmail: string | null
+  /** Nest plan_id: free / starter / pro / enterprise */
+  planId: string | null
+  /** Nest subscription status (active / trial / …) */
+  planStatus: string | null
+  enterpriseInPaidTrial: boolean | null
+  /** YYYY-MM-DD subscription start; null on free / unavailable */
+  subscriptionStart: string | null
+  /** YYYY-MM-DD; persists after trial ends if they ever had one */
+  trialStartedAt: string | null
+  /** Nest: 1_month | 3_month | 6_month | 1_year | 2_year (blank UI on Free/Trial) */
+  billingCycle: string | null
+  locationsUsed: number | null
+  locationsLimit: number | null
+  countersUsed: number | null
+  countersLimit: number | null
+  usersUsed: number | null
+  usersLimit: number | null
+  /** Orders in current subscription-period month vs monthly cap */
+  ordersUsed: number | null
+  ordersLimit: number | null
+  /** YYYY-MM-DD or ISO; null if never ordered */
+  lastOrderAt: string | null
+}
+
+/** Short plan buckets for Ops tenants list filters. */
+export type RestoPlanFilter = 'all' | 'free' | 'trial' | 'pro' | 'ent'
+
+function planBaseId(
+  tenant: Pick<RestoTenant, 'planId'>
+): string {
+  return (tenant.planId || 'free').toLowerCase().split('_')[0] || 'free'
+}
+
+export function restoPlanBucket(
+  tenant: Pick<
+    RestoTenant,
+    'planId' | 'planStatus' | 'enterpriseInPaidTrial'
+  >
+): Exclude<RestoPlanFilter, 'all'> {
+  const status = (tenant.planStatus || '').toLowerCase()
+  if (
+    tenant.enterpriseInPaidTrial === true ||
+    status === 'trial' ||
+    status === 'trialing'
+  ) {
+    return 'trial'
+  }
+  const base = planBaseId(tenant)
+  if (base === 'enterprise') return 'ent'
+  if (base === 'pro' || base === 'starter') return 'pro'
+  return 'free'
+}
+
+/** Ops list labels: Ent/Sub · Ent/Trial · Pro · Starter · Free */
+export function restoPlanLabel(
+  tenant: Pick<
+    RestoTenant,
+    'planId' | 'planStatus' | 'enterpriseInPaidTrial'
+  >
+): string {
+  const bucket = restoPlanBucket(tenant)
+  const base = planBaseId(tenant)
+  if (bucket === 'trial') {
+    return base === 'enterprise' || tenant.enterpriseInPaidTrial === true
+      ? 'Ent/Trial'
+      : 'Trial'
+  }
+  if (bucket === 'ent') return 'Ent/Sub'
+  if (base === 'starter') return 'Starter'
+  if (base === 'pro') return 'Pro'
+  return 'Free'
+}
+
+/** Blank on Free / Trial; otherwise compact cycle label. */
+export function restoBillingCycleLabel(
+  tenant: Pick<
+    RestoTenant,
+    'billingCycle' | 'planId' | 'planStatus' | 'enterpriseInPaidTrial'
+  >
+): string | null {
+  const bucket = restoPlanBucket(tenant)
+  if (bucket === 'free' || bucket === 'trial') return null
+
+  const raw = (tenant.billingCycle || '').trim().toLowerCase()
+  if (!raw) return null
+
+  const normalized = raw.replace(/-/g, '_')
+  const map: Record<string, string> = {
+    '1_month': '1 mo',
+    monthly: '1 mo',
+    month: '1 mo',
+    '3_month': '3 mo',
+    '6_month': '6 mo',
+    '1_year': '1 yr',
+    yearly: '1 yr',
+    annual: '1 yr',
+    year: '1 yr',
+    '2_year': '2 yr',
+  }
+  return map[normalized] ?? tenant.billingCycle
+}
+
+function formatUsagePart(
+  used: number | null,
+  limit: number | null
+): string {
+  const usedLabel = used == null ? '—' : String(used)
+  const limitLabel = limit == null ? '∞' : String(limit)
+  return `${usedLabel}/${limitLabel}`
+}
+
+/**
+ * Compact usage: `L 2/5 · C 1/3 · U 4/10 · O 120/500`
+ * (Locations, Counters, Users, Orders/month). Null when Nest sends nothing.
+ */
+export function restoUsageLabel(
+  tenant: Pick<
+    RestoTenant,
+    | 'locationsUsed'
+    | 'locationsLimit'
+    | 'countersUsed'
+    | 'countersLimit'
+    | 'usersUsed'
+    | 'usersLimit'
+    | 'ordersUsed'
+    | 'ordersLimit'
+  >
+): string | null {
+  const values = [
+    tenant.locationsUsed,
+    tenant.locationsLimit,
+    tenant.countersUsed,
+    tenant.countersLimit,
+    tenant.usersUsed,
+    tenant.usersLimit,
+    tenant.ordersUsed,
+    tenant.ordersLimit,
+  ]
+  if (values.every(v => v == null)) return null
+
+  return [
+    `L ${formatUsagePart(tenant.locationsUsed, tenant.locationsLimit)}`,
+    `C ${formatUsagePart(tenant.countersUsed, tenant.countersLimit)}`,
+    `U ${formatUsagePart(tenant.usersUsed, tenant.usersLimit)}`,
+    `O ${formatUsagePart(tenant.ordersUsed, tenant.ordersLimit)}`,
+  ].join(' · ')
 }
 
 /** One HTTP request row from Nest `api_hits` (admin logs API). */

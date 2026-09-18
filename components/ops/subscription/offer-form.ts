@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   RestoEnterpriseOfferInput,
   RestoSubscriptionSnapshot,
 } from '@/lib/resto-admin/types'
@@ -11,6 +11,17 @@ import {
 } from '@/lib/resto-admin/plan-catalog'
 import { formatWhen } from '@/lib/format-when'
 import { formatMoney as fmtMoney } from '@/lib/currency'
+
+/** Duration = billing cycle length (months → UI label). */
+export const DURATION_CYCLES = [
+  { months: 1, label: '1 mo' },
+  { months: 3, label: '3 mo' },
+  { months: 6, label: '6 mo' },
+  { months: 12, label: '1 yr' },
+  { months: 24, label: '2 yr' },
+] as const
+
+export type OfferMode = 'trial' | 'subscription'
 
 export type FormState = {
   monthlyPrice: string
@@ -35,12 +46,29 @@ export type FormState = {
   webOrdering: boolean
   webOrderingFee: string
   webOrderingRevenuePercent: string
+  /** Trial vs Subscription offer mode (maps to Nest paidTrial). */
   paidTrial: boolean
+  /** Kept for Nest payload; UI no longer collects trial days. */
   paidTrialDays: string
   preTrialSetupFee: string
   postTrialSetupFee: string
+  /** Trial or subscription start (Nest accessStartsAt); required; past OK. */
   accessStartsAt: string
   accessStartsEmpty: boolean
+  /** Reach-only ops notes (not sent to Nest). */
+  offerNotes: string
+}
+
+export function offerModeFromForm(form: Pick<FormState, 'paidTrial'>): OfferMode {
+  return form.paidTrial ? 'trial' : 'subscription'
+}
+
+export function durationCycleLabel(
+  months: number | null | undefined
+): string {
+  if (months == null || !Number.isFinite(months)) return '—'
+  const hit = DURATION_CYCLES.find(c => c.months === months)
+  return hit ? hit.label : `${months} mo`
 }
 
 function boolFromApi(v: boolean | null | undefined): boolean {
@@ -56,8 +84,24 @@ function totalToMonthly(
   return total / months
 }
 
+function snapDurationMonths(months: number): number {
+  if (DURATION_CYCLES.some(c => c.months === months)) return months
+  let best = DURATION_CYCLES[0].months
+  let bestDist = Math.abs(months - best)
+  for (const c of DURATION_CYCLES) {
+    const d = Math.abs(months - c.months)
+    if (d < bestDist) {
+      best = c.months
+      bestDist = d
+    }
+  }
+  return best
+}
+
 export function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
-  const durationMonths = offer.durationMonths > 0 ? offer.durationMonths : 1
+  const durationMonths = snapDurationMonths(
+    offer.durationMonths > 0 ? offer.durationMonths : 12
+  )
   const monthly = totalToMonthly(offer.price, durationMonths)
   return {
     monthlyPrice: String(monthly),
@@ -84,16 +128,15 @@ export function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
     webOrderingFee: '',
     webOrderingRevenuePercent: '',
     paidTrial: offer.paidTrial,
-    paidTrialDays:
-      offer.paidTrialDays == null ? '' : String(offer.paidTrialDays),
+    paidTrialDays: '',
     preTrialSetupFee:
       offer.preTrialSetupFee == null ? '0' : String(offer.preTrialSetupFee),
-    postTrialSetupFee:
-      offer.postTrialSetupFee == null ? '0' : String(offer.postTrialSetupFee),
+    postTrialSetupFee: '0',
     accessStartsAt: offer.accessStartsAt
       ? toLocalDatetimeValue(offer.accessStartsAt)
       : '',
     accessStartsEmpty: !offer.accessStartsAt,
+    offerNotes: '',
   }
 }
 
@@ -102,12 +145,6 @@ export function toLocalDatetimeValue(iso: string): string {
   if (Number.isNaN(d.getTime())) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-export function minAccessDatetimeLocal(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`
 }
 
 export function formToOffer(
@@ -121,9 +158,10 @@ export function formToOffer(
   if (
     !Number.isFinite(durationMonths) ||
     durationMonths <= 0 ||
-    !Number.isInteger(durationMonths)
+    !Number.isInteger(durationMonths) ||
+    !DURATION_CYCLES.some(c => c.months === durationMonths)
   ) {
-    return { error: 'durationMonths must be a positive integer' }
+    return { error: 'Duration must be 1 mo, 3 mo, 6 mo, 1 yr, or 2 yr' }
   }
   const price = monthlyPrice * durationMonths
   if (!Number.isFinite(price) || price <= 0) {
@@ -143,64 +181,62 @@ export function formToOffer(
     return n
   }
 
-  const locations = limitValue(form.locationsUnlimited, form.locations, 'Branches')
-  if (typeof locations === 'object' && locations && 'error' in locations) return locations
-  const users = limitValue(form.usersUnlimited, form.users, 'users')
+  const locations = limitValue(
+    form.locationsUnlimited,
+    form.locations,
+    'Locations'
+  )
+  if (typeof locations === 'object' && locations && 'error' in locations) {
+    return locations
+  }
+  const users = limitValue(form.usersUnlimited, form.users, 'Users')
   if (typeof users === 'object' && users && 'error' in users) return users
-  const counters = limitValue(form.countersUnlimited, form.counters, 'counters')
-  if (typeof counters === 'object' && counters && 'error' in counters) return counters
+  const counters = limitValue(form.countersUnlimited, form.counters, 'Counters')
+  if (typeof counters === 'object' && counters && 'error' in counters) {
+    return counters
+  }
   const ordersPerMonth = limitValue(
     form.ordersUnlimited,
     form.ordersPerMonth,
-    'ordersPerMonth'
+    'Orders / mo'
   )
-  if (typeof ordersPerMonth === 'object' && ordersPerMonth && 'error' in ordersPerMonth) {
+  if (
+    typeof ordersPerMonth === 'object' &&
+    ordersPerMonth &&
+    'error' in ordersPerMonth
+  ) {
     return ordersPerMonth
-  }
-
-  let paidTrialDays: number | null = null
-  if (form.paidTrial) {
-    const days = Number(form.paidTrialDays)
-    if (!Number.isFinite(days) || days <= 0 || !Number.isInteger(days)) {
-      return { error: 'paidTrial requires a positive integer for paidTrialDays' }
-    }
-    paidTrialDays = days
   }
 
   let accessStartsAt: string | null = null
   if (!form.accessStartsEmpty && form.accessStartsAt.trim()) {
-    if (form.paidTrial) {
-      return { error: 'Cannot combine paid trial with accessStartsAt' }
-    }
     const d = new Date(form.accessStartsAt)
     if (Number.isNaN(d.getTime())) {
-      return { error: 'accessStartsAt must be a valid datetime' }
-    }
-    const startOfToday = new Date()
-    startOfToday.setHours(0, 0, 0, 0)
-    if (d.getTime() < startOfToday.getTime()) {
-      return { error: 'Access starts cannot be before today' }
+      return { error: 'Start must be a valid date/time' }
     }
     accessStartsAt = d.toISOString()
+  } else {
+    return {
+      error: form.paidTrial
+        ? 'Trial start is required'
+        : 'Subscription start is required',
+    }
   }
 
   const setupFee = Number(form.setupFee)
   if (!Number.isFinite(setupFee) || setupFee < 0) {
-    return { error: 'setupFee must be a number >= 0' }
+    return { error: 'Setup fee must be a number >= 0' }
   }
   const preTrialSetupFee = Number(form.preTrialSetupFee)
   if (!Number.isFinite(preTrialSetupFee) || preTrialSetupFee < 0) {
-    return { error: 'preTrialSetupFee must be a number >= 0' }
-  }
-  const postTrialSetupFee = Number(form.postTrialSetupFee)
-  if (!Number.isFinite(postTrialSetupFee) || postTrialSetupFee < 0) {
-    return { error: 'postTrialSetupFee must be a number >= 0' }
+    return { error: 'Pre-trial setup must be a number >= 0' }
   }
 
   return {
     price,
     durationMonths,
-    setupFee: form.paidTrial ? 0 : setupFee,
+    // Sent on trial too as planned subscription setup (not charged until convert).
+    setupFee,
     locations: locations as number | null,
     users: users as number | null,
     counters: counters as number | null,
@@ -211,9 +247,9 @@ export function formToOffer(
     support: form.support,
     webOrdering: form.webOrdering,
     paidTrial: form.paidTrial,
-    paidTrialDays,
+    paidTrialDays: null,
     preTrialSetupFee: form.paidTrial ? preTrialSetupFee : 0,
-    postTrialSetupFee: form.paidTrial ? postTrialSetupFee : 0,
+    postTrialSetupFee: 0,
     accessStartsAt,
     enterpriseEnabled: true,
   }
@@ -343,16 +379,10 @@ function offerFromSaved(sub: RestoSubscriptionSnapshot): RestoEnterpriseOfferInp
     support: boolFromApi(sub.addonSupportEnabled),
     webOrdering: boolFromApi(sub.addonWebOrderingEnabled),
     paidTrial: sub.enterprisePaidTrialEnabled === true,
-    paidTrialDays:
-      sub.enterprisePaidTrialEnabled === true
-        ? sub.enterprisePaidTrialDurationDays
-        : null,
+    paidTrialDays: null,
     preTrialSetupFee: sub.enterprisePreTrialSetupFee ?? 0,
-    postTrialSetupFee: sub.enterprisePostTrialSetupFee ?? 0,
-    accessStartsAt:
-      sub.enterprisePaidTrialEnabled === true
-        ? null
-        : sub.enterpriseAccessStartsAt,
+    postTrialSetupFee: 0,
+    accessStartsAt: sub.enterpriseAccessStartsAt,
     enterpriseEnabled: true,
   }
 }
@@ -362,7 +392,7 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
     price: DEFAULT_OFFER.price,
     durationMonths: DEFAULT_OFFER.durationMonths,
   })
-  const durationMonths = seed.durationMonths
+  const durationMonths = snapDurationMonths(seed.durationMonths)
   return {
     price: seed.monthlyPrice * durationMonths,
     durationMonths,
@@ -423,12 +453,12 @@ export function currentValues(
     return {
       plan: '—',
       status: '—',
+      offerType: '—',
       monthly: '—',
       duration: '—',
       termTotal: '—',
       setupFee: '—',
       preTrial: '—',
-      postTrial: '—',
       locations: '—',
       users: '—',
       counters: '—',
@@ -438,27 +468,31 @@ export function currentValues(
       inventory: '—',
       support: '—',
       webOrdering: '—',
-      paidTrial: '—',
-      trialDays: '—',
-      accessStarts: '—',
+      start: '—',
       period: '—',
     }
   }
+
+  const onTrial =
+    plan.paidTrial === true || sub?.enterprisePaidTrialEnabled === true
+
   return {
     plan: `${plan.planName}`,
     status: `${plan.status ?? '—'} · ${plan.billingCycle ?? '—'}`,
+    offerType: onTrial
+      ? 'Ent/Trial'
+      : normalizePlanBaseId(plan.planId) === 'enterprise'
+        ? 'Ent/Sub'
+        : '—',
     monthly:
       plan.monthlyPrice != null ? `${fmtMoney(plan.monthlyPrice)}/mo` : 'Custom',
-    duration: plan.durationMonths != null ? `${plan.durationMonths}` : '—',
+    duration: durationCycleLabel(plan.durationMonths),
     termTotal: plan.termPrice != null ? fmtMoney(plan.termPrice) : '—',
     setupFee: plan.setupFee != null ? fmtMoney(plan.setupFee) : '—',
     preTrial:
-      sub?.enterprisePreTrialSetupFee != null && isEnterpriseLive(sub)
+      sub?.enterprisePreTrialSetupFee != null &&
+      (onTrial || isEnterpriseLive(sub))
         ? fmtMoney(sub.enterprisePreTrialSetupFee)
-        : '—',
-    postTrial:
-      sub?.enterprisePostTrialSetupFee != null && isEnterpriseLive(sub)
-        ? fmtMoney(sub.enterprisePostTrialSetupFee)
         : '—',
     locations: fmtLimit(plan.locations),
     users: fmtLimit(plan.users),
@@ -469,9 +503,9 @@ export function currentValues(
     inventory: fmtBool(plan.inventory),
     support: fmtBool(plan.support),
     webOrdering: fmtBool(plan.webOrdering),
-    paidTrial: fmtBool(plan.paidTrial),
-    trialDays: plan.paidTrialDays != null ? String(plan.paidTrialDays) : '—',
-    accessStarts: plan.accessStartsAt ? fmtDate(plan.accessStartsAt) : 'Immediate',
+    start: plan.accessStartsAt
+      ? fmtDate(plan.accessStartsAt)
+      : '—',
     period: `${fmtDate(plan.periodStart)} → ${fmtDate(plan.periodEnd)}`,
   }
 }
@@ -515,14 +549,14 @@ export function formDiffs(
   const duration = Number(form.durationMonths)
   const setupFee = Number(form.setupFee)
   const preTrial = Number(form.preTrialSetupFee)
-  const postTrial = Number(form.postTrialSetupFee)
-  const trialDays = Number(form.paidTrialDays)
 
   const planMonthly = plan.monthlyPrice
   const planDuration = plan.durationMonths
   const planTerm = plan.termPrice
+  const planOnTrial = plan.paidTrial === true
 
   return {
+    offerType: form.paidTrial !== planOnTrial,
     monthly:
       planMonthly == null || !Number.isFinite(monthly)
         ? planMonthly != null || Number.isFinite(monthly)
@@ -556,23 +590,22 @@ export function formDiffs(
     inventory: form.inventory !== plan.inventory,
     support: form.support !== plan.support,
     webOrdering: form.webOrdering !== plan.webOrdering,
-    paidTrial: form.paidTrial !== plan.paidTrial,
-    trialDays: form.paidTrial
-      ? plan.paidTrialDays == null
-        ? Number.isFinite(trialDays) && trialDays > 0
-        : trialDays !== plan.paidTrialDays
-      : plan.paidTrialDays != null && plan.paidTrialDays > 0,
-    accessStarts: (() => {
-      const formImm =
-        form.accessStartsEmpty || form.paidTrial || !form.accessStartsAt
+    start: (() => {
+      const formImm = form.accessStartsEmpty || !form.accessStartsAt
       const planImm = !plan.accessStartsAt
       if (formImm && planImm) return false
       if (formImm !== planImm) return true
       if (!form.accessStartsAt || !plan.accessStartsAt) return true
       return toLocalDatetimeValue(plan.accessStartsAt) !== form.accessStartsAt
     })(),
-    setupFee: !form.paidTrial && Number.isFinite(setupFee) && setupFee > 0,
+    setupFee: Number.isFinite(setupFee) && setupFee > 0,
     preTrial: form.paidTrial && Number.isFinite(preTrial) && preTrial > 0,
-    postTrial: form.paidTrial && Number.isFinite(postTrial) && postTrial > 0,
   }
+}
+
+export function offerNotesDiff(
+  formNotes: string,
+  savedNotes: string | null
+): boolean {
+  return (formNotes.trim() || null) !== (savedNotes?.trim() || null)
 }

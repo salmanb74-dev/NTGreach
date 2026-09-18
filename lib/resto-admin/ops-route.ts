@@ -66,3 +66,24 @@ export async function requireOpsTenantProxy(request: NextRequest, tenantIdRaw: s
 
   return { profile, tenantId, env }
 }
+
+/** Auth + tenant id + env for Reach-only ops routes (no Nest config required). */
+export async function requireOpsNotesProxy(
+  request: NextRequest,
+  tenantIdRaw: string
+) {
+  const profile = await getCachedProfile()
+  if (!hasOpsAccess(profile)) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+
+  const tenantId = (tenantIdRaw || '').trim()
+  if (!tenantId) {
+    return {
+      error: NextResponse.json({ error: 'Missing tenant id' }, { status: 400 }),
+    }
+  }
+
+  const env = parseRestoAdminEnv(request.nextUrl.searchParams.get('env'))
+  return { profile, tenantId, env }
+}
