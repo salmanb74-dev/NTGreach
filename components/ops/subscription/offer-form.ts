@@ -86,7 +86,7 @@ function totalToMonthly(
 
 function snapDurationMonths(months: number): number {
   if (DURATION_CYCLES.some(c => c.months === months)) return months
-  let best = DURATION_CYCLES[0].months
+  let best: number = DURATION_CYCLES[0].months
   let bestDist = Math.abs(months - best)
   for (const c of DURATION_CYCLES) {
     const d = Math.abs(months - c.months)
