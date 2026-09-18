@@ -52,9 +52,12 @@ export type FormState = {
   paidTrialDays: string
   preTrialSetupFee: string
   postTrialSetupFee: string
-  /** Trial or subscription start (Nest accessStartsAt); required; past OK. */
+  /** Subscription start (Nest accessStartsAt); optional on trial, required on sub. */
   accessStartsAt: string
   accessStartsEmpty: boolean
+  /** Trial start (Nest trialStartsAt); required on trial; disabled on sub. */
+  trialStartsAt: string
+  trialStartsEmpty: boolean
   /** Reach-only ops notes (not sent to Nest). */
   offerNotes: string
 }
@@ -136,6 +139,10 @@ export function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
       ? toLocalDatetimeValue(offer.accessStartsAt)
       : '',
     accessStartsEmpty: !offer.accessStartsAt,
+    trialStartsAt: offer.trialStartsAt
+      ? toLocalDatetimeValue(offer.trialStartsAt)
+      : '',
+    trialStartsEmpty: !offer.trialStartsAt,
     offerNotes: '',
   }
 }
@@ -208,19 +215,45 @@ export function formToOffer(
     return ordersPerMonth
   }
 
-  let accessStartsAt: string | null = null
-  if (!form.accessStartsEmpty && form.accessStartsAt.trim()) {
-    const d = new Date(form.accessStartsAt)
+  function parseOptionalDatetime(
+    raw: string,
+    empty: boolean,
+    label: string
+  ): string | null | { error: string } {
+    if (empty || !raw.trim()) return null
+    const d = new Date(raw)
     if (Number.isNaN(d.getTime())) {
-      return { error: 'Start must be a valid date/time' }
+      return { error: `${label} must be a valid date/time` }
     }
-    accessStartsAt = d.toISOString()
-  } else {
-    return {
-      error: form.paidTrial
-        ? 'Trial start is required'
-        : 'Subscription start is required',
-    }
+    return d.toISOString()
+  }
+
+  const trialStartsAt = parseOptionalDatetime(
+    form.trialStartsAt,
+    form.trialStartsEmpty,
+    'Trial start'
+  )
+  if (typeof trialStartsAt === 'object' && trialStartsAt && 'error' in trialStartsAt) {
+    return trialStartsAt
+  }
+  if (form.paidTrial && trialStartsAt == null) {
+    return { error: 'Trial start is required' }
+  }
+
+  const accessStartsAt = parseOptionalDatetime(
+    form.accessStartsAt,
+    form.accessStartsEmpty,
+    'Subscription start'
+  )
+  if (
+    typeof accessStartsAt === 'object' &&
+    accessStartsAt &&
+    'error' in accessStartsAt
+  ) {
+    return accessStartsAt
+  }
+  if (!form.paidTrial && accessStartsAt == null) {
+    return { error: 'Subscription start is required' }
   }
 
   const setupFee = Number(form.setupFee)
@@ -250,7 +283,8 @@ export function formToOffer(
     paidTrialDays: null,
     preTrialSetupFee: form.paidTrial ? preTrialSetupFee : 0,
     postTrialSetupFee: 0,
-    accessStartsAt,
+    accessStartsAt: accessStartsAt as string | null,
+    trialStartsAt: trialStartsAt as string | null,
     enterpriseEnabled: true,
   }
 }
@@ -290,6 +324,7 @@ export const DEFAULT_OFFER: RestoEnterpriseOfferInput = {
   preTrialSetupFee: 0,
   postTrialSetupFee: 0,
   accessStartsAt: null,
+  trialStartsAt: null,
   enterpriseEnabled: true,
 }
 
@@ -383,6 +418,7 @@ function offerFromSaved(sub: RestoSubscriptionSnapshot): RestoEnterpriseOfferInp
     preTrialSetupFee: sub.enterprisePreTrialSetupFee ?? 0,
     postTrialSetupFee: 0,
     accessStartsAt: sub.enterpriseAccessStartsAt,
+    trialStartsAt: sub.enterpriseTrialStartsAt,
     enterpriseEnabled: true,
   }
 }
@@ -411,6 +447,7 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
     preTrialSetupFee: 0,
     postTrialSetupFee: 0,
     accessStartsAt: null,
+    trialStartsAt: null,
     enterpriseEnabled: true,
   }
 }
@@ -468,7 +505,8 @@ export function currentValues(
       inventory: '—',
       support: '—',
       webOrdering: '—',
-      start: '—',
+      trialStart: '—',
+      subscriptionStart: '—',
       period: '—',
     }
   }
@@ -503,9 +541,14 @@ export function currentValues(
     inventory: fmtBool(plan.inventory),
     support: fmtBool(plan.support),
     webOrdering: fmtBool(plan.webOrdering),
-    start: plan.accessStartsAt
-      ? fmtDate(plan.accessStartsAt)
+    trialStart: sub?.enterpriseTrialStartsAt
+      ? fmtDate(sub.enterpriseTrialStartsAt)
       : '—',
+    subscriptionStart: sub?.enterpriseAccessStartsAt
+      ? fmtDate(sub.enterpriseAccessStartsAt)
+      : plan.accessStartsAt
+        ? fmtDate(plan.accessStartsAt)
+        : '—',
     period: `${fmtDate(plan.periodStart)} → ${fmtDate(plan.periodEnd)}`,
   }
 }
@@ -539,7 +582,8 @@ function limitEquals(
 export function formDiffs(
   form: FormState,
   plan: ActivePlanView | null,
-  termTotal: number | null
+  termTotal: number | null,
+  sub: RestoSubscriptionSnapshot | null = null
 ): Record<string, boolean> {
   if (!plan) {
     return {}
@@ -590,13 +634,24 @@ export function formDiffs(
     inventory: form.inventory !== plan.inventory,
     support: form.support !== plan.support,
     webOrdering: form.webOrdering !== plan.webOrdering,
-    start: (() => {
-      const formImm = form.accessStartsEmpty || !form.accessStartsAt
-      const planImm = !plan.accessStartsAt
+    trialStart: (() => {
+      const formImm = form.trialStartsEmpty || !form.trialStartsAt
+      const planImm = !sub?.enterpriseTrialStartsAt
       if (formImm && planImm) return false
       if (formImm !== planImm) return true
-      if (!form.accessStartsAt || !plan.accessStartsAt) return true
-      return toLocalDatetimeValue(plan.accessStartsAt) !== form.accessStartsAt
+      if (!form.trialStartsAt || !sub?.enterpriseTrialStartsAt) return true
+      return (
+        toLocalDatetimeValue(sub.enterpriseTrialStartsAt) !== form.trialStartsAt
+      )
+    })(),
+    subscriptionStart: (() => {
+      const formImm = form.accessStartsEmpty || !form.accessStartsAt
+      const saved = sub?.enterpriseAccessStartsAt ?? plan.accessStartsAt
+      const planImm = !saved
+      if (formImm && planImm) return false
+      if (formImm !== planImm) return true
+      if (!form.accessStartsAt || !saved) return true
+      return toLocalDatetimeValue(saved) !== form.accessStartsAt
     })(),
     setupFee: Number.isFinite(setupFee) && setupFee > 0,
     preTrial: form.paidTrial && Number.isFinite(preTrial) && preTrial > 0,

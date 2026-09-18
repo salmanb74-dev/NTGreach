@@ -239,7 +239,10 @@ export type RestoEnterpriseOfferInput = {
   paidTrialDays: number | null
   preTrialSetupFee: number | null
   postTrialSetupFee: number | null
+  /** Subscription start (optional on trial; required on subscription). */
   accessStartsAt: string | null
+  /** Trial start (required on trial; may persist when converting to sub). */
+  trialStartsAt: string | null
   enterpriseEnabled: boolean
 }
 
@@ -261,6 +264,7 @@ export const ENTERPRISE_OFFER_KEYS: ReadonlyArray<keyof RestoEnterpriseOfferInpu
   'preTrialSetupFee',
   'postTrialSetupFee',
   'accessStartsAt',
+  'trialStartsAt',
   'enterpriseEnabled',
 ]
 
@@ -292,6 +296,8 @@ export type RestoSubscriptionSnapshot = {
   enterprisePreTrialSetupFee: number | null
   enterprisePostTrialSetupFee: number | null
   enterpriseAccessStartsAt: string | null
+  /** Offer trial start (enterprise_trial_starts_at). */
+  enterpriseTrialStartsAt: string | null
   currentEnterprisePrice: number | null
   currentEnterpriseDurationMonths: number | null
   currentEnterpriseLocationsLimit: number | null

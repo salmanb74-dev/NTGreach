@@ -138,9 +138,30 @@ async function fetchAdminJson(
       signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {
-    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+    const cause =
+      err && typeof err === 'object' && 'cause' in err
+        ? (err as { cause?: unknown }).cause
+        : undefined
+    const causeCode =
+      cause && typeof cause === 'object' && 'code' in cause
+        ? String((cause as { code?: unknown }).code ?? '')
+        : ''
+    const causeName =
+      cause instanceof Error
+        ? cause.name
+        : err instanceof Error
+          ? err.name
+          : ''
+
+    if (
+      err instanceof Error &&
+      (err.name === 'TimeoutError' ||
+        err.name === 'AbortError' ||
+        causeName === 'ConnectTimeoutError' ||
+        causeCode === 'UND_ERR_CONNECT_TIMEOUT')
+    ) {
       throw new RestoAdminApiError(
-        `Resto (${env}) timed out after ${Math.round(timeoutMs / 1000)}s — is Nest running at the configured base URL?`,
+        `Resto (${env}) timed out connecting to Nest — check RESTO_${env === 'staging' ? 'STAGING' : 'PROD'}_BASE_URL is reachable and Nest is up.`,
         504
       )
     }
@@ -524,6 +545,9 @@ function normalizeSubscription(
     enterpriseAccessStartsAt:
       asTrimmedString(raw.enterpriseAccessStartsAt) ??
       asTrimmedString(raw.enterprise_access_starts_at),
+    enterpriseTrialStartsAt:
+      asTrimmedString(raw.enterpriseTrialStartsAt) ??
+      asTrimmedString(raw.enterprise_trial_starts_at),
     currentEnterprisePrice:
       asNumber(raw.currentEnterprisePrice) ??
       asNumber(raw.current_enterprise_price),
@@ -597,6 +621,7 @@ export function offerFromSubscription(
       preTrialSetupFee: 0,
       postTrialSetupFee: 0,
       accessStartsAt: null,
+      trialStartsAt: null,
       enterpriseEnabled: true,
     }
   }
@@ -619,8 +644,8 @@ export function offerFromSubscription(
     paidTrialDays: null,
     preTrialSetupFee: sub.enterprisePreTrialSetupFee,
     postTrialSetupFee: 0,
-    // Keep planned start on trial offers for convert-later.
     accessStartsAt: sub.enterpriseAccessStartsAt,
+    trialStartsAt: sub.enterpriseTrialStartsAt,
     enterpriseEnabled: sub.enterpriseEnabled !== false,
   }
 }

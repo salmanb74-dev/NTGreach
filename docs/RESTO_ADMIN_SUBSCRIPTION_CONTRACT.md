@@ -34,13 +34,14 @@ Full replace — every key required:
 ```
 price, durationMonths, setupFee, locations, users, counters, ordersPerMonth,
 callCenter, kds, inventory, support, webOrdering, paidTrial, paidTrialDays,
-preTrialSetupFee, postTrialSetupFee, accessStartsAt, enterpriseEnabled
+preTrialSetupFee, postTrialSetupFee, accessStartsAt, trialStartsAt, enterpriseEnabled
 ```
 
 Reach Ops UI now:
 - Sends `paidTrialDays: null` always (trial length not collected).
 - Sends `postTrialSetupFee: 0` always (post-trial setup dropped).
-- **Start** (`accessStartsAt`): required in both modes; past timestamps allowed. Trial = trial start; Subscription = subscription start (no separate planned sub start).
+- **`trialStartsAt`**: required when `paidTrial=true`; past or future OK. Sent on Subscription too when present (historical). GET: `enterpriseTrialStartsAt`.
+- **`accessStartsAt`** (Subscription start): optional on Trial (planned convert date); required when `paidTrial=false`. Past or future OK.
 - On Trial (`paidTrial: true`): still sends `price`, `durationMonths`, `setupFee` as **planned subscription** terms for later convert (not charged until activation).
 - On Subscription: `preTrialSetupFee` forced to `0`.
 - **Internal notes**: Reach-only (Supabase `ops_resto_subscription_notes`); **not** on Nest PUT.
@@ -84,8 +85,9 @@ Cancels a **pending** offer only (clears `enterprise_*`). Does not cancel live p
 
 - GET → form → PUT full payload
 - **Offer type** toggle: **Trial** (`paidTrial: true`) | **Subscription** (`paidTrial: false`)
-- On Trial: **Start** = trial start; limits/features + pre-trial setup apply now; Recurring / Duration / Term total / Setup fee are **planned** (saved for convert, not charged on trial). Trial is **open-ended** (no trial days) until ops converts to Subscription / Apply terms.
-- On Subscription: **Start** = subscription start; commercial fields apply; pre-trial setup disabled (sent as `0`) — Nest field `accessStartsAt`
+- On Trial: **Trial start** required; **Subscription start** optional (planned convert). Limits/features + pre-trial setup apply now; Recurring / Duration / Term total / Setup fee are **planned** (saved for convert, not charged on trial). Trial is **open-ended** (no trial days) until ops converts to Subscription / Apply terms.
+- On Subscription: **Subscription start** required; **Trial start** shown disabled (historical). Commercial fields apply; pre-trial setup disabled (sent as `0`)
+- Both start dates: past or future allowed (no min/max)
 - **Internal notes** → Reach Supabase only (`GET/PUT /api/ops/tenants/:id/subscription-notes`)
 - **Duration** = cycle select → `durationMonths` 1 / 3 / 6 / 12 / 24
 - Dropped from UI: trial days, post-trial setup (still sent as `paidTrialDays: null`, `postTrialSetupFee: 0`)

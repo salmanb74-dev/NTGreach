@@ -113,8 +113,8 @@ export default function TenantSubscriptionPanel({
   const canCancelOffer = Boolean(newStatus)
   const needsForceCancel = needsEnterpriseClearForce(subscription)
   const diffs = useMemo(
-    () => formDiffs(form, activePlan, termTotalPreview),
-    [form, activePlan, termTotalPreview]
+    () => formDiffs(form, activePlan, termTotalPreview, subscription),
+    [form, activePlan, termTotalPreview, subscription]
   )
   const notesDiff = useMemo(
     () => offerNotesDiff(form.offerNotes, savedNotes),
@@ -444,10 +444,12 @@ export default function TenantSubscriptionPanel({
         <div>
           <h3 className={styles.title}>Subscription — {tenantName}</h3>
           <p className={styles.subline}>
-            Choose Trial or Subscription for the New offer. Start is trial
-            start or subscription start (may be in the past). On Trial,
-            recurring/duration/setup are planned terms for convert later. Internal
-            notes are saved in Reach only (not sent to Nest). Setup fees on New are charges for
+            Choose Trial or Subscription for the New offer. Trial start is
+            required on Trial; Subscription start is required on Subscription
+            (optional on Trial to remember a planned convert date). Both dates
+            may be past or future. On Trial, recurring/duration/setup are
+            planned terms for convert later. Internal notes are saved in Reach
+            only (not sent to Nest). Setup fees on New are charges for
             this offer (0 = no charge). Total setup fees paid is lifetime
             collected (read-only).
             {noSubYet
@@ -546,13 +548,39 @@ export default function TenantSubscriptionPanel({
             currentCell={current.offerType}
           />
           <CompareRow
-            label="Start"
-            diff={diffs.start}
+            label="Trial start"
+            diff={diffs.trialStart}
             newCell={
               <input
                 className={styles.inputAccess}
                 type="datetime-local"
-                required
+                required={isTrial}
+                disabled={!isTrial}
+                value={form.trialStartsAt}
+                onChange={e => {
+                  const v = e.target.value
+                  patchForm({
+                    trialStartsAt: v,
+                    trialStartsEmpty: !v,
+                  })
+                }}
+                title={
+                  isTrial
+                    ? 'When the trial starts (past or future)'
+                    : 'Trial start is set on Trial offers'
+                }
+              />
+            }
+            currentCell={current.trialStart}
+          />
+          <CompareRow
+            label="Subscription start"
+            diff={diffs.subscriptionStart}
+            newCell={
+              <input
+                className={styles.inputAccess}
+                type="datetime-local"
+                required={!isTrial}
                 value={form.accessStartsAt}
                 onChange={e => {
                   const v = e.target.value
@@ -563,12 +591,12 @@ export default function TenantSubscriptionPanel({
                 }}
                 title={
                   isTrial
-                    ? 'When the trial started (may be in the past)'
-                    : 'When the subscription starts (may be in the past)'
+                    ? 'Optional planned subscription start for convert later'
+                    : 'When the subscription starts (past or future)'
                 }
               />
             }
-            currentCell={current.start}
+            currentCell={current.subscriptionStart}
           />
 
           <SectionRow
