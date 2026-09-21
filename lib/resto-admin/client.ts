@@ -494,6 +494,9 @@ function normalizeSubscription(
       asTrimmedString(raw.current_period_end),
     trialEndsAt:
       asTrimmedString(raw.trialEndsAt) ?? asTrimmedString(raw.trial_ends_at),
+    trialStartedAt:
+      asTrimmedString(raw.trialStartedAt) ??
+      asTrimmedString(raw.trial_started_at),
     cancelledAt:
       asTrimmedString(raw.cancelledAt) ?? asTrimmedString(raw.cancelled_at),
     enterpriseEnabled: asBoolean(raw.enterpriseEnabled),
@@ -536,6 +539,9 @@ function normalizeSubscription(
     enterprisePaidTrialDurationDays:
       asNumber(raw.enterprisePaidTrialDurationDays) ??
       asNumber(raw.enterprise_paid_trial_duration_days),
+    enterpriseInPaidTrial:
+      asBoolean(raw.enterpriseInPaidTrial) ??
+      asBoolean(raw.enterprise_in_paid_trial),
     enterprisePreTrialSetupFee:
       asNumber(raw.enterprisePreTrialSetupFee) ??
       asNumber(raw.enterprise_pre_trial_setup_fee),
@@ -548,6 +554,10 @@ function normalizeSubscription(
     enterpriseTrialStartsAt:
       asTrimmedString(raw.enterpriseTrialStartsAt) ??
       asTrimmedString(raw.enterprise_trial_starts_at),
+    prorateBackdatedAccess:
+      asBoolean(raw.prorateBackdatedAccess) ??
+      asBoolean(raw.enterprise_prorate_backdated_access) ??
+      asBoolean(raw.prorate_backdated_access),
     currentEnterprisePrice:
       asNumber(raw.currentEnterprisePrice) ??
       asNumber(raw.current_enterprise_price),
@@ -622,6 +632,7 @@ export function offerFromSubscription(
       postTrialSetupFee: 0,
       accessStartsAt: null,
       trialStartsAt: null,
+      prorateBackdatedAccess: true,
       enterpriseEnabled: true,
     }
   }
@@ -646,6 +657,11 @@ export function offerFromSubscription(
     postTrialSetupFee: 0,
     accessStartsAt: sub.enterpriseAccessStartsAt,
     trialStartsAt: sub.enterpriseTrialStartsAt,
+    prorateBackdatedAccess: paidTrial
+      ? null
+      : sub.prorateBackdatedAccess === false
+        ? false
+        : true,
     enterpriseEnabled: sub.enterpriseEnabled !== false,
   }
 }

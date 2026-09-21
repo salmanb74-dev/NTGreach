@@ -123,6 +123,26 @@
   color: #1e40af;
 }
 
+.backdatedField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.colNew:has(.backdatedField) {
+  align-items: flex-start;
+}
+
+.fieldHint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
 .headName {
   padding: 6px 8px 6px 0;
 }

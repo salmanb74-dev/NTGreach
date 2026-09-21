@@ -27,7 +27,9 @@ import {
   needsEnterpriseClearForce,
   offerModeFromForm,
   offerNotesDiff,
+  showProrateBackdatedControl,
   subHasSavedOffer,
+  isEnterpriseLive,
 } from './subscription/offer-form'
 import styles from './TenantSubscription.module.css'
 
@@ -80,6 +82,17 @@ export default function TenantSubscriptionPanel({
     null
   )
   const [isPending, startTransition] = useTransition()
+
+  // Clear legacy local pending flag from an earlier workaround.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(
+        `ops-resto-reoffer-pending:${env}:${tenantId}`
+      )
+    } catch {
+      /* ignore */
+    }
+  }, [env, tenantId])
 
   const mode = offerModeFromForm(form)
   const isTrial = mode === 'trial'
@@ -341,6 +354,7 @@ export default function TenantSubscriptionPanel({
     }
 
     startTransition(async () => {
+      const alreadyLive = isEnterpriseLive(subscription)
       try {
         const res = await fetch(
           `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription/enterprise?env=${encodeURIComponent(env)}`,
@@ -403,8 +417,13 @@ export default function TenantSubscriptionPanel({
           return
         }
 
+        const pendingAfter = newOfferStatusLabel(sub)
         setSavedMsg(
-          `Offer saved and pending. Current plan stays “${livePlan}” until the tenant accepts (portal / Apply terms) — only the New column is updated by Save.`
+          pendingAfter
+            ? alreadyLive
+              ? 'Re-offer saved and pending acceptance. Current plan stays on live terms until the tenant accepts — only the New column was updated.'
+              : `Offer saved and pending. Current plan stays “${livePlan}” until the tenant accepts (portal / Apply terms) — only the New column is updated by Save.`
+            : 'Offer saved. Live terms already match — nothing pending.'
         )
       } catch {
         setSaveError('Could not save. Check connection and try again.')
@@ -598,6 +617,51 @@ export default function TenantSubscriptionPanel({
             }
             currentCell={current.subscriptionStart}
           />
+          {showProrateBackdatedControl(form) && (
+            <CompareRow
+              label="Backdated billing"
+              diff={diffs.backdatedBilling}
+              newCell={
+                <div className={styles.backdatedField}>
+                  <div
+                    className={styles.modeToggle}
+                    role="radiogroup"
+                    aria-label="Backdated billing"
+                  >
+                    <button
+                      type="button"
+                      className={`${styles.modeBtn} ${
+                        form.prorateBackdatedAccess ? styles.modeBtnActive : ''
+                      }`}
+                      aria-pressed={form.prorateBackdatedAccess}
+                      onClick={() =>
+                        patchForm({ prorateBackdatedAccess: true })
+                      }
+                    >
+                      Prorate
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.modeBtn} ${
+                        !form.prorateBackdatedAccess ? styles.modeBtnActive : ''
+                      }`}
+                      aria-pressed={!form.prorateBackdatedAccess}
+                      onClick={() =>
+                        patchForm({ prorateBackdatedAccess: false })
+                      }
+                    >
+                      Full periods
+                    </button>
+                  </div>
+                  <p className={styles.fieldHint}>
+                    Past start: Prorate = today→renewal. Full = complete
+                    cycle(s) from start through renewal.
+                  </p>
+                </div>
+              }
+              currentCell={current.backdatedBilling}
+            />
+          )}
 
           <SectionRow
             label={isTrial ? 'Planned subscription' : 'Subscription'}

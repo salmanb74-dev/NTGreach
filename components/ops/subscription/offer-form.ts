@@ -58,6 +58,11 @@ export type FormState = {
   /** Trial start (Nest trialStartsAt); required on trial; disabled on sub. */
   trialStartsAt: string
   trialStartsEmpty: boolean
+  /**
+   * Subscription-only backdated billing (Nest prorateBackdatedAccess).
+   * Form always holds true|false; PUT sends null on trial.
+   */
+  prorateBackdatedAccess: boolean
   /** Reach-only ops notes (not sent to Nest). */
   offerNotes: string
 }
@@ -143,6 +148,7 @@ export function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
       ? toLocalDatetimeValue(offer.trialStartsAt)
       : '',
     trialStartsEmpty: !offer.trialStartsAt,
+    prorateBackdatedAccess: offer.prorateBackdatedAccess === false ? false : true,
     offerNotes: '',
   }
 }
@@ -152,6 +158,36 @@ export function toLocalDatetimeValue(iso: string): string {
   if (Number.isNaN(d.getTime())) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** UTC calendar date of an ISO / datetime-local string (ms since epoch at UTC midnight). */
+function utcDayMs(isoOrLocal: string): number | null {
+  const d = new Date(isoOrLocal)
+  if (Number.isNaN(d.getTime())) return null
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+}
+
+/** True when accessStartsAt’s UTC date is today or earlier (UTC). */
+export function isAccessStartOnOrBeforeTodayUtc(
+  isoOrLocal: string | null | undefined
+): boolean {
+  if (!isoOrLocal || !String(isoOrLocal).trim()) return false
+  const accessDay = utcDayMs(isoOrLocal)
+  if (accessDay == null) return false
+  const now = new Date()
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  return accessDay <= today
+}
+
+/**
+ * Show backdated billing control: Subscription offer with access start ≤ today (UTC).
+ */
+export function showProrateBackdatedControl(
+  form: Pick<FormState, 'paidTrial' | 'accessStartsAt' | 'accessStartsEmpty'>
+): boolean {
+  if (form.paidTrial) return false
+  if (form.accessStartsEmpty || !form.accessStartsAt.trim()) return false
+  return isAccessStartOnOrBeforeTodayUtc(form.accessStartsAt)
 }
 
 export function formToOffer(
@@ -265,6 +301,20 @@ export function formToOffer(
     return { error: 'Pre-trial setup must be a number >= 0' }
   }
 
+  // Trial → null. Subscription with future/empty start → Nest default true.
+  // Subscription with past/today start → form value.
+  let prorateBackdatedAccess: boolean | null
+  if (form.paidTrial) {
+    prorateBackdatedAccess = null
+  } else if (
+    accessStartsAt == null ||
+    !isAccessStartOnOrBeforeTodayUtc(accessStartsAt as string)
+  ) {
+    prorateBackdatedAccess = true
+  } else {
+    prorateBackdatedAccess = form.prorateBackdatedAccess !== false
+  }
+
   return {
     price,
     durationMonths,
@@ -285,6 +335,7 @@ export function formToOffer(
     postTrialSetupFee: 0,
     accessStartsAt: accessStartsAt as string | null,
     trialStartsAt: trialStartsAt as string | null,
+    prorateBackdatedAccess,
     enterpriseEnabled: true,
   }
 }
@@ -325,6 +376,7 @@ export const DEFAULT_OFFER: RestoEnterpriseOfferInput = {
   postTrialSetupFee: 0,
   accessStartsAt: null,
   trialStartsAt: null,
+  prorateBackdatedAccess: true,
   enterpriseEnabled: true,
 }
 
@@ -337,9 +389,47 @@ export function subHasSavedOffer(sub: RestoSubscriptionSnapshot | null): boolean
   )
 }
 
-/** Live Enterprise (offer accepted) — current snapshot present. */
+/** Nest Ent/Trial is active (tenant already accepted a trial). */
+export function isEnterprisePaidTrialActive(
+  sub: RestoSubscriptionSnapshot | null
+): boolean {
+  if (!sub) return false
+  if (sub.enterpriseInPaidTrial === true) return true
+  const base = normalizePlanBaseId(sub.planId)
+  const status = (sub.status || '').toLowerCase()
+  return (
+    base === 'enterprise' &&
+    (status === 'trial' || status === 'trialing')
+  )
+}
+
+/** Live accepted Enterprise snapshot on Nest (`current_enterprise_*`). */
+export function hasCurrentEnterpriseSnapshot(
+  sub: RestoSubscriptionSnapshot | null
+): boolean {
+  if (!sub) return false
+  return (
+    sub.currentEnterprisePrice != null ||
+    sub.currentEnterpriseDurationMonths != null ||
+    sub.currentEnterpriseLocationsLimit != null ||
+    sub.currentEnterpriseUsersLimit != null ||
+    sub.currentEnterpriseCountersLimit != null ||
+    sub.currentEnterpriseOrdersMonthLimit != null ||
+    sub.currentEnterpriseCallcenterEnabled != null ||
+    sub.currentEnterpriseKdsEnabled != null ||
+    sub.currentEnterpriseInventoryEnabled != null ||
+    sub.currentEnterpriseSupportEnabled != null ||
+    sub.currentEnterpriseWebOrderingEnabled != null
+  )
+}
+
+/**
+ * Live Enterprise (offer accepted) — full sub terms or active paid trial.
+ * Trial checkout often leaves current_enterprise_price null until convert.
+ */
 export function isEnterpriseLive(sub: RestoSubscriptionSnapshot | null): boolean {
   if (!sub) return false
+  if (isEnterprisePaidTrialActive(sub)) return true
   const base = normalizePlanBaseId(sub.planId)
   return base === 'enterprise' && sub.currentEnterprisePrice != null
 }
@@ -353,15 +443,105 @@ export function needsEnterpriseClearForce(
 ): boolean {
   if (!sub) return false
   if (sub.currentEnterprisePrice != null) return true
+  if (isEnterprisePaidTrialActive(sub)) return true
   return normalizePlanBaseId(sub.planId) === 'enterprise'
+}
+
+function numDiffers(
+  offer: number | null | undefined,
+  live: number | null | undefined
+): boolean {
+  if (live == null) return false
+  if (offer == null) return true
+  return Math.abs(Number(offer) - Number(live)) > 0.001
+}
+
+function intDiffers(
+  offer: number | null | undefined,
+  live: number | null | undefined
+): boolean {
+  if (live == null) return false
+  if (offer == null) return true
+  return Number(offer) !== Number(live)
+}
+
+function boolDiffers(
+  offer: boolean | null | undefined,
+  live: boolean | null | undefined
+): boolean {
+  if (live == null) return false
+  return (offer === true) !== (live === true)
+}
+
+/** True when the sales offer diverges from Nest’s accepted current_* terms. */
+export function offerDiffersFromCurrent(
+  sub: RestoSubscriptionSnapshot
+): boolean {
+  const onTrial = isEnterprisePaidTrialActive(sub)
+
+  // Live entitlements (always comparable when Nest mirrored them).
+  if (
+    intDiffers(
+      sub.enterpriseLocationsLimit,
+      sub.currentEnterpriseLocationsLimit
+    ) ||
+    intDiffers(sub.enterpriseUsersLimit, sub.currentEnterpriseUsersLimit) ||
+    intDiffers(
+      sub.enterpriseCountersLimit,
+      sub.currentEnterpriseCountersLimit
+    ) ||
+    intDiffers(
+      sub.enterpriseOrdersMonthLimit,
+      sub.currentEnterpriseOrdersMonthLimit
+    ) ||
+    boolDiffers(
+      sub.enterpriseCallcenterEnabled,
+      sub.currentEnterpriseCallcenterEnabled
+    ) ||
+    boolDiffers(sub.enterpriseKdsEnabled, sub.currentEnterpriseKdsEnabled) ||
+    boolDiffers(
+      sub.enterpriseInventoryEnabled,
+      sub.currentEnterpriseInventoryEnabled
+    ) ||
+    boolDiffers(sub.addonSupportEnabled, sub.currentEnterpriseSupportEnabled) ||
+    boolDiffers(
+      sub.addonWebOrderingEnabled,
+      sub.currentEnterpriseWebOrderingEnabled
+    )
+  ) {
+    return true
+  }
+
+  if (onTrial) {
+    // On Ent/Trial, Nest puts the accepted *trial fee* (pre-trial setup) in
+    // current_enterprise_price. enterprisePrice / setupFee / duration are
+    // planned convert FYI only — never treat those as a pending re-offer.
+    if (sub.currentEnterprisePrice != null) {
+      const trialFee = sub.enterprisePreTrialSetupFee
+      if (trialFee != null && numDiffers(trialFee, sub.currentEnterprisePrice)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Live subscription: compare commercial terms.
+  if (
+    numDiffers(sub.enterprisePrice, sub.currentEnterprisePrice) ||
+    intDiffers(sub.enterpriseDurationMonths, sub.currentEnterpriseDurationMonths)
+  ) {
+    return true
+  }
+  return false
 }
 
 /**
  * Status for the *New* column:
  * - blank until an offer is saved
- * - "Pending" after save while not yet live on Enterprise
- * - "Pending re-acceptance" if already live but a new offer differs
- * - blank when offer is live and matches (accepted, no new sale offer change)
+ * - "Pending" after save while not yet live on Enterprise / Ent/Trial
+ * - "Pending re-acceptance" if already live/trial but a new offer differs
+ *   from Nest current_enterprise_* (never treat a fresh PUT as accepted)
+ * - blank when offer matches accepted current_* (or trial with no current_* yet)
  */
 export function newOfferStatusLabel(sub: RestoSubscriptionSnapshot | null): string {
   if (!subHasSavedOffer(sub) || !sub) return ''
@@ -370,33 +550,20 @@ export function newOfferStatusLabel(sub: RestoSubscriptionSnapshot | null): stri
     return 'Pending'
   }
 
-  const offerPrice = sub.enterprisePrice
-  const offerMonths = sub.enterpriseDurationMonths
-  const livePrice = sub.currentEnterprisePrice
-  const liveMonths = sub.currentEnterpriseDurationMonths
-  const priceDiff =
-    offerPrice != null &&
-    livePrice != null &&
-    Math.abs(Number(offerPrice) - Number(livePrice)) > 0.001
-  const monthsDiff =
-    offerMonths != null &&
-    liveMonths != null &&
-    Number(offerMonths) !== Number(liveMonths)
-
-  const limitDiff =
-    (sub.enterpriseLocationsLimit ?? null) !==
-      (sub.currentEnterpriseLocationsLimit ?? null) ||
-    (sub.enterpriseUsersLimit ?? null) !==
-      (sub.currentEnterpriseUsersLimit ?? null) ||
-    (sub.enterpriseCountersLimit ?? null) !==
-      (sub.currentEnterpriseCountersLimit ?? null) ||
-    (sub.enterpriseOrdersMonthLimit ?? null) !==
-      (sub.currentEnterpriseOrdersMonthLimit ?? null)
-
-  if (priceDiff || monthsDiff || limitDiff) {
-    return 'Pending re-acceptance'
+  // Already on Ent/Trial or live Enterprise: only current_* is accepted.
+  // A new PUT updates enterprise_* only — surface re-acceptance when it diverges.
+  if (hasCurrentEnterpriseSnapshot(sub)) {
+    if (offerDiffersFromCurrent(sub)) return 'Pending re-acceptance'
+    return ''
   }
-  return ''
+
+  // Trial active but Nest has not mirrored current_* yet (first accept).
+  // Do not bind "accepted" to enterprise_* — that would clear Pending on re-offer.
+  if (isEnterprisePaidTrialActive(sub)) {
+    return ''
+  }
+
+  return 'Pending'
 }
 
 function offerFromSaved(sub: RestoSubscriptionSnapshot): RestoEnterpriseOfferInput {
@@ -419,6 +586,12 @@ function offerFromSaved(sub: RestoSubscriptionSnapshot): RestoEnterpriseOfferInp
     postTrialSetupFee: 0,
     accessStartsAt: sub.enterpriseAccessStartsAt,
     trialStartsAt: sub.enterpriseTrialStartsAt,
+    prorateBackdatedAccess:
+      sub.enterprisePaidTrialEnabled === true
+        ? null
+        : sub.prorateBackdatedAccess === false
+          ? false
+          : true,
     enterpriseEnabled: true,
   }
 }
@@ -448,6 +621,7 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
     postTrialSetupFee: 0,
     accessStartsAt: null,
     trialStartsAt: null,
+    prorateBackdatedAccess: true,
     enterpriseEnabled: true,
   }
 }
@@ -455,8 +629,9 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
 /**
  * Prefill New column:
  * - Prefer the saved Enterprise OFFER whenever Nest has one (so reload keeps edits).
- * - Only when live Enterprise is active and nothing is pending re-acceptance,
- *   New mirrors the live plan (ready for the next offer draft).
+ * - On active Ent/Trial, keep the saved offer (trial + planned convert terms).
+ * - Only when live Enterprise subscription is active and nothing is pending
+ *   re-acceptance, New mirrors the live plan (ready for the next offer draft).
  */
 export function formOfferFromSubscription(
   sub: RestoSubscriptionSnapshot | null
@@ -467,6 +642,10 @@ export function formOfferFromSubscription(
   const pending = newOfferStatusLabel(sub)
 
   if (subHasSavedOffer(sub) && pending) {
+    return offerFromSaved(sub)
+  }
+
+  if (isEnterprisePaidTrialActive(sub) && subHasSavedOffer(sub)) {
     return offerFromSaved(sub)
   }
 
@@ -507,13 +686,18 @@ export function currentValues(
       webOrdering: '—',
       trialStart: '—',
       subscriptionStart: '—',
+      backdatedBilling: '—',
       period: '—',
     }
   }
 
   const onTrial =
-    plan.paidTrial === true || sub?.enterprisePaidTrialEnabled === true
+    plan.paidTrial === true ||
+    sub?.enterpriseInPaidTrial === true ||
+    isEnterprisePaidTrialActive(sub)
 
+  // Current column must never read sales-offer enterprise_* fields. Those update
+  // on Save immediately and would make a re-offer look already accepted.
   return {
     plan: `${plan.planName}`,
     status: `${plan.status ?? '—'} · ${plan.billingCycle ?? '—'}`,
@@ -527,10 +711,10 @@ export function currentValues(
     duration: durationCycleLabel(plan.durationMonths),
     termTotal: plan.termPrice != null ? fmtMoney(plan.termPrice) : '—',
     setupFee: plan.setupFee != null ? fmtMoney(plan.setupFee) : '—',
+    // On trial Nest stores accepted trial fee in current_enterprise_price.
     preTrial:
-      sub?.enterprisePreTrialSetupFee != null &&
-      (onTrial || isEnterpriseLive(sub))
-        ? fmtMoney(sub.enterprisePreTrialSetupFee)
+      onTrial && sub?.currentEnterprisePrice != null
+        ? fmtMoney(sub.currentEnterprisePrice)
         : '—',
     locations: fmtLimit(plan.locations),
     users: fmtLimit(plan.users),
@@ -541,14 +725,18 @@ export function currentValues(
     inventory: fmtBool(plan.inventory),
     support: fmtBool(plan.support),
     webOrdering: fmtBool(plan.webOrdering),
-    trialStart: sub?.enterpriseTrialStartsAt
-      ? fmtDate(sub.enterpriseTrialStartsAt)
+    trialStart: sub?.trialStartedAt
+      ? fmtDate(sub.trialStartedAt)
       : '—',
-    subscriptionStart: sub?.enterpriseAccessStartsAt
-      ? fmtDate(sub.enterpriseAccessStartsAt)
-      : plan.accessStartsAt
-        ? fmtDate(plan.accessStartsAt)
-        : '—',
+    subscriptionStart: plan.periodStart
+      ? fmtDate(plan.periodStart)
+      : '—',
+    backdatedBilling:
+      onTrial || sub?.prorateBackdatedAccess == null
+        ? '—'
+        : sub.prorateBackdatedAccess
+          ? 'Prorate'
+          : 'Full periods',
     period: `${fmtDate(plan.periodStart)} → ${fmtDate(plan.periodEnd)}`,
   }
 }
@@ -636,25 +824,31 @@ export function formDiffs(
     webOrdering: form.webOrdering !== plan.webOrdering,
     trialStart: (() => {
       const formImm = form.trialStartsEmpty || !form.trialStartsAt
-      const planImm = !sub?.enterpriseTrialStartsAt
+      const live = sub?.trialStartedAt
+      const planImm = !live
       if (formImm && planImm) return false
       if (formImm !== planImm) return true
-      if (!form.trialStartsAt || !sub?.enterpriseTrialStartsAt) return true
-      return (
-        toLocalDatetimeValue(sub.enterpriseTrialStartsAt) !== form.trialStartsAt
-      )
+      if (!form.trialStartsAt || !live) return true
+      return toLocalDatetimeValue(live) !== form.trialStartsAt
     })(),
     subscriptionStart: (() => {
       const formImm = form.accessStartsEmpty || !form.accessStartsAt
-      const saved = sub?.enterpriseAccessStartsAt ?? plan.accessStartsAt
-      const planImm = !saved
+      const live = plan.periodStart
+      const planImm = !live
       if (formImm && planImm) return false
       if (formImm !== planImm) return true
-      if (!form.accessStartsAt || !saved) return true
-      return toLocalDatetimeValue(saved) !== form.accessStartsAt
+      if (!form.accessStartsAt || !live) return true
+      return toLocalDatetimeValue(live) !== form.accessStartsAt
     })(),
     setupFee: Number.isFinite(setupFee) && setupFee > 0,
     preTrial: form.paidTrial && Number.isFinite(preTrial) && preTrial > 0,
+    backdatedBilling: (() => {
+      if (!showProrateBackdatedControl(form)) return false
+      if (sub?.prorateBackdatedAccess == null) {
+        return form.prorateBackdatedAccess === false
+      }
+      return form.prorateBackdatedAccess !== (sub.prorateBackdatedAccess === true)
+    })(),
   }
 }
 

@@ -243,6 +243,11 @@ export type RestoEnterpriseOfferInput = {
   accessStartsAt: string | null
   /** Trial start (required on trial; may persist when converting to sub). */
   trialStartsAt: string | null
+  /**
+   * Backdated subscription billing (Nest enterprise_prorate_backdated_access).
+   * null on trial / unset. true = prorate accept→anchor; false = full period(s).
+   */
+  prorateBackdatedAccess: boolean | null
   enterpriseEnabled: boolean
 }
 
@@ -265,6 +270,7 @@ export const ENTERPRISE_OFFER_KEYS: ReadonlyArray<keyof RestoEnterpriseOfferInpu
   'postTrialSetupFee',
   'accessStartsAt',
   'trialStartsAt',
+  'prorateBackdatedAccess',
   'enterpriseEnabled',
 ]
 
@@ -277,6 +283,8 @@ export type RestoSubscriptionSnapshot = {
   currentPeriodStart: string | null
   currentPeriodEnd: string | null
   trialEndsAt: string | null
+  /** Live trial start from Nest (trial_started_at) — not the offer field. */
+  trialStartedAt: string | null
   cancelledAt: string | null
   enterpriseEnabled: boolean | null
   enterprisePrice: number | null
@@ -291,13 +299,24 @@ export type RestoSubscriptionSnapshot = {
   enterpriseInventoryEnabled: boolean | null
   addonSupportEnabled: boolean | null
   addonWebOrderingEnabled: boolean | null
+  /** Offer flag: sales offer is a paid trial (enterprise_paid_trial_enabled). */
   enterprisePaidTrialEnabled: boolean | null
   enterprisePaidTrialDurationDays: number | null
+  /**
+   * Live flag: tenant is currently on Nest Ent/Trial after accepting the offer.
+   * Distinct from enterprisePaidTrialEnabled (offer shape before/after accept).
+   */
+  enterpriseInPaidTrial: boolean | null
   enterprisePreTrialSetupFee: number | null
   enterprisePostTrialSetupFee: number | null
   enterpriseAccessStartsAt: string | null
   /** Offer trial start (enterprise_trial_starts_at). */
   enterpriseTrialStartsAt: string | null
+  /**
+   * Offer backdated billing mode (enterprise_prorate_backdated_access).
+   * null on trial / unset.
+   */
+  prorateBackdatedAccess: boolean | null
   currentEnterprisePrice: number | null
   currentEnterpriseDurationMonths: number | null
   currentEnterpriseLocationsLimit: number | null

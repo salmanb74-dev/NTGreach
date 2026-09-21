@@ -170,7 +170,18 @@ export type SubLike = {
   addonWebOrderingEnabled: boolean | null
   enterprisePaidTrialEnabled?: boolean | null
   enterprisePaidTrialDurationDays?: number | null
+  enterpriseInPaidTrial?: boolean | null
   enterpriseAccessStartsAt?: string | null
+  enterprisePrice?: number | null
+  enterpriseDurationMonths?: number | null
+  enterpriseSetupFee?: number | null
+  enterpriseLocationsLimit?: number | null
+  enterpriseUsersLimit?: number | null
+  enterpriseCountersLimit?: number | null
+  enterpriseOrdersMonthLimit?: number | null
+  enterpriseCallcenterEnabled?: boolean | null
+  enterpriseKdsEnabled?: boolean | null
+  enterpriseInventoryEnabled?: boolean | null
   currentEnterprisePrice: number | null
   currentEnterpriseDurationMonths: number | null
   currentEnterpriseLocationsLimit?: number | null
@@ -184,9 +195,20 @@ export type SubLike = {
   currentEnterpriseWebOrderingEnabled?: boolean | null
 }
 
+function isPaidTrialActive(sub: SubLike): boolean {
+  if (sub.enterpriseInPaidTrial === true) return true
+  const base = normalizePlanBaseId(sub.planId)
+  const status = (sub.status || '').toLowerCase()
+  return (
+    base === 'enterprise' &&
+    (status === 'trial' || status === 'trialing')
+  )
+}
+
 /**
  * Resolve the tenant’s *active* plan entitlements for display.
- * Not the editable Enterprise sales offer.
+ * Not the editable Enterprise sales offer (`enterprise_*`).
+ * Current column must only use `current_enterprise_*` (accepted terms).
  */
 export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | null {
   if (!sub) return null
@@ -195,37 +217,80 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
   const catalog = getPlanCatalogEntry(baseId)
   const isEnterprise = baseId === 'enterprise'
   const hasLiveEnterprise = isEnterprise && sub.currentEnterprisePrice != null
+  const onPaidTrial = isPaidTrialActive(sub)
+  const hasCurrentSnapshot =
+    sub.currentEnterprisePrice != null ||
+    sub.currentEnterpriseDurationMonths != null ||
+    sub.currentEnterpriseLocationsLimit != null ||
+    sub.currentEnterpriseUsersLimit != null ||
+    sub.currentEnterpriseCountersLimit != null ||
+    sub.currentEnterpriseOrdersMonthLimit != null ||
+    sub.currentEnterpriseCallcenterEnabled != null ||
+    sub.currentEnterpriseKdsEnabled != null ||
+    sub.currentEnterpriseInventoryEnabled != null ||
+    sub.currentEnterpriseSupportEnabled != null ||
+    sub.currentEnterpriseWebOrderingEnabled != null
 
-  if (hasLiveEnterprise) {
+  // Accepted Enterprise / Ent/Trial — always from current_enterprise_* only.
+  // Never bind Current to enterprise_* (that is the sales / re-offer column).
+  if (hasLiveEnterprise || (onPaidTrial && hasCurrentSnapshot)) {
     const duration = sub.currentEnterpriseDurationMonths
     const term = sub.currentEnterprisePrice
+    // On trial, current_enterprise_price is the accepted trial fee (not MRR).
+    if (onPaidTrial) {
+      return {
+        planId: sub.planId ?? 'enterprise',
+        planName: 'Enterprise (trial)',
+        source: 'enterprise_live',
+        billingCycle: sub.billingCycle,
+        status: sub.status,
+        termPrice: null,
+        monthlyPrice: null,
+        durationMonths: null,
+        setupFee: null,
+        locations: limitOrUnlimited(sub.currentEnterpriseLocationsLimit),
+        users: limitOrUnlimited(sub.currentEnterpriseUsersLimit),
+        counters: limitOrUnlimited(sub.currentEnterpriseCountersLimit),
+        ordersMonth: limitOrUnlimited(sub.currentEnterpriseOrdersMonthLimit),
+        menuItems: 'unlimited',
+        callCenter: boolOr(sub.currentEnterpriseCallcenterEnabled, false),
+        kds: boolOr(sub.currentEnterpriseKdsEnabled, false),
+        inventory: boolOr(sub.currentEnterpriseInventoryEnabled, false),
+        support: boolOr(sub.currentEnterpriseSupportEnabled, false),
+        webOrdering: boolOr(sub.currentEnterpriseWebOrderingEnabled, false),
+        hasReports: true,
+        periodStart: sub.currentPeriodStart,
+        periodEnd: sub.currentPeriodEnd,
+        trialEndsAt: sub.trialEndsAt,
+        cancelledAt: sub.cancelledAt,
+        stripeSubscriptionId: sub.stripeSubscriptionId,
+        stripeCustomerId: sub.stripeCustomerId,
+        paidTrial: true,
+        paidTrialDays: sub.enterprisePaidTrialDurationDays ?? null,
+        accessStartsAt: null,
+      }
+    }
     return {
       planId: sub.planId ?? 'enterprise',
       planName: 'Enterprise (live)',
       source: 'enterprise_live',
       billingCycle: sub.billingCycle,
       status: sub.status,
-      termPrice: term,
+      termPrice: term ?? null,
       monthlyPrice:
         term != null && duration != null && duration > 0 ? term / duration : term,
-      durationMonths: duration,
+      durationMonths: duration ?? null,
       setupFee: null,
       locations: limitOrUnlimited(sub.currentEnterpriseLocationsLimit),
       users: limitOrUnlimited(sub.currentEnterpriseUsersLimit),
       counters: limitOrUnlimited(sub.currentEnterpriseCountersLimit),
       ordersMonth: limitOrUnlimited(sub.currentEnterpriseOrdersMonthLimit),
       menuItems: 'unlimited',
-      callCenter: boolOr(sub.currentEnterpriseCallcenterEnabled, true),
-      kds: boolOr(sub.currentEnterpriseKdsEnabled, true),
-      inventory: boolOr(sub.currentEnterpriseInventoryEnabled, true),
-      support: boolOr(
-        sub.currentEnterpriseSupportEnabled,
-        sub.addonSupportEnabled === true
-      ),
-      webOrdering: boolOr(
-        sub.currentEnterpriseWebOrderingEnabled,
-        sub.addonWebOrderingEnabled === true
-      ),
+      callCenter: boolOr(sub.currentEnterpriseCallcenterEnabled, false),
+      kds: boolOr(sub.currentEnterpriseKdsEnabled, false),
+      inventory: boolOr(sub.currentEnterpriseInventoryEnabled, false),
+      support: boolOr(sub.currentEnterpriseSupportEnabled, false),
+      webOrdering: boolOr(sub.currentEnterpriseWebOrderingEnabled, false),
       hasReports: true,
       periodStart: sub.currentPeriodStart,
       periodEnd: sub.currentPeriodEnd,
@@ -235,6 +300,41 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
       stripeCustomerId: sub.stripeCustomerId,
       paidTrial: false,
       paidTrialDays: null,
+      accessStartsAt: null,
+    }
+  }
+
+  // Ent/Trial with no current_* mirror yet — label only; do not invent from offer.
+  if (onPaidTrial) {
+    return {
+      planId: sub.planId ?? 'enterprise',
+      planName: 'Enterprise (trial)',
+      source: 'enterprise_live',
+      billingCycle: sub.billingCycle,
+      status: sub.status,
+      termPrice: null,
+      monthlyPrice: null,
+      durationMonths: null,
+      setupFee: null,
+      locations: 'unlimited',
+      users: 'unlimited',
+      counters: 'unlimited',
+      ordersMonth: 'unlimited',
+      menuItems: 'unlimited',
+      callCenter: false,
+      kds: false,
+      inventory: false,
+      support: false,
+      webOrdering: false,
+      hasReports: true,
+      periodStart: sub.currentPeriodStart,
+      periodEnd: sub.currentPeriodEnd,
+      trialEndsAt: sub.trialEndsAt,
+      cancelledAt: sub.cancelledAt,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      stripeCustomerId: sub.stripeCustomerId,
+      paidTrial: true,
+      paidTrialDays: sub.enterprisePaidTrialDurationDays ?? null,
       accessStartsAt: null,
     }
   }

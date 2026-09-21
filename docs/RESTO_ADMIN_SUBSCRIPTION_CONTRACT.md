@@ -34,7 +34,8 @@ Full replace — every key required:
 ```
 price, durationMonths, setupFee, locations, users, counters, ordersPerMonth,
 callCenter, kds, inventory, support, webOrdering, paidTrial, paidTrialDays,
-preTrialSetupFee, postTrialSetupFee, accessStartsAt, trialStartsAt, enterpriseEnabled
+preTrialSetupFee, postTrialSetupFee, accessStartsAt, trialStartsAt,
+prorateBackdatedAccess, enterpriseEnabled
 ```
 
 Reach Ops UI now:
@@ -42,11 +43,18 @@ Reach Ops UI now:
 - Sends `postTrialSetupFee: 0` always (post-trial setup dropped).
 - **`trialStartsAt`**: required when `paidTrial=true`; past or future OK. Sent on Subscription too when present (historical). GET: `enterpriseTrialStartsAt`.
 - **`accessStartsAt`** (Subscription start): optional on Trial (planned convert date); required when `paidTrial=false`. Past or future OK.
+- **`prorateBackdatedAccess`**: Subscription only. `true` (default) = Stripe prorates accept→next renewal on the `accessStartsAt` calendar day; `false` = charge full duration period(s) from `accessStartsAt` through that renewal. Ignored when `accessStartsAt` is empty/future (Reach still sends `true`). Trial PUT sends `null`. GET may be `null` on trial/unset.
 - On Trial (`paidTrial: true`): still sends `price`, `durationMonths`, `setupFee` as **planned subscription** terms for later convert (not charged until activation).
 - On Subscription: `preTrialSetupFee` forced to `0`.
 - **Internal notes**: Reach-only (Supabase `ops_resto_subscription_notes`); **not** on Nest PUT.
 
 Writes Enterprise **offer** (`enterprise_*`) only. Does **not** set `plan_id` to enterprise. Activation = portal checkout / Billing “Apply new terms”. Live = `current_enterprise_*`.
+
+**Trial acceptance (Reach UI):** Nest may activate Ent/Trial (`enterpriseInPaidTrial` / `status` trial|trialing, `plan_id` enterprise). On trial, Nest stores the accepted **trial fee** (pre-trial setup) in `current_enterprise_price`. Reach:
+
+- Binds **Current** only to `current_enterprise_*` (+ `trialStartedAt` / period).
+- Treats `enterprisePrice` / `enterpriseSetupFee` / duration on Trial as **planned convert FYI** — they do **not** create Pending re-acceptance vs `current_enterprise_price`.
+- Shows **Pending re-acceptance** when trial entitlements or pre-trial fee diverge from accepted `current_*` (or when a Subscription offer diverges from live commercial terms).
 
 ### Planned Nest fields (Reach UI placeholders — not sent yet)
 
@@ -87,6 +95,7 @@ Cancels a **pending** offer only (clears `enterprise_*`). Does not cancel live p
 - **Offer type** toggle: **Trial** (`paidTrial: true`) | **Subscription** (`paidTrial: false`)
 - On Trial: **Trial start** required; **Subscription start** optional (planned convert). Limits/features + pre-trial setup apply now; Recurring / Duration / Term total / Setup fee are **planned** (saved for convert, not charged on trial). Trial is **open-ended** (no trial days) until ops converts to Subscription / Apply terms.
 - On Subscription: **Subscription start** required; **Trial start** shown disabled (historical). Commercial fields apply; pre-trial setup disabled (sent as `0`)
+- **Backdated start billing** (Subscription only): shown when `accessStartsAt` is set and ≤ today (UTC). Radios: Prorate to next renewal (`true`, default) | Charge full period(s) from start date (`false`). Hidden on Trial / future start (PUT still sends `true` on Subscription, `null` on Trial).
 - Both start dates: past or future allowed (no min/max)
 - **Internal notes** → Reach Supabase only (`GET/PUT /api/ops/tenants/:id/subscription-notes`)
 - **Duration** = cycle select → `durationMonths` 1 / 3 / 6 / 12 / 24
