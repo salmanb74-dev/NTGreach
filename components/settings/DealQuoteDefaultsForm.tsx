@@ -71,26 +71,97 @@ export default function DealQuoteDefaultsForm({
 
   return (
     <form onSubmit={handleSave} className={styles.form}>
+      <div className={styles.field} style={{ marginBottom: 12 }}>
+        <label className={styles.label}>Currency</label>
+        <select
+          className={styles.select}
+          value={currency}
+          onChange={e => setCurrency(e.target.value)}
+        >
+          {currencies.map(c => (
+            <option key={c.value} value={c.value}>
+              {currencyDropdownLabel(c)}
+            </option>
+          ))}
+          {!currencies.some(c => c.value === currency) && (
+            <option value={currency}>{currency}</option>
+          )}
+        </select>
+      </div>
+
+      <div className={styles.sectionTitle} style={{ marginBottom: 8 }}>
+        Trial
+      </div>
+      <label className={styles.checkRow} style={{ marginBottom: 12 }}>
+        <input
+          type="checkbox"
+          className={styles.checkbox}
+          checked={sub.paidTrial}
+          onChange={e => patchSub({ paidTrial: e.target.checked })}
+        />
+        With trial
+      </label>
+      {sub.paidTrial && (
+        <div className={styles.grid2}>
+          <div className={styles.field}>
+            <label className={styles.label}>Trial days</label>
+            <input
+              type="number"
+              min={0}
+              className={styles.input}
+              value={numStr(sub.paidTrialDays)}
+              onChange={e =>
+                patchSub({ paidTrialDays: parseOptNum(e.target.value) })
+              }
+              placeholder={String(DEFAULT_PAID_TRIAL_DAYS)}
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Pre-trial setup</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              className={styles.input}
+              value={numStr(sub.preTrialSetupFee)}
+              onChange={e =>
+                patchSub({
+                  preTrialSetupFee: parseOptNum(e.target.value),
+                })
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      <div
+        className={styles.sectionTitle}
+        style={{ marginTop: 8, marginBottom: 8 }}
+      >
+        {sub.paidTrial ? 'Planned subscription' : 'Subscription'}
+      </div>
+      {sub.paidTrial && (
+        <p className={styles.sectionDesc}>
+          Saved for convert later — not charged on trial
+        </p>
+      )}
+
       <div className={styles.grid2}>
         <div className={styles.field}>
-          <label className={styles.label}>Currency</label>
-          <select
-            className={styles.select}
-            value={currency}
-            onChange={e => setCurrency(e.target.value)}
-          >
-            {currencies.map(c => (
-              <option key={c.value} value={c.value}>
-                {currencyDropdownLabel(c)}
-              </option>
-            ))}
-            {!currencies.some(c => c.value === currency) && (
-              <option value={currency}>{currency}</option>
-            )}
-          </select>
+          <label className={styles.label}>Recurring ({currency}/mo)</label>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            className={styles.input}
+            value={numStr(sub.monthlyPrice)}
+            onChange={e =>
+              patchSub({ monthlyPrice: parseOptNum(e.target.value) })
+            }
+          />
         </div>
         <div className={styles.field}>
-          <label className={styles.label}>Billing cycle</label>
+          <label className={styles.label}>Duration</label>
           <select
             className={styles.select}
             value={cycle}
@@ -104,44 +175,35 @@ export default function DealQuoteDefaultsForm({
                 {c.label} ({c.value} mo)
               </option>
             ))}
-            {!(billingCycles.length > 0 ? billingCycles : STARTER_BILLING_CYCLES).some(
-              c => c.value === cycle
-            ) && <option value={cycle}>{cycle}</option>}
+            {!(billingCycles.length > 0
+              ? billingCycles
+              : STARTER_BILLING_CYCLES
+            ).some(c => c.value === cycle) && (
+              <option value={cycle}>{cycle}</option>
+            )}
           </select>
         </div>
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label}>Platform fee (base / month)</label>
+      <div className={styles.field} style={{ marginBottom: 12 }}>
+        <label className={styles.label}>Setup fee</label>
         <input
           type="number"
           min={0}
           step="0.01"
           className={styles.input}
-          value={numStr(sub.monthlyPrice)}
-          onChange={e =>
-            patchSub({ monthlyPrice: parseOptNum(e.target.value) })
-          }
+          value={numStr(sub.setupFee)}
+          onChange={e => patchSub({ setupFee: parseOptNum(e.target.value) })}
         />
+      </div>
+
+      <div className={styles.sectionTitle} style={{ marginTop: 8, marginBottom: 8 }}>
+        Limits &amp; features
       </div>
 
       <div className={styles.grid2}>
         <div className={styles.field}>
-          <label className={styles.label}>Setup fee</label>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            className={styles.input}
-            disabled={sub.paidTrial}
-            value={numStr(sub.setupFee)}
-            onChange={e =>
-              patchSub({ setupFee: parseOptNum(e.target.value) })
-            }
-          />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Branches</label>
+          <label className={styles.label}>Locations</label>
           <input
             type="number"
             min={0}
@@ -153,9 +215,88 @@ export default function DealQuoteDefaultsForm({
             }
           />
         </div>
+        <div className={styles.field}>
+          <label className={styles.label}>Users</label>
+          <input
+            type="number"
+            min={0}
+            className={styles.input}
+            disabled={sub.usersUnlimited}
+            value={numStr(sub.users)}
+            onChange={e => patchSub({ users: parseOptNum(e.target.value) })}
+          />
+        </div>
       </div>
 
-      <div className={styles.field}>
+      <div className={styles.grid2}>
+        <div className={styles.field}>
+          <label className={styles.label}>Counters</label>
+          <input
+            type="number"
+            min={0}
+            className={styles.input}
+            disabled={sub.countersUnlimited}
+            value={numStr(sub.counters)}
+            onChange={e =>
+              patchSub({ counters: parseOptNum(e.target.value) })
+            }
+          />
+        </div>
+        <div className={styles.field}>
+          <label className={styles.label}>Orders / mo</label>
+          <input
+            type="number"
+            min={0}
+            className={styles.input}
+            disabled={sub.ordersUnlimited}
+            value={numStr(sub.ordersPerMonth)}
+            onChange={e =>
+              patchSub({ ordersPerMonth: parseOptNum(e.target.value) })
+            }
+          />
+        </div>
+      </div>
+
+      {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
+        <div key={key} className={styles.field} style={{ marginBottom: 12 }}>
+          <label className={styles.checkRow}>
+            <input
+              type="checkbox"
+              className={styles.checkbox}
+              checked={sub[key]}
+              onChange={e => {
+                const on = e.target.checked
+                patchSub({
+                  [key]: on,
+                  ...(on ? {} : { [feeKey]: null }),
+                })
+              }}
+            />
+            {label}
+          </label>
+          {sub[key] && (
+            <div className={styles.grid2}>
+              <div className={styles.field}>
+                <label className={styles.label}>
+                  {label} / mo ({currency})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className={styles.input}
+                  value={numStr(sub[feeKey])}
+                  onChange={e =>
+                    patchSub({ [feeKey]: parseOptNum(e.target.value) })
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className={styles.field} style={{ marginBottom: 12 }}>
         <label className={styles.checkRow}>
           <input
             type="checkbox"
@@ -215,151 +356,8 @@ export default function DealQuoteDefaultsForm({
         )}
       </div>
 
-      <div className={styles.grid2}>
-        <div className={styles.field}>
-          <label className={styles.label}>Users</label>
-          <input
-            type="number"
-            min={0}
-            className={styles.input}
-            disabled={sub.usersUnlimited}
-            value={numStr(sub.users)}
-            onChange={e => patchSub({ users: parseOptNum(e.target.value) })}
-          />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label}>Counters</label>
-          <input
-            type="number"
-            min={0}
-            className={styles.input}
-            disabled={sub.countersUnlimited}
-            value={numStr(sub.counters)}
-            onChange={e =>
-              patchSub({ counters: parseOptNum(e.target.value) })
-            }
-          />
-        </div>
-      </div>
-
-      <div className={styles.field}>
-        <label className={styles.label}>Orders / month</label>
-        <input
-          type="number"
-          min={0}
-          className={styles.input}
-          disabled={sub.ordersUnlimited}
-          value={numStr(sub.ordersPerMonth)}
-          onChange={e =>
-            patchSub({ ordersPerMonth: parseOptNum(e.target.value) })
-          }
-        />
-      </div>
-
-      <p className={styles.sectionDesc} style={{ marginTop: 8 }}>
-        Feature add-ons — monthly $ added to platform fee when enabled.
-      </p>
-
-      {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
-        <div key={key} className={styles.field}>
-          <label className={styles.checkRow}>
-            <input
-              type="checkbox"
-              className={styles.checkbox}
-              checked={sub[key]}
-              onChange={e => {
-                const on = e.target.checked
-                patchSub({
-                  [key]: on,
-                  ...(on ? {} : { [feeKey]: null }),
-                })
-              }}
-            />
-            {label}
-          </label>
-          {sub[key] && (
-            <div className={styles.grid2}>
-              <div className={styles.field}>
-                <label className={styles.label}>{label} / mo ({currency})</label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className={styles.input}
-                  value={numStr(sub[feeKey])}
-                  onChange={e =>
-                    patchSub({ [feeKey]: parseOptNum(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-
-      <div className={styles.featureRow}>
-        <label className={styles.checkRow}>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
-            checked={sub.paidTrial}
-            onChange={e => patchSub({ paidTrial: e.target.checked })}
-          />
-          Paid trial
-        </label>
-      </div>
-
-      {sub.paidTrial && (
-        <>
-          <div className={styles.field}>
-            <label className={styles.label}>Trial days</label>
-            <input
-              type="number"
-              min={0}
-              className={styles.input}
-              value={numStr(sub.paidTrialDays)}
-              onChange={e =>
-                patchSub({ paidTrialDays: parseOptNum(e.target.value) })
-              }
-            />
-          </div>
-          <div className={styles.grid2}>
-            <div className={styles.field}>
-              <label className={styles.label}>Pre-trial setup</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={styles.input}
-                value={numStr(sub.preTrialSetupFee)}
-                onChange={e =>
-                  patchSub({
-                    preTrialSetupFee: parseOptNum(e.target.value),
-                  })
-                }
-              />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Post-trial setup</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={styles.input}
-                value={numStr(sub.postTrialSetupFee)}
-                onChange={e =>
-                  patchSub({
-                    postTrialSetupFee: parseOptNum(e.target.value),
-                  })
-                }
-              />
-            </div>
-          </div>
-        </>
-      )}
-
       <p className={styles.sectionDesc}>
-        Platform total / mo: {currency}{' '}
+        Recurring total / mo: {currency}{' '}
         {monthlyTotal.toLocaleString(undefined, {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,

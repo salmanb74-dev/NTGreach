@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import type { UserRole, Module } from '@/lib/roles'
 import { moduleHref } from '@/lib/modules'
-import { useClockedIn } from '@/components/layout/ClockedInDot'
 import {
   getSupportUnreadMessageTotal,
   subscribeSupportUnread,
@@ -93,9 +92,10 @@ const NAV_DEFS: ItemDef[] = [
     families: ['cs'],
   },
   {
-    section: 'time',
-    label: 'Time',
-    svgPath: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-6v-4l3-3',
+    section: 'visits',
+    label: 'Visits',
+    svgPath:
+      'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
     families: ['cs'],
   },
   {
@@ -168,7 +168,6 @@ export default function Sidebar({ roles = [], activeModule, modules = [] }: Prop
   const isCsAdmin = roles.includes('cs_admin')
   const isOpsAdmin = roles.includes('ops_admin')
   const isAnyAdmin = isCrmAdmin || isCsAdmin
-  const clockedIn = useClockedIn()
   const [supportUnread, setSupportUnread] = useState(0)
   const family = familyOf(activeModule)
   const hasCsRole = roles.some(r => r.startsWith('cs_'))
@@ -216,7 +215,6 @@ export default function Sidebar({ roles = [], activeModule, modules = [] }: Prop
           const isActive = isHome
             ? pathname === href || pathname === `/${activeModule}`
             : pathname === href || pathname.startsWith(`${href}/`)
-          const showClockDot = clockedIn && item.section === 'time' && family === 'cs'
           const showChatBadge =
             supportUnread > 0 && item.section === 'chats' && family === 'cs'
 
@@ -226,18 +224,14 @@ export default function Sidebar({ roles = [], activeModule, modules = [] }: Prop
                 href={href}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                 title={
-                  showClockDot
-                    ? `${item.label} · Clocked in`
-                    : showChatBadge
-                      ? `${item.label} · ${supportUnread} unread`
-                      : item.label
+                  showChatBadge
+                    ? `${item.label} · ${supportUnread} unread`
+                    : item.label
                 }
                 aria-label={
-                  showClockDot
-                    ? `${item.label}, clocked in`
-                    : showChatBadge
-                      ? `${item.label}, ${supportUnread} unread`
-                      : item.label
+                  showChatBadge
+                    ? `${item.label}, ${supportUnread} unread`
+                    : item.label
                 }
               >
                 <svg
@@ -253,9 +247,6 @@ export default function Sidebar({ roles = [], activeModule, modules = [] }: Prop
                 >
                   <path d={item.svgPath} />
                 </svg>
-                {showClockDot && (
-                  <span className={styles.clockDot} aria-hidden="true" />
-                )}
                 {showChatBadge && (
                   <span className={styles.chatBadge}>
                     {supportUnread > 9 ? '9+' : supportUnread}

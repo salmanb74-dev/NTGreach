@@ -83,8 +83,13 @@ const nextConfig = {
           destination: '/support/calendar',
         },
         {
+          source: `/:mod(${CS_MODS})/visits`,
+          destination: '/support/visits',
+        },
+        {
+          // Legacy clock-in tab → site visits
           source: `/:mod(${CS_MODS})/time`,
-          destination: '/support/time',
+          destination: '/support/visits',
         },
         {
           source: `/:mod(${CS_MODS})/reports`,

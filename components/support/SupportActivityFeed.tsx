@@ -6,7 +6,6 @@ import { timeAgo } from '@/lib/format-when'
 import type {
   DirectionCounts,
   SupportActivityRow,
-  SupportTimeDay,
 } from './types'
 
 function typeBreakdown(counts: DirectionCounts) {
@@ -17,21 +16,6 @@ function typeBreakdown(counts: DirectionCounts) {
   if (counts.video) parts.push(`${counts.video} video`)
   if (counts.file)  parts.push(`${counts.file} file`)
   return parts.join(' · ')
-}
-
-function formatClockTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-PK', {
-    timeZone: 'Asia/Karachi',
-    hour:     'numeric',
-    minute:   '2-digit',
-  })
-}
-
-function formatDuration(ms: number) {
-  const totalMinutes = Math.floor(ms / 60000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 }
 
 function CountLine({
@@ -60,12 +44,10 @@ function CountLine({
 
 export default function SupportActivityFeed({
   rows,
-  timeDays,
 }: {
-  rows:     SupportActivityRow[]
-  timeDays: SupportTimeDay[]
+  rows: SupportActivityRow[]
 }) {
-  if (rows.length === 0 && timeDays.length === 0) {
+  if (rows.length === 0) {
     return (
       <div className={styles.empty}>
         <div className={styles.emptyIcon}>
@@ -82,22 +64,12 @@ export default function SupportActivityFeed({
   const groups = new Map<string, {
     dateLabel: string
     rows:      SupportActivityRow[]
-    timeDay?:  SupportTimeDay
   }>()
 
   for (const row of rows) {
     const group = groups.get(row.dateKey) ?? { dateLabel: row.dateLabel, rows: [] }
     group.rows.push(row)
     groups.set(row.dateKey, group)
-  }
-
-  for (const timeDay of timeDays) {
-    const group = groups.get(timeDay.dateKey) ?? {
-      dateLabel: timeDay.dateLabel,
-      rows:      [],
-    }
-    group.timeDay = timeDay
-    groups.set(timeDay.dateKey, group)
   }
 
   return (
@@ -108,38 +80,6 @@ export default function SupportActivityFeed({
         <div key={dateKey} className={styles.group}>
           <div className={styles.dateLabel}>{group.dateLabel}</div>
           <div className={styles.card}>
-            {group.timeDay && (
-              <div className={`${styles.row} ${group.rows.length > 0 ? styles.rowBorder : ''}`}>
-                <div className={styles.iconWrap} style={{ color: 'var(--color-success)' }}>
-                  <span className={styles.icon}>⏱</span>
-                </div>
-
-                <div className={styles.content}>
-                  <div className={styles.rowTop}>
-                    <span className={styles.activityType}>Clocked in</span>
-                    <span className={styles.direction}>
-                      {formatDuration(group.timeDay.durationMs)} total
-                    </span>
-                  </div>
-
-                  <div className={local.clockSessions}>
-                    {group.timeDay.sessions.map(session => (
-                      <div key={session.id} className={local.clockSession}>
-                        <span>{formatClockTime(session.clockIn)}</span>
-                        <span aria-hidden="true">→</span>
-                        <span>
-                          {session.clockOut ? formatClockTime(session.clockOut) : 'Still in'}
-                        </span>
-                        <span className={local.clockDuration}>
-                          {formatDuration(session.durationMs)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
             {group.rows.map((row, idx) => (
               <div
                 key={row.key}

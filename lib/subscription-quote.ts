@@ -163,9 +163,9 @@ export type FeatureAddonDef = {
 /** Recurring feature toggles + monthly fee fields (Deal Panel + Settings defaults). */
 export const FEATURE_ADDONS: readonly FeatureAddonDef[] = [
   { key: 'callCenter', feeKey: 'callCenterFee', label: 'Call center' },
-  { key: 'kds', feeKey: 'kdsFee', label: 'Kitchen display (KDS)' },
+  { key: 'kds', feeKey: 'kdsFee', label: 'KDS' },
   { key: 'inventory', feeKey: 'inventoryFee', label: 'Inventory' },
-  { key: 'support', feeKey: 'supportFee', label: 'Ops support' },
+  { key: 'support', feeKey: 'supportFee', label: 'Operation Support' },
 ] as const
 
 export type QuotedSubscription = {
@@ -288,6 +288,8 @@ export function totalMonthlyRecurring(sub: QuotedSubscription): number {
 
 /**
  * Normalize subscription before DB save (paid trial, unlimited limits, disabled addons).
+ * Setup fee is always kept (planned convert fee when trial is on — same as Ops Resto).
+ * postTrialSetupFee is preserved when trial is on for retrofitting older quotes; UI no longer edits it.
  */
 export function normalizeQuotedSubscriptionForSave(
   sub: QuotedSubscription,
@@ -297,7 +299,7 @@ export function normalizeQuotedSubscriptionForSave(
     ...sub,
     billingCycle,
     durationMonths: monthsForBillingCycle(billingCycle),
-    setupFee: sub.paidTrial ? 0 : sub.setupFee,
+    setupFee: sub.setupFee,
     preTrialSetupFee: sub.paidTrial ? sub.preTrialSetupFee : 0,
     postTrialSetupFee: sub.paidTrial ? sub.postTrialSetupFee : 0,
     paidTrialDays: sub.paidTrial ? sub.paidTrialDays : null,
@@ -316,7 +318,10 @@ export function normalizeQuotedSubscriptionForSave(
   }
 }
 
-/** Setup fees in force + one billing cycle of recurring (before discount/tax). */
+/**
+ * Setup fees due on first invoice + one billing cycle of recurring (before discount/tax).
+ * On trial: pre-trial (+ legacy post-trial if present) + web ordering — not planned setupFee.
+ */
 export function estimateFirstPaymentBase(sub: QuotedSubscription): {
   setupFees: number
   cycleRecurring: number
@@ -445,15 +450,15 @@ export const DEAL_QUOTE_DEFAULTS_JSON = serializeDealQuoteDefaults(
 export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
   {
     key: 'platform_fee',
-    label: 'Platform fee / month',
+    label: 'Recurring / month',
     example: String(STARTER_PLATFORM_FEE),
   },
   {
     key: 'platform_fee_invoice',
-    label: 'Platform fee (billed)',
+    label: 'Recurring (billed)',
     example: `US$ ${STARTER_PLATFORM_FEE} per month`,
   },
-  { key: 'billing_cycle', label: 'Billing cycle', example: 'per month' },
+  { key: 'billing_cycle', label: 'Duration', example: 'per month' },
   { key: 'duration_months', label: 'Duration (months)', example: '1' },
   {
     key: 'setup_fee',
@@ -472,19 +477,19 @@ export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
     label: 'Web ordering revenue %',
     example: '2.5',
   },
-  { key: 'branches', label: 'Branches', example: String(STARTER_LOCATIONS) },
+  { key: 'branches', label: 'Locations', example: String(STARTER_LOCATIONS) },
   { key: 'users', label: 'Users', example: String(STARTER_USERS) },
   { key: 'counters', label: 'Counters', example: String(STARTER_COUNTERS) },
   {
     key: 'orders_per_month',
-    label: 'Orders / month',
+    label: 'Orders / mo',
     example: String(STARTER_ORDERS_PER_MONTH),
   },
   { key: 'call_center', label: 'Call center / mo', example: '15' },
-  { key: 'kds', label: 'Kitchen display / mo', example: '10' },
+  { key: 'kds', label: 'KDS / mo', example: '10' },
   { key: 'inventory', label: 'Inventory / mo', example: '12' },
-  { key: 'ops_support', label: 'Ops support / mo', example: '25' },
-  { key: 'paid_trial', label: 'Paid trial', example: 'Yes' },
+  { key: 'ops_support', label: 'Operation Support / mo', example: '25' },
+  { key: 'paid_trial', label: 'Trial', example: 'Yes' },
   {
     key: 'paid_trial_days',
     label: 'Trial days',
@@ -746,15 +751,12 @@ export function subscriptionVarsFromLead(
 
   const preSetup = sub.paidTrial ? sub.preTrialSetupFee : null
   const postSetup = sub.paidTrial ? sub.postTrialSetupFee : null
-  const setupDisplay = sub.paidTrial ? 0 : setup
   const trialStarts = formatAccessDate(lead.payment_start_date)
   const branches = fmtLimit(sub.locations, sub.locationsUnlimited)
   const opsSupport = fmtAddonFee(sub.support, sub.supportFee)
   const platformFee = formatAmount(baseMonthly)
-  // Hide setup row when paid trial (fee is 0); show pre/post instead.
-  const setupFeeVar = sub.paidTrial
-    ? ''
-    : formatAmount(setupDisplay ?? setup)
+  // Setup fee always fills (planned convert fee when trial is on).
+  const setupFeeVar = formatAmount(setup)
 
   const currencyCode = lead.deal_currency ?? inputCurrency
   const currency = resolveCurrencyDisplay(currencyCode, currencyLabels)

@@ -153,8 +153,8 @@ export default async function SettingsGeneralPage() {
         <div className={styles.sectionTitle}>Default deal values (new leads)</div>
         <div className={styles.sectionDesc}>
           Applied automatically when a lead is created. Built-in values match the
-          Resto <strong>Starter</strong> plan (USD $35 platform fee/mo, $350
-          setup, monthly billing, standard limits, no add-ons/trial). Change
+          Resto <strong>Starter</strong> plan (USD $35 recurring/mo, $350
+          setup, monthly duration, standard limits, no add-ons/trial). Change
           them here for sales quoting.
         </div>
         <DealQuoteDefaultsForm

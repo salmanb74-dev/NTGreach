@@ -58,6 +58,27 @@ function SummaryBlock({ summary }: { summary: RestoTenantDeleteSummary }) {
   )
 }
 
+async function tenantStillListed(
+  env: RestoAdminEnv,
+  tenantId: string
+): Promise<boolean | null> {
+  try {
+    const response = await fetch(
+      `/api/ops/tenants?env=${encodeURIComponent(env)}`,
+      { cache: 'no-store' }
+    )
+    if (!response.ok) return null
+    const body = await response.json().catch(() => null)
+    const tenants = Array.isArray(body?.tenants) ? body.tenants : null
+    if (!tenants) return null
+    return tenants.some(
+      (t: { id?: unknown }) => typeof t?.id === 'string' && t.id === tenantId
+    )
+  } catch {
+    return null
+  }
+}
+
 export default function TenantDeletePanel({ tenant, env }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -70,6 +91,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
   const [ack, setAck] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<RestoTenantDeleteSummary | null>(null)
+  const [confirmedAbsent, setConfirmedAbsent] = useState(false)
   const [done, setDone] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -78,6 +100,15 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
     confirmName.trim().toLowerCase() === tenant.name.trim().toLowerCase()
   const idOk = confirmId.trim() === tenant.id
   const canSubmit = ack && nameOk && idOk && !isPending && !done
+
+  function markDeleted(opts: {
+    summary?: RestoTenantDeleteSummary | null
+    confirmedAbsent?: boolean
+  }) {
+    setSummary(opts.summary ?? null)
+    setConfirmedAbsent(Boolean(opts.confirmedAbsent))
+    setDone(true)
+  }
 
   function handleDelete(e: React.FormEvent) {
     e.preventDefault()
@@ -94,23 +125,56 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
             body: JSON.stringify({ confirmTenantId: tenant.id }),
           }
         )
-        const body = await response.json().catch(() => ({}))
-        if (!response.ok) {
+        const body = await response.json().catch(() => ({} as Record<string, unknown>))
+
+        // Nest may finish after the HTTP wait — 404 means already gone.
+        if (response.status === 404) {
+          markDeleted({ confirmedAbsent: true })
+          return
+        }
+
+        if (response.ok) {
+          markDeleted({
+            summary:
+              body.summary && typeof body.summary === 'object'
+                ? (body.summary as RestoTenantDeleteSummary)
+                : null,
+            confirmedAbsent: body.confirmedAbsent === true,
+          })
+          return
+        }
+
+        // Gateway / Nest timeout: verify before asking the user to retry.
+        if (response.status === 504 || response.status === 502) {
+          const stillThere = await tenantStillListed(env, tenant.id)
+          if (stillThere === false) {
+            markDeleted({ confirmedAbsent: true })
+            return
+          }
           setError(
-            typeof body.error === 'string'
-              ? body.error
-              : `Delete failed (${response.status})`
+            stillThere === true
+              ? 'Delete timed out and the tenant is still listed. Wait a minute, refresh the tenants list, then retry only if it is still there.'
+              : 'Delete timed out. Check the tenants list before retrying — Nest may have already finished the wipe.'
           )
           return
         }
-        setSummary(
-          body.summary && typeof body.summary === 'object'
-            ? (body.summary as RestoTenantDeleteSummary)
-            : null
+
+        setError(
+          typeof body.error === 'string'
+            ? body.error
+            : `Delete failed (${response.status})`
         )
-        setDone(true)
       } catch {
-        setError('Could not reach Reach server. Check your connection and try again.')
+        const stillThere = await tenantStillListed(env, tenant.id)
+        if (stillThere === false) {
+          markDeleted({ confirmedAbsent: true })
+          return
+        }
+        setError(
+          stillThere === true
+            ? 'Could not reach Reach server and the tenant is still listed. Check your connection, then retry only if needed.'
+            : 'Could not reach Reach server. Check the tenants list before retrying — the delete may have completed.'
+        )
       }
     })
   }
@@ -123,6 +187,13 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
           <strong>{tenant.name}</strong> was permanently deleted from{' '}
           {isProduction ? 'Production' : 'Staging'}.
         </p>
+        {confirmedAbsent && !summary && (
+          <p className={styles.panelBody}>
+            The delete request timed out or returned not-found, but the tenant is
+            no longer listed — Nest finished the wipe. A detailed deletion summary
+            was not returned.
+          </p>
+        )}
         {summary && <SummaryBlock summary={summary} />}
         <div className={styles.deleteActions}>
           <button
@@ -223,7 +294,9 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
             className={styles.dangerBtn}
             disabled={!canSubmit}
           >
-            {isPending ? 'Deleting… (can take up to 2 min)' : 'Delete tenant permanently'}
+            {isPending
+              ? 'Deleting… (large tenants can take several minutes)'
+              : 'Delete tenant permanently'}
           </button>
         </div>
       </form>

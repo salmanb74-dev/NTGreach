@@ -113,20 +113,6 @@ export interface SupportActivityRow {
   lastAt:     string
 }
 
-export interface SupportTimeSession {
-  id:        string
-  clockIn:   string
-  clockOut:  string | null
-  durationMs: number
-}
-
-export interface SupportTimeDay {
-  dateKey:    string
-  dateLabel:  string
-  sessions:   SupportTimeSession[]
-  durationMs: number
-}
-
 export function emptyCounts(): DirectionCounts {
   return { total: 0, text: 0, image: 0, voice: 0, video: 0, file: 0 }
 }

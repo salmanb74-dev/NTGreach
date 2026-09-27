@@ -157,11 +157,20 @@ async function fetchAdminJson(
       err instanceof Error &&
       (err.name === 'TimeoutError' ||
         err.name === 'AbortError' ||
+        causeName === 'TimeoutError' ||
+        causeName === 'AbortError' ||
         causeName === 'ConnectTimeoutError' ||
-        causeCode === 'UND_ERR_CONNECT_TIMEOUT')
+        causeCode === 'UND_ERR_CONNECT_TIMEOUT' ||
+        causeCode === 'UND_ERR_HEADERS_TIMEOUT' ||
+        causeCode === 'UND_ERR_BODY_TIMEOUT')
     ) {
+      const connectish =
+        causeName === 'ConnectTimeoutError' ||
+        causeCode === 'UND_ERR_CONNECT_TIMEOUT'
       throw new RestoAdminApiError(
-        `Resto (${env}) timed out connecting to Nest — check RESTO_${env === 'staging' ? 'STAGING' : 'PROD'}_BASE_URL is reachable and Nest is up.`,
+        connectish
+          ? `Resto (${env}) timed out connecting to Nest — check RESTO_${env === 'staging' ? 'STAGING' : 'PROD'}_BASE_URL is reachable and Nest is up.`
+          : `Resto (${env}) timed out waiting for Nest (operation may still have completed).`,
         504
       )
     }
@@ -404,9 +413,27 @@ function normalizeDeletionSummary(
 }
 
 /**
+ * Server-only: whether a tenant id still appears in Nest admin tenants list.
+ * Never import this into client components.
+ */
+export async function restoTenantExists(
+  env: RestoAdminEnv,
+  tenantId: string
+): Promise<boolean> {
+  const id = tenantId.trim()
+  if (!id) return false
+  const tenants = await fetchRestoTenants(env)
+  return tenants.some(t => t.id === id)
+}
+
+/**
  * Server-only: hard-delete a Resto tenant via Nest DELETE /api/v1/admin/tenants/:id.
  * Body confirmTenantId must match the path id (Nest safety check).
  * Never import this into client components.
+ *
+ * Large tenants can outlive the HTTP wait — Nest may finish after we time out.
+ * On timeout/504 we re-check the tenants list; if the id is gone, treat as success
+ * so Ops does not retry a completed wipe. 404 is also treated as already deleted.
  */
 export async function deleteRestoTenant(
   env: RestoAdminEnv,
@@ -417,37 +444,71 @@ export async function deleteRestoTenant(
     throw new RestoAdminApiError('Missing tenant id', 400)
   }
 
-  const { body } = await fetchAdminJson(
-    env,
-    `/api/v1/admin/tenants/${encodeURIComponent(id)}`,
-    {
-      method: 'DELETE',
-      body: { confirmTenantId: id, confirm: true },
-      // Full tenant wipe can take a while (api_hits, catalog, auth users)
-      timeoutMs: 120_000,
+  try {
+    const { body } = await fetchAdminJson(
+      env,
+      `/api/v1/admin/tenants/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+        body: { confirmTenantId: id, confirm: true },
+        // Full tenant wipe can take a while (api_hits, catalog, auth users)
+        timeoutMs: 180_000,
+      }
+    )
+
+    if (!body || typeof body !== 'object') {
+      throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
     }
-  )
 
-  if (!body || typeof body !== 'object') {
-    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
-  }
+    const record = body as Record<string, unknown>
+    const summaryRaw =
+      record.summary && typeof record.summary === 'object'
+        ? (record.summary as Record<string, unknown>)
+        : null
 
-  const record = body as Record<string, unknown>
-  const summaryRaw =
-    record.summary && typeof record.summary === 'object'
-      ? (record.summary as Record<string, unknown>)
-      : null
+    return {
+      deleted: record.deleted === true || record.deleted === 'true',
+      tenantId:
+        asTrimmedString(record.tenantId) ??
+        asTrimmedString(record.tenant_id) ??
+        id,
+      tenantName:
+        asTrimmedString(record.tenantName) ??
+        asTrimmedString(record.tenant_name),
+      summary: normalizeDeletionSummary(summaryRaw),
+    }
+  } catch (err) {
+    if (err instanceof RestoAdminApiError && err.status === 404) {
+      return {
+        deleted: true,
+        tenantId: id,
+        tenantName: null,
+        summary: null,
+        confirmedAbsent: true,
+      }
+    }
 
-  return {
-    deleted: record.deleted === true || record.deleted === 'true',
-    tenantId:
-      asTrimmedString(record.tenantId) ??
-      asTrimmedString(record.tenant_id) ??
-      id,
-    tenantName:
-      asTrimmedString(record.tenantName) ??
-      asTrimmedString(record.tenant_name),
-    summary: normalizeDeletionSummary(summaryRaw),
+    const timedOut =
+      err instanceof RestoAdminApiError && err.status === 504
+
+    if (timedOut) {
+      try {
+        const stillThere = await restoTenantExists(env, id)
+        if (!stillThere) {
+          return {
+            deleted: true,
+            tenantId: id,
+            tenantName: null,
+            summary: null,
+            confirmedAbsent: true,
+          }
+        }
+      } catch {
+        // Verification failed — fall through to original timeout error.
+      }
+    }
+
+    throw err
   }
 }
 

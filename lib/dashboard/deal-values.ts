@@ -10,11 +10,15 @@ import {
   type QuotedSubscription,
 } from '@/lib/subscription-quote'
 
-/** All one-time setup fees (trial pre/post or standard + web ordering). */
+/**
+ * All one-time setup fees for pipeline value.
+ * Trial: pre-trial + planned setupFee + legacy post-trial (if any) + web ordering.
+ */
 export function totalSetupFees(sub: QuotedSubscription): number {
   if (sub.paidTrial) {
     return (
       (sub.preTrialSetupFee ?? 0) +
+      (sub.setupFee ?? 0) +
       (sub.postTrialSetupFee ?? 0) +
       webOrderingSetupFee(sub)
     )
@@ -90,8 +94,12 @@ export function projectLeadPayments(lead: LeadQuoteSource): PaymentEvent[] {
     const afterTrial = new Date(anchor)
     afterTrial.setDate(afterTrial.getDate() + trialDays)
 
-    const post = sub.postTrialSetupFee ?? 0
-    if (post > 0) events.push({ date: afterTrial, setup: post, recurring: 0 })
+    // Planned setup at convert + legacy post-trial amounts (retrofit).
+    const afterTrialSetup =
+      (sub.setupFee ?? 0) + (sub.postTrialSetupFee ?? 0)
+    if (afterTrialSetup > 0) {
+      events.push({ date: afterTrial, setup: afterTrialSetup, recurring: 0 })
+    }
 
     recurFrom = afterTrial
   } else {

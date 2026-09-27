@@ -115,7 +115,7 @@ export default function DealValueModal({
           </div>
           <div className={styles.field}>
             <label className={styles.label}>
-              Platform fee / month ({currency}) <span className={styles.optional}>(optional)</span>
+              Recurring / mo ({currency}) <span className={styles.optional}>(optional)</span>
             </label>
             <input
               type="number" min="0" step="0.01"
@@ -129,7 +129,7 @@ export default function DealValueModal({
 
         <div className={styles.twoCol}>
           <div className={styles.field}>
-            <label className={styles.label}>Billing cycle</label>
+            <label className={styles.label}>Duration</label>
             <select
               className={styles.select}
               value={frequency}
@@ -163,7 +163,7 @@ export default function DealValueModal({
 
         {monthsForBillingCycle(frequency) > 1 && mrr && (
           <div className={styles.annualHint}>
-            Platform fee is per month. This cycle:{' '}
+            Recurring is per month. This cycle:{' '}
             {currency}{' '}
             {(
               (parseFloat(mrr) || 0) * monthsForBillingCycle(frequency)

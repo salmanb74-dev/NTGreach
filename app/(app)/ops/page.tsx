@@ -21,7 +21,7 @@ export default function OpsHomePage() {
               <strong>CRM</strong> — pipeline and lead management for NTG products.
             </li>
             <li>
-              <strong>Support</strong> — live chat, coverage, and time tracking for
+              <strong>Support</strong> — live chat, coverage, and site visits for
               customers on NTG products.
             </li>
             <li>

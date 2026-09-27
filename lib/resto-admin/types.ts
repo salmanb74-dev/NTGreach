@@ -219,6 +219,8 @@ export type RestoTenantDeleteResult = {
   tenantId: string
   tenantName: string | null
   summary: RestoTenantDeleteSummary | null
+  /** True when Nest/gateway timed out but the tenant is confirmed gone. */
+  confirmedAbsent?: boolean
 }
 
 /** PUT /subscription/enterprise — every key required (null where allowed). */

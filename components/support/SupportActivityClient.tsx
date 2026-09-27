@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SupportActivityFeed from '@/components/support/SupportActivityFeed'
-import type { SupportActivityRow, SupportTimeDay } from '@/components/support/types'
+import type { SupportActivityRow } from '@/components/support/types'
 import styles from '@/app/(app)/support/activity/activity.module.css'
 
 export type ActivityRange = '1d' | '7d' | '30d' | 'all'
@@ -17,21 +17,12 @@ const RANGE_OPTIONS: { value: ActivityRange; label: string }[] = [
 
 interface Props {
   rows:      SupportActivityRow[]
-  timeDays:  SupportTimeDay[]
   range:     ActivityRange
   basePath?: string
 }
 
-function formatDuration(ms: number) {
-  const totalMinutes = Math.floor(ms / 60000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-}
-
 export default function SupportActivityClient({
   rows,
-  timeDays,
   range,
   basePath = '/support/activity',
 }: Props) {
@@ -48,7 +39,6 @@ export default function SupportActivityClient({
   const totalSent     = filteredRows.reduce((sum, r) => sum + r.sent.total, 0)
   const totalReceived = filteredRows.reduce((sum, r) => sum + r.received.total, 0)
   const customerCount = new Set(filteredRows.map(r => r.tenantId)).size
-  const totalClockedIn = timeDays.reduce((sum, day) => sum + day.durationMs, 0)
 
   function setRange(next: ActivityRange) {
     if (next === range) return
@@ -88,7 +78,7 @@ export default function SupportActivityClient({
         />
       </div>
 
-      {(filteredRows.length > 0 || timeDays.length > 0) && (
+      {filteredRows.length > 0 && (
         <div className={styles.summary}>
           <span>
             <span className={styles.summaryStrong}>{totalSent}</span> sent by rep
@@ -100,14 +90,10 @@ export default function SupportActivityClient({
             <span className={styles.summaryStrong}>{customerCount}</span>{' '}
             {customerCount === 1 ? 'customer' : 'customers'}
           </span>
-          <span>
-            <span className={styles.summaryStrong}>{formatDuration(totalClockedIn)}</span>{' '}
-            clocked in
-          </span>
         </div>
       )}
 
-      <SupportActivityFeed rows={filteredRows} timeDays={timeDays} />
+      <SupportActivityFeed rows={filteredRows} />
     </>
   )
 }

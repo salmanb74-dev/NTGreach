@@ -202,7 +202,6 @@ export default function DealPanel({
             quotations and contracts.
           </p>
 
-          <div className={styles.sectionTitle}>Pricing</div>
           <div className={styles.field}>
             <label className={styles.label}>Currency</label>
             <select
@@ -218,9 +217,61 @@ export default function DealPanel({
             </select>
           </div>
 
+          <div className={styles.sectionTitle}>Trial</div>
+          <label className={styles.checkLabelBlock}>
+            <input
+              type="checkbox"
+              checked={sub.paidTrial}
+              onChange={e => patchSub({ paidTrial: e.target.checked })}
+            />
+            With trial
+          </label>
+          {sub.paidTrial && (
+            <div className={styles.twoCol}>
+              <div className={styles.field}>
+                <label className={styles.label}>Trial days</label>
+                <input
+                  type="number"
+                  min={0}
+                  className={styles.input}
+                  value={numStr(sub.paidTrialDays)}
+                  onChange={e =>
+                    patchSub({ paidTrialDays: parseOptNum(e.target.value) })
+                  }
+                  placeholder={String(DEFAULT_PAID_TRIAL_DAYS)}
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Pre-trial setup</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className={styles.input}
+                  value={numStr(sub.preTrialSetupFee)}
+                  onChange={e =>
+                    patchSub({
+                      preTrialSetupFee: parseOptNum(e.target.value),
+                    })
+                  }
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className={styles.sectionTitle}>
+            {sub.paidTrial ? 'Planned subscription' : 'Subscription'}
+          </div>
+          {sub.paidTrial && (
+            <p className={styles.sectionHint}>
+              Saved for convert later — not charged on trial
+            </p>
+          )}
+
           <div className={styles.twoCol}>
             <div className={styles.field}>
-              <label className={styles.label}>Platform fee (per month)</label>
+              <label className={styles.label}>Recurring ({currency}/mo)</label>
               <input
                 type="number"
                 min={0}
@@ -234,7 +285,7 @@ export default function DealPanel({
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Billing cycle</label>
+              <label className={styles.label}>Duration</label>
               <select
                 className={styles.select}
                 value={
@@ -262,230 +313,21 @@ export default function DealPanel({
             </div>
           </div>
 
-          <div className={styles.sectionTitle}>Setup &amp; trial</div>
-          <label className={styles.checkLabelBlock}>
+          <div className={styles.field}>
+            <label className={styles.label}>Setup fee</label>
             <input
-              type="checkbox"
-              checked={sub.paidTrial}
-              onChange={e => patchSub({ paidTrial: e.target.checked })}
+              type="number"
+              min={0}
+              step="0.01"
+              className={styles.input}
+              value={numStr(sub.setupFee)}
+              onChange={e =>
+                patchSub({ setupFee: parseOptNum(e.target.value) })
+              }
+              placeholder="0.00"
             />
-            Paid trial
-          </label>
-
-          <div className={styles.twoCol}>
-            <div className={styles.field}>
-              <label className={styles.label}>Setup fee</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={styles.input}
-                disabled={sub.paidTrial}
-                value={numStr(sub.setupFee)}
-                onChange={e =>
-                  patchSub({ setupFee: parseOptNum(e.target.value) })
-                }
-                placeholder="0.00"
-              />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Trial days</label>
-              <input
-                type="number"
-                min={0}
-                className={styles.input}
-                disabled={!sub.paidTrial}
-                value={numStr(sub.paidTrialDays)}
-                onChange={e =>
-                  patchSub({ paidTrialDays: parseOptNum(e.target.value) })
-                }
-                placeholder={String(DEFAULT_PAID_TRIAL_DAYS)}
-              />
-            </div>
           </div>
 
-          <div className={styles.twoCol}>
-            <div className={styles.field}>
-              <label className={styles.label}>Pre-trial setup</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={styles.input}
-                disabled={!sub.paidTrial}
-                value={numStr(sub.preTrialSetupFee)}
-                onChange={e =>
-                  patchSub({ preTrialSetupFee: parseOptNum(e.target.value) })
-                }
-                placeholder="0.00"
-              />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Post-trial setup</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={styles.input}
-                disabled={!sub.paidTrial}
-                value={numStr(sub.postTrialSetupFee)}
-                onChange={e =>
-                  patchSub({ postTrialSetupFee: parseOptNum(e.target.value) })
-                }
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <label className={styles.checkLabelBlock}>
-            <input
-              type="checkbox"
-              checked={sub.webOrdering}
-              onChange={e => {
-                const on = e.target.checked
-                patchSub({
-                  webOrdering: on,
-                  ...(on
-                    ? {}
-                    : {
-                        webOrderingFee: null,
-                        webOrderingRevenuePercent: null,
-                      }),
-                })
-              }}
-            />
-            Web ordering
-          </label>
-          {sub.webOrdering && (
-            <div className={styles.twoCol}>
-              <div className={styles.field}>
-                <label className={styles.label}>
-                  Web ordering setup ({currency})
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className={styles.input}
-                  value={numStr(sub.webOrderingFee)}
-                  onChange={e =>
-                    patchSub({
-                      webOrderingFee: parseOptNum(e.target.value),
-                    })
-                  }
-                  placeholder="0.00"
-                />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Revenue share (%)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  className={styles.input}
-                  value={numStr(sub.webOrderingRevenuePercent)}
-                  onChange={e =>
-                    patchSub({
-                      webOrderingRevenuePercent: parseOptNum(e.target.value),
-                    })
-                  }
-                  placeholder="e.g. 2.5"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className={styles.sectionTitle}>Limits</div>
-          <LimitField
-            label="Branches"
-            value={sub.locations}
-            unlimited={sub.locationsUnlimited}
-            onValue={n => patchSub({ locations: n })}
-            onUnlimited={u => patchSub({ locationsUnlimited: u })}
-          />
-          <LimitField
-            label="Users"
-            value={sub.users}
-            unlimited={sub.usersUnlimited}
-            onValue={n => patchSub({ users: n })}
-            onUnlimited={u => patchSub({ usersUnlimited: u })}
-          />
-          <LimitField
-            label="Counters"
-            value={sub.counters}
-            unlimited={sub.countersUnlimited}
-            onValue={n => patchSub({ counters: n })}
-            onUnlimited={u => patchSub({ countersUnlimited: u })}
-          />
-          <LimitField
-            label="Orders / month"
-            value={sub.ordersPerMonth}
-            unlimited={sub.ordersUnlimited}
-            onValue={n => patchSub({ ordersPerMonth: n })}
-            onUnlimited={u => patchSub({ ordersUnlimited: u })}
-          />
-
-          <div className={styles.sectionTitle}>Features (monthly add-ons)</div>
-          <p className={styles.sectionHint}>
-            Enable a feature to add its monthly $ to the platform fee.
-          </p>
-          {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
-            <div key={key} className={styles.addonBlock}>
-              <label className={styles.checkLabel}>
-                <input
-                  type="checkbox"
-                  checked={sub[key]}
-                  onChange={e => {
-                    const on = e.target.checked
-                    patchSub({
-                      [key]: on,
-                      ...(on ? {} : { [feeKey]: null }),
-                    })
-                  }}
-                />
-                {label}
-              </label>
-              {sub[key] && (
-                <div className={styles.twoCol}>
-                  <div className={styles.field}>
-                    <label className={styles.label}>
-                      {label} fee / mo ({currency})
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className={styles.input}
-                      value={numStr(sub[feeKey])}
-                      onChange={e =>
-                        patchSub({ [feeKey]: parseOptNum(e.target.value) })
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {(monthly > 0 || baseMonthly > 0) && (
-            <div className={styles.addonTotal}>
-              Platform total / mo: {currency}{' '}
-              {monthly.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-              {monthly !== baseMonthly ? (
-                <span className={styles.addonTotalNote}>
-                  {' '}
-                  (base {baseMonthly.toLocaleString()} + add-ons)
-                </span>
-              ) : null}
-            </div>
-          )}
-
-          <div className={styles.sectionTitle}>Billing extras</div>
           <div className={styles.twoCol}>
             <div className={styles.field}>
               <label className={styles.label}>
@@ -526,6 +368,152 @@ export default function DealPanel({
               placeholder="0"
             />
           </div>
+
+          <div className={styles.sectionTitle}>Limits &amp; features</div>
+          <LimitField
+            label="Locations"
+            value={sub.locations}
+            unlimited={sub.locationsUnlimited}
+            onValue={n => patchSub({ locations: n })}
+            onUnlimited={u => patchSub({ locationsUnlimited: u })}
+          />
+          <LimitField
+            label="Users"
+            value={sub.users}
+            unlimited={sub.usersUnlimited}
+            onValue={n => patchSub({ users: n })}
+            onUnlimited={u => patchSub({ usersUnlimited: u })}
+          />
+          <LimitField
+            label="Counters"
+            value={sub.counters}
+            unlimited={sub.countersUnlimited}
+            onValue={n => patchSub({ counters: n })}
+            onUnlimited={u => patchSub({ countersUnlimited: u })}
+          />
+          <LimitField
+            label="Orders / mo"
+            value={sub.ordersPerMonth}
+            unlimited={sub.ordersUnlimited}
+            onValue={n => patchSub({ ordersPerMonth: n })}
+            onUnlimited={u => patchSub({ ordersUnlimited: u })}
+          />
+
+          {FEATURE_ADDONS.map(({ key, feeKey, label }) => (
+            <div key={key} className={styles.addonBlock}>
+              <label className={styles.checkLabel}>
+                <input
+                  type="checkbox"
+                  checked={sub[key]}
+                  onChange={e => {
+                    const on = e.target.checked
+                    patchSub({
+                      [key]: on,
+                      ...(on ? {} : { [feeKey]: null }),
+                    })
+                  }}
+                />
+                {label}
+              </label>
+              {sub[key] && (
+                <div className={styles.twoCol}>
+                  <div className={styles.field}>
+                    <label className={styles.label}>
+                      {label} / mo ({currency})
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={styles.input}
+                      value={numStr(sub[feeKey])}
+                      onChange={e =>
+                        patchSub({ [feeKey]: parseOptNum(e.target.value) })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className={styles.addonBlock}>
+            <label className={styles.checkLabel}>
+              <input
+                type="checkbox"
+                checked={sub.webOrdering}
+                onChange={e => {
+                  const on = e.target.checked
+                  patchSub({
+                    webOrdering: on,
+                    ...(on
+                      ? {}
+                      : {
+                          webOrderingFee: null,
+                          webOrderingRevenuePercent: null,
+                        }),
+                  })
+                }}
+              />
+              Web ordering
+            </label>
+            {sub.webOrdering && (
+              <div className={styles.twoCol}>
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    Web ordering setup ({currency})
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className={styles.input}
+                    value={numStr(sub.webOrderingFee)}
+                    onChange={e =>
+                      patchSub({
+                        webOrderingFee: parseOptNum(e.target.value),
+                      })
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Revenue share (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    className={styles.input}
+                    value={numStr(sub.webOrderingRevenuePercent)}
+                    onChange={e =>
+                      patchSub({
+                        webOrderingRevenuePercent: parseOptNum(e.target.value),
+                      })
+                    }
+                    placeholder="e.g. 2.5"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {(monthly > 0 || baseMonthly > 0) && (
+            <div className={styles.addonTotal}>
+              Recurring total / mo: {currency}{' '}
+              {monthly.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+              {monthly !== baseMonthly ? (
+                <span className={styles.addonTotalNote}>
+                  {' '}
+                  (base {baseMonthly.toLocaleString()} + add-ons)
+                </span>
+              ) : null}
+            </div>
+          )}
 
           {(monthly > 0 || setupFees > 0) && (
             <div className={styles.totalRow}>

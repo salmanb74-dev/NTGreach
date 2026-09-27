@@ -9,7 +9,6 @@ import {
   emptyCounts,
   type DirectionCounts,
   type SupportActivityRow,
-  type SupportTimeDay,
 } from '@/components/support/types'
 import styles from './activity.module.css'
 
@@ -26,12 +25,6 @@ type MessageRow = {
     tenant_id:   string
     tenant_name: string
   } | null
-}
-
-type TimeLogRow = {
-  id:        string
-  clock_in:  string
-  clock_out: string | null
 }
 
 /**
@@ -126,45 +119,6 @@ function buildActivityRows(
   )
 }
 
-function buildTimeDays(logs: TimeLogRow[]): SupportTimeDay[] {
-  const now = Date.now()
-  const map = new Map<string, SupportTimeDay>()
-
-  for (const log of logs) {
-    const clockInMs = new Date(log.clock_in).getTime()
-    const clockOutMs = log.clock_out ? new Date(log.clock_out).getTime() : now
-    const durationMs = Math.max(0, clockOutMs - clockInMs)
-    const dateKey = dateKeyFor(log.clock_in)
-
-    let day = map.get(dateKey)
-    if (!day) {
-      day = {
-        dateKey,
-        dateLabel:  dateLabelFor(log.clock_in),
-        sessions:   [],
-        durationMs: 0,
-      }
-      map.set(dateKey, day)
-    }
-
-    day.sessions.push({
-      id:         log.id,
-      clockIn:    log.clock_in,
-      clockOut:   log.clock_out,
-      durationMs,
-    })
-    day.durationMs += durationMs
-  }
-
-  for (const day of map.values()) {
-    day.sessions.sort(
-      (a, b) => new Date(a.clockIn).getTime() - new Date(b.clockIn).getTime()
-    )
-  }
-
-  return [...map.values()].sort((a, b) => b.dateKey.localeCompare(a.dateKey))
-}
-
 function parseRange(value: string | undefined): ActivityRange {
   if (value === '1d' || value === '7d' || value === '30d' || value === 'all') return value
   return '30d'
@@ -242,22 +196,8 @@ export default async function SupportActivityPage({
     if (data.length < PAGE_SIZE) break
   }
 
-  let timeQuery = supabase
-    .from('support_time_logs')
-    .select('id, clock_in, clock_out')
-    .eq('agent_id', selectedAgentId)
-    .order('clock_in', { ascending: false })
-    .limit(2000)
-
-  if (startAt) timeQuery = timeQuery.gte('clock_in', startAt.toISOString())
-
-  const { data: timeData } = selectedAgentId
-    ? await timeQuery
-    : { data: [] as TimeLogRow[] }
-
   // A day/customer only belongs to this rep if they sent something that day.
   const rows = buildActivityRows(messages, selectedAgentId).filter(r => r.sent.total > 0)
-  const timeDays = buildTimeDays((timeData ?? []) as TimeLogRow[])
 
   return (
     <div className={styles.page}>
@@ -271,7 +211,7 @@ export default async function SupportActivityPage({
         </div>
       )}
 
-      <SupportActivityClient rows={rows} timeDays={timeDays} range={range} />
+      <SupportActivityClient rows={rows} range={range} />
     </div>
   )
 }
