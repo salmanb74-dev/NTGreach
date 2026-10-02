@@ -29,9 +29,44 @@ export interface LeadFormData {
   lost_reason?: string | null
 }
 
+/** Case-insensitive exact match for PostgREST `ilike` (escape % _ \). */
+function escapeIlikeExact(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+async function assertUniqueCompanyName(
+  supabase: ReturnType<typeof createClient>,
+  companyName: string,
+  excludeId?: string,
+) {
+  const name = companyName.trim()
+  if (!name) return
+
+  let query = supabase
+    .from('leads')
+    .select('id')
+    .ilike('company_name', escapeIlikeExact(name))
+    .limit(1)
+
+  if (excludeId) {
+    query = query.neq('id', excludeId)
+  }
+
+  const { data: existing, error } = await query
+  assertNoError(error)
+
+  if (existing && existing.length > 0) {
+    throw new Error(
+      `"${name}" already exists. Please give a different name.`,
+    )
+  }
+}
+
 export async function createLead(data: LeadFormData) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  await assertUniqueCompanyName(supabase, data.company_name)
 
   const { getDealQuoteDefaults } = await import('@/lib/dataCache')
   const {
@@ -42,6 +77,8 @@ export async function createLead(data: LeadFormData) {
   const insert = {
     ...defaults,
     ...data,
+    company_name: data.company_name.trim(),
+    contact_name: data.contact_name.trim(),
     // Only fill deal fields from defaults when caller left them unset
     deal_currency: data.deal_currency ?? defaults.deal_currency,
     quoted_mrr: data.quoted_mrr ?? defaults.quoted_mrr,
@@ -58,6 +95,11 @@ export async function createLead(data: LeadFormData) {
     .select()
     .single()
 
+  if (error?.code === '23505') {
+    throw new Error(
+      `"${data.company_name.trim()}" already exists. Please give a different name.`,
+    )
+  }
   assertNoError(error)
 
   // Log creation activity
@@ -75,6 +117,14 @@ export async function createLead(data: LeadFormData) {
 export async function updateLead(id: string, data: Partial<LeadFormData>) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (data.company_name !== undefined) {
+    await assertUniqueCompanyName(supabase, data.company_name, id)
+    data = { ...data, company_name: data.company_name.trim() }
+  }
+  if (data.contact_name !== undefined) {
+    data = { ...data, contact_name: data.contact_name.trim() }
+  }
 
   // Check if stage changed
   if (data.stage) {
@@ -121,6 +171,11 @@ export async function updateLead(id: string, data: Partial<LeadFormData>) {
     .update(data)
     .eq('id', id)
 
+  if (error?.code === '23505') {
+    throw new Error(
+      `"${(data.company_name ?? '').trim()}" already exists. Please give a different name.`,
+    )
+  }
   assertNoError(error)
 
   revalidatePath('/leads')

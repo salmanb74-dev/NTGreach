@@ -17,6 +17,7 @@ import {
   type OfferMode,
   DEFAULT_OFFER,
   DURATION_CYCLES,
+  MIN_OFFER_AMOUNT_USD,
   offerToForm,
   formToOffer,
   formOfferFromSubscription,
@@ -678,7 +679,7 @@ export default function TenantSubscriptionPanel({
               <input
                 className={styles.inputSm}
                 type="number"
-                min={0.01}
+                min={MIN_OFFER_AMOUNT_USD}
                 step="any"
                 value={form.monthlyPrice}
                 onChange={e => patchForm({ monthlyPrice: e.target.value })}
@@ -906,7 +907,7 @@ export default function TenantSubscriptionPanel({
               <input
                 className={styles.inputSm}
                 type="number"
-                min={0}
+                min={isTrial ? MIN_OFFER_AMOUNT_USD : 0}
                 step="any"
                 disabled={!isTrial}
                 value={form.preTrialSetupFee}

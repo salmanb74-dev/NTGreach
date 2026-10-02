@@ -12,6 +12,9 @@ import {
 import { formatWhen } from '@/lib/format-when'
 import { formatMoney as fmtMoney } from '@/lib/currency'
 
+/** Minimum USD for recurring monthly (sub / planned) and trial pre-trial setup. */
+export const MIN_OFFER_AMOUNT_USD = 0.5
+
 /** Duration = billing cycle length (months → UI label). */
 export const DURATION_CYCLES = [
   { months: 1, label: '1 mo' },
@@ -194,8 +197,10 @@ export function formToOffer(
   form: FormState
 ): RestoEnterpriseOfferInput | { error: string } {
   const monthlyPrice = Number(form.monthlyPrice)
-  if (!Number.isFinite(monthlyPrice) || monthlyPrice <= 0) {
-    return { error: 'Recurring fees (monthly) must be a number > 0' }
+  if (!Number.isFinite(monthlyPrice) || monthlyPrice < MIN_OFFER_AMOUNT_USD) {
+    return {
+      error: `Recurring fees (monthly) must be at least $${MIN_OFFER_AMOUNT_USD}`,
+    }
   }
   const durationMonths = Number(form.durationMonths)
   if (
@@ -299,6 +304,14 @@ export function formToOffer(
   const preTrialSetupFee = Number(form.preTrialSetupFee)
   if (!Number.isFinite(preTrialSetupFee) || preTrialSetupFee < 0) {
     return { error: 'Pre-trial setup must be a number >= 0' }
+  }
+  if (
+    form.paidTrial &&
+    preTrialSetupFee < MIN_OFFER_AMOUNT_USD
+  ) {
+    return {
+      error: `Pre-trial setup must be at least $${MIN_OFFER_AMOUNT_USD}`,
+    }
   }
 
   // Trial → null. Subscription with future/empty start → Nest default true.

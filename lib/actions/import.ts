@@ -49,13 +49,16 @@ export async function importLeads(rows: ImportRow[]): Promise<ImportResult> {
 
   const result: ImportResult = { inserted: 0, skipped: 0, errors: [] }
 
-  // Fetch existing emails + phones to skip exact duplicates
+  // Fetch existing emails, phones, and company names to skip duplicates
   const { data: existing } = await supabase
     .from('leads')
-    .select('email, phone')
+    .select('email, phone, company_name')
 
   const existingEmails = new Set(existing?.map(r => r.email?.toLowerCase()).filter(Boolean))
   const existingPhones = new Set(existing?.map(r => r.phone?.replace(/\s/g, '')).filter(Boolean))
+  const existingCompanies = new Set(
+    existing?.map(r => r.company_name?.trim().toLowerCase()).filter(Boolean) as string[],
+  )
 
   const toInsert: object[] = []
 
@@ -75,9 +78,17 @@ export async function importLeads(rows: ImportRow[]): Promise<ImportResult> {
     }
 
     // Duplicate check
+    const companyKey = row.company_name.trim().toLowerCase()
     const emailLower = row.email?.toLowerCase().trim()
     const phoneClean = row.phone?.replace(/\s/g, '').trim()
 
+    if (existingCompanies.has(companyKey)) {
+      result.errors.push(
+        `Row ${rowNum}: "${row.company_name.trim()}" already exists. Please give a different name — skipped`,
+      )
+      result.skipped++
+      continue
+    }
     if (emailLower && existingEmails.has(emailLower)) {
       result.errors.push(`Row ${rowNum}: ${row.contact_name} — email already exists, skipped`)
       result.skipped++
@@ -103,6 +114,7 @@ export async function importLeads(rows: ImportRow[]): Promise<ImportResult> {
       created_by:      user!.id,
     })
 
+    existingCompanies.add(companyKey)
     if (emailLower) existingEmails.add(emailLower)
     if (phoneClean) existingPhones.add(phoneClean)
   }
