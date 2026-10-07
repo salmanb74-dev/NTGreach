@@ -17,7 +17,11 @@ export async function GET(
   if ('error' in ctx) return ctx.error
 
   try {
-    const offerNotes = await getSubscriptionOfferNotes(ctx.tenantId, ctx.env)
+    const offerNotes = await getSubscriptionOfferNotes(
+      'resto',
+      ctx.tenantId,
+      ctx.env
+    )
     return NextResponse.json({ env: ctx.env, offerNotes })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Server error'
@@ -64,6 +68,7 @@ export async function PUT(
 
   try {
     const saved = await upsertSubscriptionOfferNotes(
+      'resto',
       ctx.tenantId,
       ctx.env,
       offerNotes

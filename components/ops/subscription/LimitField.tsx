@@ -1,21 +1,18 @@
-import type { FormState } from './offer-form'
 import styles from '../TenantSubscription.module.css'
 
-type LimitKey = 'locations' | 'users' | 'counters' | 'ordersPerMonth'
-type UnlKey =
-  | 'locationsUnlimited'
-  | 'usersUnlimited'
-  | 'countersUnlimited'
-  | 'ordersUnlimited'
-
-type Props = {
-  form: FormState
-  valueKey: LimitKey
-  unlKey: UnlKey
-  patchForm: (p: Partial<FormState>) => void
+type Props<T extends Record<string, unknown>> = {
+  form: T
+  valueKey: keyof T & string
+  unlKey: keyof T & string
+  patchForm: (p: Partial<T>) => void
 }
 
-export default function LimitField({ form, valueKey, unlKey, patchForm }: Props) {
+export default function LimitField<T extends Record<string, unknown>>({
+  form,
+  valueKey,
+  unlKey,
+  patchForm,
+}: Props<T>) {
   return (
     <div className={styles.limitInner}>
       <input
@@ -23,25 +20,25 @@ export default function LimitField({ form, valueKey, unlKey, patchForm }: Props)
         type="number"
         min={1}
         step={1}
-        disabled={form[unlKey]}
-        value={form[valueKey]}
+        disabled={Boolean(form[unlKey])}
+        value={String(form[valueKey] ?? '')}
         placeholder="∞"
         onChange={e =>
           patchForm({
             [valueKey]: e.target.value,
             [unlKey]: false,
-          } as Partial<FormState>)
+          } as Partial<T>)
         }
       />
       <label className={styles.checkSm}>
         <input
           type="checkbox"
-          checked={form[unlKey]}
+          checked={Boolean(form[unlKey])}
           onChange={e =>
             patchForm({
               [unlKey]: e.target.checked,
               ...(e.target.checked ? { [valueKey]: '' } : {}),
-            } as Partial<FormState>)
+            } as Partial<T>)
           }
         />
         ∞

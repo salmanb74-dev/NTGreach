@@ -24,6 +24,7 @@ import {
   formDiffs,
   currentValues,
   fmtMoney,
+  fmtDate,
   newOfferStatusLabel,
   needsEnterpriseClearForce,
   offerModeFromForm,
@@ -135,6 +136,8 @@ export default function TenantSubscriptionPanel({
     [form.offerNotes, savedNotes]
   )
   const setupFeePaidUsd = subscription?.setupFeePaidUsd ?? null
+  const firstSubscriptionStartDate =
+    subscription?.firstSubscriptionStartDate ?? null
 
   const applyReachNotes = useCallback((offerNotes: string | null) => {
     setSavedNotes(offerNotes)
@@ -617,6 +620,28 @@ export default function TenantSubscriptionPanel({
               />
             }
             currentCell={current.subscriptionStart}
+          />
+          <CompareRow
+            label="First subscription start date"
+            newCell={
+              <span
+                className={styles.mutedVal}
+                title="Read-only Nest field firstSubscriptionStartDate — not sent on PUT"
+              >
+                {firstSubscriptionStartDate
+                  ? fmtDate(firstSubscriptionStartDate)
+                  : '—'}
+              </span>
+            }
+            currentCell={
+              firstSubscriptionStartDate ? (
+                <span title="Write-once: first Starter/Pro/Enterprise subscription activation">
+                  {fmtDate(firstSubscriptionStartDate)}
+                </span>
+              ) : (
+                <span className={styles.placeholderVal}>—</span>
+              )
+            }
           />
           {showProrateBackdatedControl(form) && (
             <CompareRow

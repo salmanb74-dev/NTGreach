@@ -58,6 +58,10 @@
 
 .title {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   font-size: 20px;
   font-weight: 600;
   color: var(--color-text);
@@ -162,6 +166,89 @@
 
 .muted {
   color: var(--color-text-3);
+}
+
+/* Orders placement lock */
+.ordersLockPanelLocked {
+  border-color: #fecaca;
+}
+
+.ordersLockHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ordersLockedBadge,
+.ordersUnlockedBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.ordersLockedBadge {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.ordersUnlockedBadge {
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  border: 1px solid var(--color-border);
+}
+
+.ordersLockMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.ordersLockMeta dt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-3);
+}
+
+.ordersLockMeta dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.ordersLockActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ordersLockMsgError,
+.ordersLockMsgOk {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.ordersLockMsgError {
+  color: #b91c1c;
+}
+
+.ordersLockMsgOk {
+  color: #166534;
 }
 
 /* Delete tenant panel */

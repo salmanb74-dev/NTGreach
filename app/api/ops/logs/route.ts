@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCachedProfile } from '@/lib/dataCache'
-import { hasOpsAccess } from '@/lib/roles'
+import { hasOpsProductAccess } from '@/lib/roles'
 import {
   fetchRestoLogs,
   isRestoAdminConfigured,
@@ -22,7 +22,7 @@ function parseLimit(value: string | null): number | undefined {
 
 export async function GET(request: NextRequest) {
   const profile = await getCachedProfile()
-  if (!hasOpsAccess(profile)) {
+  if (!hasOpsProductAccess(profile, 'resto')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

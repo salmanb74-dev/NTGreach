@@ -18,13 +18,20 @@ import {
   type OpsCashCollection,
   type OpsCashTenant,
 } from '@/lib/ops/cash-collection'
+import type { AlmaAdminEnv } from '@/lib/alma-admin/types'
 import type { RestoAdminEnv } from '@/lib/resto-admin/types'
+import type { CashProduct } from '@/lib/ops/cash-collection'
+import type { OpsNestProduct } from '@/lib/ops/product'
 import styles from './TenantCashPanel.module.css'
+
+type OpsAdminEnv = RestoAdminEnv | AlmaAdminEnv
 
 interface Props {
   tenantId: string
   tenantName: string
-  env: RestoAdminEnv
+  env: OpsAdminEnv
+  product?: OpsNestProduct
+  apiBase?: '/api/ops' | '/api/ops/alma'
 }
 
 type FormState = {
@@ -60,7 +67,14 @@ function emptyForm(settings: OpsCashTenant | null, due: CashDueStatus): FormStat
   }
 }
 
-export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
+export default function TenantCashPanel({
+  tenantId,
+  tenantName,
+  env,
+  product = 'resto',
+  apiBase = product === 'alma' ? '/api/ops/alma' : '/api/ops',
+}: Props) {
+  const cashProduct: CashProduct = product
   const isProduction = env === 'production'
   const [settings, setSettings] = useState<OpsCashTenant | null>(null)
   const [collections, setCollections] = useState<OpsCashCollection[]>([])
@@ -90,7 +104,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const data = await getCashTenant(tenantId)
+      const data = await getCashTenant(tenantId, cashProduct)
       setSettings(data.settings)
       setCollections(data.collections)
       setDue(data.due)
@@ -115,7 +129,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [tenantId])
+  }, [cashProduct, tenantId])
 
   useEffect(() => {
     if (!isProduction) return
@@ -128,7 +142,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
   > | null> => {
     try {
       const res = await fetch(
-        `/api/ops/tenants/${encodeURIComponent(tenantId)}/subscription?env=production`,
+        `${apiBase}/tenants/${encodeURIComponent(tenantId)}/subscription?env=production`,
         { cache: 'no-store' }
       )
       if (!res.ok) return null
@@ -137,7 +151,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
     } catch {
       return null
     }
-  }, [tenantId])
+  }, [apiBase, tenantId])
 
   function toggleEnabled(next: boolean) {
     setMsg(null)
@@ -147,6 +161,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
         const subscription = next ? await fetchSubscription() : null
         const saved = await upsertCashSettings({
           tenantId,
+          product: cashProduct,
           enabled: next,
           subscription: subscription ?? undefined,
         })
@@ -191,6 +206,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
       try {
         const saved = await upsertCashSettings({
           tenantId,
+          product: cashProduct,
           enabled: true,
           scheduleAnchor: settingsForm.scheduleAnchor || null,
           cycleMonths: Math.floor(cycle),
@@ -216,6 +232,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
         const d = cashDefaultsFromSubscription(subscription)
         const saved = await upsertCashSettings({
           tenantId,
+          product: cashProduct,
           enabled: true,
           subscription: subscription ?? undefined,
           scheduleAnchor: d.scheduleAnchor,
@@ -299,6 +316,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
           await updateCashCollection({
             id: editingId,
             tenantId,
+            product: cashProduct,
             kind: form.kind,
             amount,
             currency: form.currency,
@@ -310,6 +328,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
         } else {
           await createCashCollection({
             tenantId,
+            product: cashProduct,
             kind: form.kind,
             amount,
             currency: form.currency,
@@ -342,7 +361,7 @@ export default function TenantCashPanel({ tenantId, tenantName, env }: Props) {
     setError(null)
     startTransition(async () => {
       try {
-        await deleteCashCollection(row.id, tenantId)
+        await deleteCashCollection(row.id, tenantId, cashProduct)
         setMsg('Collection deleted.')
         await load()
       } catch (err) {

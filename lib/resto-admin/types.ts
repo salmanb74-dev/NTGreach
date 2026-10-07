@@ -12,6 +12,11 @@ export type RestoTenant = {
   enterpriseInPaidTrial: boolean | null
   /** YYYY-MM-DD subscription start; null on free / unavailable */
   subscriptionStart: string | null
+  /**
+   * YYYY-MM-DD when tenant first activated Starter/Pro/Enterprise (subscription).
+   * Null until then (e.g. Free, Ent/Trial). Write-once on Nest — never editable.
+   */
+  firstSubscriptionStartDate: string | null
   /** YYYY-MM-DD; persists after trial ends if they ever had one */
   trialStartedAt: string | null
   /** Nest: 1_month | 3_month | 6_month | 1_year | 2_year (blank UI on Free/Trial) */
@@ -27,6 +32,23 @@ export type RestoTenant = {
   ordersLimit: number | null
   /** YYYY-MM-DD or ISO; null if never ordered */
   lastOrderAt: string | null
+  /** Nest indefinite order-placement lock (ops). Missing → false. */
+  ordersPlacementLocked: boolean
+}
+
+/** GET/PUT /api/v1/admin/tenants/:id/orders-lock */
+export type RestoOrdersLockStatus = {
+  tenantId: string
+  tenantName: string | null
+  subdomain: string | null
+  locked: boolean
+  lockedAt: string | null
+  /** Ops-only note; null when unlocked. */
+  reason: string | null
+}
+
+export type RestoOrdersLockPutResult = RestoOrdersLockStatus & {
+  changed: boolean
 }
 
 /** Short plan buckets for Ops tenants list filters. */
@@ -335,6 +357,12 @@ export type RestoSubscriptionSnapshot = {
    * Nest: setupFeePaidUsd / setup_fee_paid_usd. Read-only — never on PUT.
    */
   setupFeePaidUsd: number | null
+  /**
+   * YYYY-MM-DD when tenant first activated Starter/Pro/Enterprise (subscription).
+   * Not set for Enterprise (trial). Never resets; may be backdated for Ent sub.
+   * Nest: firstSubscriptionStartDate. Read-only — never on PUT.
+   */
+  firstSubscriptionStartDate: string | null
   stripeSubscriptionId: string | null
   stripeCustomerId: string | null
   created: boolean

@@ -1,3 +1,4 @@
+import type { OpsNestProduct } from '@/lib/ops/product'
 import type { Module } from '@/lib/modules'
 import { modulesForProfile } from '@/lib/platform/access-model'
 
@@ -93,6 +94,15 @@ export function isOpsAdmin(profile: UserProfile | null): boolean {
 }
 export function hasOpsAccess(profile: UserProfile | null): boolean {
   return isOpsAdmin(profile)
+}
+
+export function hasOpsProductAccess(
+  profile: UserProfile | null,
+  product: OpsNestProduct
+): boolean {
+  if (!isOpsAdmin(profile)) return false
+  const modules = getAccessibleModules(profile)
+  return modules.includes(product === 'alma' ? 'ops_alma' : 'ops_resto')
 }
 
 // ─── Platform Ops (cross-module Users etc.) ───────────────────

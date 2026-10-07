@@ -3,17 +3,29 @@
 import { useState, useTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import type {
+  AlmaAdminEnv,
+  AlmaTenant,
+  AlmaTenantDeleteSummary,
+} from '@/lib/alma-admin/types'
+import type {
   RestoAdminEnv,
   RestoTenant,
   RestoTenantDeleteSummary,
 } from '@/lib/resto-admin/types'
 import { moduleFromPathname, modulePath } from '@/lib/module-routing'
 import type { Module } from '@/lib/modules'
+import type { OpsNestProduct } from '@/lib/ops/product'
 import styles from './TenantDetailClient.module.css'
 
+type OpsAdminEnv = RestoAdminEnv | AlmaAdminEnv
+type TenantRow = RestoTenant | AlmaTenant
+type DeleteSummary = RestoTenantDeleteSummary | AlmaTenantDeleteSummary
+
 interface Props {
-  tenant: RestoTenant
-  env: RestoAdminEnv
+  tenant: TenantRow
+  env: OpsAdminEnv
+  product?: OpsNestProduct
+  apiBase?: '/api/ops' | '/api/ops/alma'
 }
 
 function Stat({
@@ -32,7 +44,13 @@ function Stat({
   )
 }
 
-function SummaryBlock({ summary }: { summary: RestoTenantDeleteSummary }) {
+function SummaryBlock({
+  summary,
+  isAlma,
+}: {
+  summary: DeleteSummary
+  isAlma: boolean
+}) {
   return (
     <div className={styles.deleteSummary}>
       <h4 className={styles.deleteSummaryTitle}>Deletion summary</h4>
@@ -40,7 +58,12 @@ function SummaryBlock({ summary }: { summary: RestoTenantDeleteSummary }) {
         <Stat label="Users" value={summary.usersDeleted} />
         <Stat label="Auth users" value={summary.authUsersDeleted} />
         <Stat label="Auth failures" value={summary.authUsersFailed} />
-        <Stat label="Orders" value={summary.ordersDeleted} />
+        {!isAlma && 'ordersDeleted' in summary && (
+          <Stat label="Orders" value={summary.ordersDeleted} />
+        )}
+        {isAlma && 'studentsDeleted' in summary && (
+          <Stat label="Students" value={summary.studentsDeleted} />
+        )}
         <Stat label="Branches" value={summary.branchesDeleted} />
         <Stat label="API hits" value={summary.apiHitsDeleted} />
       </div>
@@ -59,12 +82,13 @@ function SummaryBlock({ summary }: { summary: RestoTenantDeleteSummary }) {
 }
 
 async function tenantStillListed(
-  env: RestoAdminEnv,
-  tenantId: string
+  env: OpsAdminEnv,
+  tenantId: string,
+  apiBase: string
 ): Promise<boolean | null> {
   try {
     const response = await fetch(
-      `/api/ops/tenants?env=${encodeURIComponent(env)}`,
+      `${apiBase}/tenants?env=${encodeURIComponent(env)}`,
       { cache: 'no-store' }
     )
     if (!response.ok) return null
@@ -79,7 +103,13 @@ async function tenantStillListed(
   }
 }
 
-export default function TenantDeletePanel({ tenant, env }: Props) {
+export default function TenantDeletePanel({
+  tenant,
+  env,
+  product = 'resto',
+  apiBase = product === 'alma' ? '/api/ops/alma' : '/api/ops',
+}: Props) {
+  const isAlma = product === 'alma'
   const router = useRouter()
   const pathname = usePathname()
   const productModule: Module =
@@ -90,7 +120,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
   const [confirmId, setConfirmId] = useState('')
   const [ack, setAck] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [summary, setSummary] = useState<RestoTenantDeleteSummary | null>(null)
+  const [summary, setSummary] = useState<DeleteSummary | null>(null)
   const [confirmedAbsent, setConfirmedAbsent] = useState(false)
   const [done, setDone] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -102,7 +132,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
   const canSubmit = ack && nameOk && idOk && !isPending && !done
 
   function markDeleted(opts: {
-    summary?: RestoTenantDeleteSummary | null
+    summary?: DeleteSummary | null
     confirmedAbsent?: boolean
   }) {
     setSummary(opts.summary ?? null)
@@ -118,7 +148,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
     startTransition(async () => {
       try {
         const response = await fetch(
-          `/api/ops/tenants/${encodeURIComponent(tenant.id)}?env=${encodeURIComponent(env)}`,
+          `${apiBase}/tenants/${encodeURIComponent(tenant.id)}?env=${encodeURIComponent(env)}`,
           {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
@@ -137,7 +167,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
           markDeleted({
             summary:
               body.summary && typeof body.summary === 'object'
-                ? (body.summary as RestoTenantDeleteSummary)
+                ? (body.summary as DeleteSummary)
                 : null,
             confirmedAbsent: body.confirmedAbsent === true,
           })
@@ -146,7 +176,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
 
         // Gateway / Nest timeout: verify before asking the user to retry.
         if (response.status === 504 || response.status === 502) {
-          const stillThere = await tenantStillListed(env, tenant.id)
+          const stillThere = await tenantStillListed(env, tenant.id, apiBase)
           if (stillThere === false) {
             markDeleted({ confirmedAbsent: true })
             return
@@ -165,7 +195,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
             : `Delete failed (${response.status})`
         )
       } catch {
-        const stillThere = await tenantStillListed(env, tenant.id)
+        const stillThere = await tenantStillListed(env, tenant.id, apiBase)
         if (stillThere === false) {
           markDeleted({ confirmedAbsent: true })
           return
@@ -194,7 +224,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
             was not returned.
           </p>
         )}
-        {summary && <SummaryBlock summary={summary} />}
+        {summary && <SummaryBlock summary={summary} isAlma={isAlma} />}
         <div className={styles.deleteActions}>
           <button
             type="button"
@@ -216,9 +246,10 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
     <div className={`${styles.panel} ${styles.deletePanel}`}>
       <h3 className={styles.panelTitle}>Delete tenant</h3>
       <p className={styles.panelBody}>
-        Permanently removes this restaurant from Resto (
-        {isProduction ? 'Production' : 'Staging'}
-        ): users, auth logins, branches, orders, menu, inventory, customers,
+        Permanently removes this {isAlma ? 'school' : 'restaurant'} from{' '}
+        {isAlma ? 'Alma' : 'Resto'} ({isProduction ? 'Production' : 'Staging'}
+        ): users, auth logins, branches
+        {isAlma ? ', students' : ', orders, menu, inventory, customers'},
         subscriptions, API hits, audit logs, and the tenant row. This cannot be
         undone.
       </p>
@@ -232,7 +263,7 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
 
       <dl className={styles.deleteTarget}>
         <div>
-          <dt>Restaurant</dt>
+          <dt>{isAlma ? 'School' : 'Restaurant'}</dt>
           <dd>{tenant.name}</dd>
         </div>
         <div>
@@ -247,7 +278,9 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
 
       <form className={styles.deleteForm} onSubmit={handleDelete}>
         <label className={styles.deleteField}>
-          <span className={styles.fieldLabel}>Type restaurant name to confirm</span>
+          <span className={styles.fieldLabel}>
+            Type {isAlma ? 'school' : 'restaurant'} name to confirm
+          </span>
           <input
             className={styles.deleteInput}
             value={confirmName}
@@ -278,8 +311,8 @@ export default function TenantDeletePanel({ tenant, env }: Props) {
             onChange={e => setAck(e.target.checked)}
             disabled={isPending}
           />
-          I understand this hard-deletes all Resto data for this tenant and cannot
-          be undone.
+          I understand this hard-deletes all {isAlma ? 'Alma' : 'Resto'} data for
+          this tenant and cannot be undone.
         </label>
 
         {error && (

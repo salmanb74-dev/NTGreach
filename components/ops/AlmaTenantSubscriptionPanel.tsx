@@ -1,0 +1,998 @@
+'use client'
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from 'react'
+import type {
+  AlmaAdminEnv,
+  AlmaSubscriptionSnapshot,
+} from '@/lib/alma-admin/types'
+import { resolveActivePlanView } from '@/lib/alma-admin/plan-catalog'
+import ConfirmModal from '@/components/modals/ConfirmModal'
+import CompareRow from './subscription/CompareRow'
+import LimitField from './subscription/LimitField'
+import {
+  type FormState,
+  type OfferMode,
+  DEFAULT_OFFER,
+  DURATION_CYCLES,
+  MIN_OFFER_AMOUNT_USD,
+  offerToForm,
+  formToOffer,
+  formOfferFromSubscription,
+  formDiffs,
+  currentValues,
+  fmtMoney,
+  fmtDate,
+  newOfferStatusLabel,
+  needsEnterpriseClearForce,
+  offerModeFromForm,
+  offerNotesDiff,
+  showProrateBackdatedControl,
+  subHasSavedOffer,
+  isEnterpriseLive,
+} from './subscription/alma-offer-form'
+import styles from './TenantSubscription.module.css'
+
+type CancelOfferDialog = {
+  force: boolean
+  title: string
+  message: string
+}
+
+interface Props {
+  tenantId: string
+  tenantName: string
+  env: AlmaAdminEnv
+}
+
+const API = '/api/ops/alma/tenants'
+
+function SectionRow({
+  label,
+  hint,
+}: {
+  label: string
+  hint?: string
+}) {
+  return (
+    <>
+      <div className={styles.sectionLabel}>{label}</div>
+      <div className={styles.sectionNew}>
+        {hint ? <span className={styles.sectionHint}>{hint}</span> : null}
+      </div>
+      <div className={styles.sectionCur} />
+    </>
+  )
+}
+
+export default function AlmaTenantSubscriptionPanel({
+  tenantId,
+  tenantName,
+  env,
+}: Props) {
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [noSubYet, setNoSubYet] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [subscription, setSubscription] =
+    useState<AlmaSubscriptionSnapshot | null>(null)
+  const [responseNotes, setResponseNotes] = useState<string[]>([])
+  const [savedNotes, setSavedNotes] = useState<string | null>(null)
+  const [form, setForm] = useState<FormState>(() => offerToForm(DEFAULT_OFFER))
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
+  const [cancelDialog, setCancelDialog] = useState<CancelOfferDialog | null>(
+    null
+  )
+  const [isPending, startTransition] = useTransition()
+
+  // Clear legacy local pending flag from an earlier workaround.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(
+        `ops-alma-reoffer-pending:${env}:${tenantId}`
+      )
+    } catch {
+      /* ignore */
+    }
+  }, [env, tenantId])
+
+  const mode = offerModeFromForm(form)
+  const isTrial = mode === 'trial'
+
+  const termTotalPreview = useMemo(() => {
+    const monthly = Number(form.monthlyPrice)
+    const months = Number(form.durationMonths)
+    if (
+      !Number.isFinite(monthly) ||
+      monthly <= 0 ||
+      !Number.isFinite(months) ||
+      months <= 0
+    ) {
+      return null
+    }
+    return monthly * months
+  }, [form.monthlyPrice, form.durationMonths])
+
+  const activePlan = useMemo(
+    () => resolveActivePlanView(subscription),
+    [subscription]
+  )
+  const current = useMemo(
+    () => currentValues(activePlan, subscription),
+    [activePlan, subscription]
+  )
+  const newStatus = useMemo(
+    () => newOfferStatusLabel(subscription),
+    [subscription]
+  )
+  const canCancelOffer = Boolean(newStatus)
+  const needsForceCancel = needsEnterpriseClearForce(subscription)
+  const diffs = useMemo(
+    () => formDiffs(form, activePlan, termTotalPreview, subscription),
+    [form, activePlan, termTotalPreview, subscription]
+  )
+  const notesDiff = useMemo(
+    () => offerNotesDiff(form.offerNotes, savedNotes),
+    [form.offerNotes, savedNotes]
+  )
+  const setupFeePaidUsd = subscription?.setupFeePaidUsd ?? null
+  const firstSubscriptionStartDate =
+    subscription?.firstSubscriptionStartDate ?? null
+
+  const applyReachNotes = useCallback((offerNotes: string | null) => {
+    setSavedNotes(offerNotes)
+    setForm(prev => ({ ...prev, offerNotes: offerNotes ?? '' }))
+  }, [])
+
+  const applySubscription = useCallback(
+    (sub: AlmaSubscriptionSnapshot | null, bodyNotes?: string[]) => {
+      setSubscription(sub)
+      if (bodyNotes) setResponseNotes(bodyNotes)
+      setForm(prev => ({
+        ...offerToForm(formOfferFromSubscription(sub)),
+        offerNotes: prev.offerNotes,
+      }))
+    },
+    []
+  )
+
+  const loadReachNotes = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `${API}/${encodeURIComponent(tenantId)}/subscription-notes?env=${encodeURIComponent(env)}`,
+        { cache: 'no-store' }
+      )
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) return null
+      return typeof body.offerNotes === 'string' ? body.offerNotes : null
+    } catch {
+      return null
+    }
+  }, [env, tenantId])
+
+  const saveReachNotes = useCallback(
+    async (offerNotes: string): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const res = await fetch(
+          `${API}/${encodeURIComponent(tenantId)}/subscription-notes?env=${encodeURIComponent(env)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ offerNotes: offerNotes.trim() || null }),
+          }
+        )
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          return {
+            ok: false,
+            error:
+              typeof body.error === 'string'
+                ? body.error
+                : `Notes save failed (${res.status})`,
+          }
+        }
+        const saved =
+          typeof body.offerNotes === 'string' ? body.offerNotes : null
+        applyReachNotes(saved)
+        return { ok: true }
+      } catch {
+        return { ok: false, error: 'Could not save internal notes' }
+      }
+    },
+    [applyReachNotes, env, tenantId]
+  )
+
+  const load = useCallback(
+    async (opts?: { quiet?: boolean }) => {
+      if (!opts?.quiet) {
+        setLoading(true)
+        setLoadError(null)
+      }
+      setNoSubYet(false)
+      try {
+        const [subRes, reachNotes] = await Promise.all([
+          fetch(
+            `${API}/${encodeURIComponent(tenantId)}/subscription?env=${encodeURIComponent(env)}`,
+            { cache: 'no-store' }
+          ),
+          loadReachNotes(),
+        ])
+        const body = await subRes.json().catch(() => ({}))
+        applyReachNotes(reachNotes)
+        if (subRes.status === 404) {
+          setNoSubYet(true)
+          applySubscription(null, [])
+          setLoadError(null)
+          return
+        }
+        if (!subRes.ok) {
+          setLoadError(
+            typeof body.error === 'string'
+              ? body.error
+              : `Failed to load subscription (${subRes.status})`
+          )
+          return
+        }
+        const sub = (body.subscription ?? null) as AlmaSubscriptionSnapshot | null
+        setNoSubYet(false)
+        applySubscription(sub, Array.isArray(body.notes) ? body.notes : [])
+        setForm(prev => ({
+          ...prev,
+          offerNotes: reachNotes ?? '',
+        }))
+      } catch {
+        setLoadError(
+          'Could not load subscription. Check connection and try again.'
+        )
+      } finally {
+        if (!opts?.quiet) setLoading(false)
+      }
+    },
+    [applyReachNotes, applySubscription, env, loadReachNotes, tenantId]
+  )
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  function patchForm(partial: Partial<FormState>) {
+    setForm(prev => ({ ...prev, ...partial }))
+    setSavedMsg(null)
+    setSaveError(null)
+  }
+
+  function setOfferMode(next: OfferMode) {
+    patchForm({ paidTrial: next === 'trial' })
+  }
+
+  function requestCancelOffer() {
+    setSaveError(null)
+    setSavedMsg(null)
+    const force = needsForceCancel
+    setCancelDialog({
+      force,
+      title: force ? 'Cancel re-offer?' : 'Cancel pending offer?',
+      message: force
+        ? `This tenant already has live Enterprise terms. Cancel the pending re-offer only?\n\nLive plan, current Enterprise terms, Stripe, and total setup fees paid are kept.`
+        : `Cancel the pending Enterprise offer for ${tenantName}?\n\nThis clears the sales offer only. The current plan is unchanged.`,
+    })
+  }
+
+  function executeCancelOffer(force: boolean) {
+    setSaveError(null)
+    setSavedMsg(null)
+
+    startTransition(async () => {
+      async function doDelete(useForce: boolean) {
+        const qs = new URLSearchParams({ env })
+        if (useForce) qs.set('force', 'true')
+        const res = await fetch(
+          `${API}/${encodeURIComponent(tenantId)}/subscription/enterprise?${qs}`,
+          {
+            method: 'DELETE',
+            headers: useForce
+              ? { 'Content-Type': 'application/json' }
+              : undefined,
+            body: useForce ? JSON.stringify({ force: true }) : undefined,
+          }
+        )
+        const body = await res.json().catch(() => ({}))
+        return { res, body }
+      }
+
+      try {
+        const { res, body } = await doDelete(force)
+
+        if (res.status === 409 && !force) {
+          setCancelDialog({
+            force: true,
+            title: 'Force cancel pending offer?',
+            message: `${typeof body.error === 'string' ? body.error : 'This tenant has live Enterprise terms.'}\n\nCancel the pending offer only? Live plan and setup paid balance are kept.`,
+          })
+          return
+        }
+
+        if (!res.ok) {
+          setCancelDialog(null)
+          setSaveError(
+            typeof body.error === 'string'
+              ? body.error
+              : `Cancel failed (${res.status})`
+          )
+          return
+        }
+
+        setCancelDialog(null)
+
+        const notesFromDelete = Array.isArray(body.notes) ? body.notes : []
+        if (body.subscription != null) {
+          applySubscription(
+            body.subscription as AlmaSubscriptionSnapshot,
+            notesFromDelete
+          )
+        } else {
+          await load({ quiet: true })
+          if (notesFromDelete.length) setResponseNotes(notesFromDelete)
+        }
+
+        setSavedMsg(
+          body.cleared
+            ? 'Pending offer cancelled. Current plan and live terms unchanged.'
+            : 'No pending offer to cancel.'
+        )
+      } catch {
+        setCancelDialog(null)
+        setSaveError('Could not cancel offer. Check connection and try again.')
+      }
+    })
+  }
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaveError(null)
+    setSavedMsg(null)
+    const offer = formToOffer(form)
+    if ('error' in offer) {
+      setSaveError(offer.error)
+      return
+    }
+
+    startTransition(async () => {
+      const alreadyLive = isEnterpriseLive(subscription)
+      try {
+        const res = await fetch(
+          `${API}/${encodeURIComponent(tenantId)}/subscription/enterprise?env=${encodeURIComponent(env)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(offer),
+          }
+        )
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          setSaveError(
+            typeof body.error === 'string'
+              ? body.error
+              : `Save failed (${res.status})`
+          )
+          return
+        }
+
+        let sub = (body.subscription ?? null) as AlmaSubscriptionSnapshot | null
+        if (!sub || !subHasSavedOffer(sub)) {
+          const reload = await fetch(
+            `${API}/${encodeURIComponent(tenantId)}/subscription?env=${encodeURIComponent(env)}`,
+            { cache: 'no-store' }
+          )
+          const reloadBody = await reload.json().catch(() => ({}))
+          sub = (reloadBody.subscription ?? null) as AlmaSubscriptionSnapshot | null
+        }
+
+        if (!sub || !subHasSavedOffer(sub)) {
+          setSaveError(
+            'Server returned success but no Enterprise offer was stored. Check Nest admin API / DB.'
+          )
+          return
+        }
+
+        if (
+          sub.enterprisePrice != null &&
+          Math.abs(Number(sub.enterprisePrice) - offer.price) > 0.05
+        ) {
+          setSaveError(
+            `Offer stored with price ${sub.enterprisePrice}, expected ${offer.price}. Reload and verify.`
+          )
+        }
+
+        applySubscription(
+          sub,
+          Array.isArray(body.notes) ? body.notes : []
+        )
+        setNoSubYet(false)
+
+        const notesResult = await saveReachNotes(form.offerNotes)
+        await load({ quiet: true })
+
+        const livePlan = sub.planId ?? 'unknown'
+        if (!notesResult.ok) {
+          setSaveError(
+            `Offer saved but internal notes failed: ${notesResult.error ?? 'unknown error'}`
+          )
+          return
+        }
+
+        const pendingAfter = newOfferStatusLabel(sub)
+        setSavedMsg(
+          pendingAfter
+            ? alreadyLive
+              ? 'Re-offer saved and pending acceptance. Current plan stays on live terms until the tenant accepts — only the New column was updated.'
+              : `Offer saved and pending. Current plan stays “${livePlan}” until the tenant accepts (portal / Apply terms) — only the New column is updated by Save.`
+            : 'Offer saved. Live terms already match — nothing pending.'
+        )
+      } catch {
+        setSaveError('Could not save. Check connection and try again.')
+      }
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.panel}>
+        <p className={styles.muted}>Loading subscription…</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className={styles.panel}>
+        <h3 className={styles.title}>Subscription</h3>
+        <p className={styles.error} role="alert">
+          {loadError}
+        </p>
+        <button
+          type="button"
+          className={styles.secondaryBtn}
+          onClick={() => void load()}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form className={styles.panel} onSubmit={handleSave}>
+      <div className={styles.headerRow}>
+        <div>
+          <h3 className={styles.title}>Subscription — {tenantName}</h3>
+          <p className={styles.subline}>
+            Choose Trial or Subscription for the New offer. Trial start is
+            required on Trial; Subscription start is required on Subscription
+            (optional on Trial to remember a planned convert date). Both dates
+            may be past or future. On Trial, recurring/duration/setup are
+            planned terms for convert later. Internal notes are saved in Reach
+            only (not sent to Nest). Setup fees on New are charges for
+            this offer (0 = no charge). Total setup fees paid is lifetime
+            collected (read-only).
+            {noSubYet
+              ? ' No subscription yet — save creates a free shell.'
+              : ''}
+            {newStatus
+              ? ` Offer status: ${newStatus}.`
+              : !subHasSavedOffer(subscription) && subscription
+                ? ' New is prefilled from current until you save an offer.'
+                : ''}
+          </p>
+        </div>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={() => void load()}
+            disabled={isPending}
+          >
+            Reload
+          </button>
+          <button
+            type="button"
+            className={styles.dangerBtn}
+            disabled={isPending || !canCancelOffer}
+            title={
+              !canCancelOffer
+                ? 'No pending Enterprise offer to cancel'
+                : needsForceCancel
+                  ? 'Cancel pending re-offer (tenant already on Enterprise)'
+                  : 'Cancel pending Enterprise offer'
+            }
+            onClick={() => requestCancelOffer()}
+          >
+            Cancel pending offer
+          </button>
+          <button
+            type="submit"
+            className={styles.primaryBtn}
+            disabled={isPending}
+          >
+            {isPending ? 'Saving…' : 'Save offer'}
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.compareScroll}>
+        <div className={styles.compare}>
+          <div className={styles.headName} />
+          <div className={styles.headNew}>New offer</div>
+          <div className={styles.headCur}>Current plan</div>
+
+          <CompareRow
+            label="Plan"
+            newCell={
+              <span className={styles.mutedVal}>Enterprise offer</span>
+            }
+            currentCell={current.plan}
+          />
+          <CompareRow
+            label="Status"
+            newCell={
+              newStatus ? (
+                <span className={styles.pendingBadge}>{newStatus}</span>
+              ) : (
+                <span className={styles.mutedVal}>—</span>
+              )
+            }
+            currentCell={current.status}
+          />
+          <CompareRow
+            label="Offer type"
+            diff={diffs.offerType}
+            newCell={
+              <div className={styles.modeToggle} role="group" aria-label="Offer type">
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${
+                    isTrial ? styles.modeBtnActive : ''
+                  }`}
+                  onClick={() => setOfferMode('trial')}
+                >
+                  Trial
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${
+                    !isTrial ? styles.modeBtnActive : ''
+                  }`}
+                  onClick={() => setOfferMode('subscription')}
+                >
+                  Subscription
+                </button>
+              </div>
+            }
+            currentCell={current.offerType}
+          />
+          <CompareRow
+            label="Trial start"
+            diff={diffs.trialStart}
+            newCell={
+              <input
+                className={styles.inputAccess}
+                type="datetime-local"
+                required={isTrial}
+                disabled={!isTrial}
+                value={form.trialStartsAt}
+                onChange={e => {
+                  const v = e.target.value
+                  patchForm({
+                    trialStartsAt: v,
+                    trialStartsEmpty: !v,
+                  })
+                }}
+                title={
+                  isTrial
+                    ? 'When the trial starts (past or future)'
+                    : 'Trial start is set on Trial offers'
+                }
+              />
+            }
+            currentCell={current.trialStart}
+          />
+          <CompareRow
+            label="Subscription start"
+            diff={diffs.subscriptionStart}
+            newCell={
+              <input
+                className={styles.inputAccess}
+                type="datetime-local"
+                required={!isTrial}
+                value={form.accessStartsAt}
+                onChange={e => {
+                  const v = e.target.value
+                  patchForm({
+                    accessStartsAt: v,
+                    accessStartsEmpty: !v,
+                  })
+                }}
+                title={
+                  isTrial
+                    ? 'Optional planned subscription start for convert later'
+                    : 'When the subscription starts (past or future)'
+                }
+              />
+            }
+            currentCell={current.subscriptionStart}
+          />
+          <CompareRow
+            label="First subscription start date"
+            newCell={
+              <span
+                className={styles.mutedVal}
+                title="Read-only Nest field firstSubscriptionStartDate — not sent on PUT"
+              >
+                {firstSubscriptionStartDate
+                  ? fmtDate(firstSubscriptionStartDate)
+                  : '—'}
+              </span>
+            }
+            currentCell={
+              firstSubscriptionStartDate ? (
+                <span title="Write-once: first Starter/Pro/Enterprise subscription activation">
+                  {fmtDate(firstSubscriptionStartDate)}
+                </span>
+              ) : (
+                <span className={styles.placeholderVal}>—</span>
+              )
+            }
+          />
+          {showProrateBackdatedControl(form) && (
+            <CompareRow
+              label="Backdated billing"
+              diff={diffs.backdatedBilling}
+              newCell={
+                <div className={styles.backdatedField}>
+                  <div
+                    className={styles.modeToggle}
+                    role="radiogroup"
+                    aria-label="Backdated billing"
+                  >
+                    <button
+                      type="button"
+                      className={`${styles.modeBtn} ${
+                        form.prorateBackdatedAccess ? styles.modeBtnActive : ''
+                      }`}
+                      aria-pressed={form.prorateBackdatedAccess}
+                      onClick={() =>
+                        patchForm({ prorateBackdatedAccess: true })
+                      }
+                    >
+                      Prorate
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.modeBtn} ${
+                        !form.prorateBackdatedAccess ? styles.modeBtnActive : ''
+                      }`}
+                      aria-pressed={!form.prorateBackdatedAccess}
+                      onClick={() =>
+                        patchForm({ prorateBackdatedAccess: false })
+                      }
+                    >
+                      Full periods
+                    </button>
+                  </div>
+                  <p className={styles.fieldHint}>
+                    Past start: Prorate = today→renewal. Full = complete
+                    cycle(s) from start through renewal.
+                  </p>
+                </div>
+              }
+              currentCell={current.backdatedBilling}
+            />
+          )}
+
+          <SectionRow
+            label={isTrial ? 'Planned subscription' : 'Subscription'}
+            hint={
+              isTrial
+                ? 'Saved for convert later — not charged on trial'
+                : undefined
+            }
+          />
+          <CompareRow
+            label="Recurring (USD/mo)"
+            diff={diffs.monthly}
+            newCell={
+              <input
+                className={styles.inputSm}
+                type="number"
+                min={MIN_OFFER_AMOUNT_USD}
+                step="any"
+                value={form.monthlyPrice}
+                onChange={e => patchForm({ monthlyPrice: e.target.value })}
+                required
+              />
+            }
+            currentCell={current.monthly}
+          />
+          <CompareRow
+            label="Duration"
+            diff={diffs.duration}
+            newCell={
+              <select
+                className={styles.inputSm}
+                value={form.durationMonths}
+                onChange={e => patchForm({ durationMonths: e.target.value })}
+                required
+              >
+                {DURATION_CYCLES.map(c => (
+                  <option key={c.months} value={c.months}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            }
+            currentCell={current.duration}
+          />
+          <CompareRow
+            label="Term total"
+            diff={diffs.termTotal}
+            newCell={
+              <strong>
+                {termTotalPreview != null ? fmtMoney(termTotalPreview) : '—'}
+              </strong>
+            }
+            currentCell={current.termTotal}
+          />
+          <CompareRow
+            label="Setup fee"
+            diff={diffs.setupFee}
+            newCell={
+              <input
+                className={styles.inputSm}
+                type="number"
+                min={0}
+                step="any"
+                value={form.setupFee}
+                onChange={e => patchForm({ setupFee: e.target.value })}
+                title={
+                  isTrial
+                    ? 'Planned subscription setup — charged on convert'
+                    : 'Setup fee for this subscription offer'
+                }
+              />
+            }
+            currentCell={current.setupFee}
+          />
+
+          <SectionRow label="Limits & features" />
+          <CompareRow
+            label="Branches"
+            diff={diffs.branches}
+            newCell={
+              <LimitField
+                form={form}
+                valueKey="branches"
+                unlKey="branchesUnlimited"
+                patchForm={patchForm}
+              />
+            }
+            currentCell={current.branches}
+          />
+          <CompareRow
+            label="Students"
+            diff={diffs.students}
+            newCell={
+              <LimitField
+                form={form}
+                valueKey="students"
+                unlKey="studentsUnlimited"
+                patchForm={patchForm}
+              />
+            }
+            currentCell={current.students}
+          />
+          <CompareRow
+            label="Storage (GB)"
+            diff={diffs.storageGb}
+            newCell={
+              <LimitField
+                form={form}
+                valueKey="storageGb"
+                unlKey="storageGbUnlimited"
+                patchForm={patchForm}
+              />
+            }
+            currentCell={current.storageGb}
+          />
+          {(
+            [
+              {
+                key: 'fees' as const,
+                feeKey: 'feesFee' as const,
+                label: 'Fees',
+              },
+              {
+                key: 'library' as const,
+                feeKey: 'libraryFee' as const,
+                label: 'Library',
+              },
+              {
+                key: 'behavioural' as const,
+                feeKey: 'behaviouralFee' as const,
+                label: 'Behavioural',
+              },
+              {
+                key: 'uniformInventory' as const,
+                feeKey: 'uniformInventoryFee' as const,
+                label: 'Uniform inventory',
+              },
+              {
+                key: 'whiteLabel' as const,
+                feeKey: 'whiteLabelFee' as const,
+                label: 'White label',
+              },
+              {
+                key: 'googleClassroom' as const,
+                feeKey: 'googleClassroomFee' as const,
+                label: 'Google Classroom',
+              },
+            ] as const
+          ).map(({ key, feeKey, label }) => (
+            <CompareRow
+              key={key}
+              label={label}
+              diff={diffs[key]}
+              newCell={
+                <div className={styles.addonCol}>
+                  <label className={styles.checkSm}>
+                    <input
+                      type="checkbox"
+                      checked={form[key]}
+                      onChange={e => {
+                        const on = e.target.checked
+                        patchForm({
+                          [key]: on,
+                          ...(on ? {} : { [feeKey]: '' }),
+                        })
+                      }}
+                    />
+                    {form[key] ? 'Yes' : 'No'}
+                  </label>
+                  {form[key] && (
+                    <input
+                      className={styles.inputSm}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="$ / mo"
+                      value={form[feeKey]}
+                      onChange={e => patchForm({ [feeKey]: e.target.value })}
+                      title="Monthly add-on fee sent on Enterprise PUT"
+                    />
+                  )}
+                </div>
+              }
+              currentCell={current[key]}
+            />
+          ))}
+
+          <SectionRow
+            label="Trial charges"
+            hint={isTrial ? undefined : 'Disabled in Subscription mode'}
+          />
+          <CompareRow
+            label="Pre-trial setup"
+            diff={diffs.preTrial}
+            newCell={
+              <input
+                className={styles.inputSm}
+                type="number"
+                min={isTrial ? MIN_OFFER_AMOUNT_USD : 0}
+                step="any"
+                disabled={!isTrial}
+                value={form.preTrialSetupFee}
+                onChange={e => patchForm({ preTrialSetupFee: e.target.value })}
+              />
+            }
+            currentCell={current.preTrial}
+          />
+          <CompareRow
+            label="Total setup fees paid"
+            newCell={
+              <span
+                className={styles.mutedVal}
+                title="Read-only Nest field setupFeePaidUsd — not sent on PUT"
+              >
+                {setupFeePaidUsd != null
+                  ? fmtMoney(setupFeePaidUsd)
+                  : '—'}
+              </span>
+            }
+            currentCell={
+              setupFeePaidUsd != null ? (
+                <span title="Regular + pre-trial setup already collected">
+                  {fmtMoney(setupFeePaidUsd)}
+                </span>
+              ) : (
+                <span className={styles.placeholderVal}>—</span>
+              )
+            }
+          />
+          <CompareRow
+            label="Billing period"
+            newCell={<span className={styles.mutedVal}>After activation</span>}
+            currentCell={current.period}
+          />
+          <CompareRow
+            label="Internal notes"
+            diff={notesDiff}
+            newCell={
+              <textarea
+                className={styles.notesInput}
+                rows={3}
+                value={form.offerNotes}
+                onChange={e => patchForm({ offerNotes: e.target.value })}
+                placeholder="Reach only — e.g. agreed sub start after trial"
+                title="Saved in Reach Supabase; not sent to Nest or the tenant"
+              />
+            }
+            currentCell={
+              savedNotes ? (
+                <span className={styles.notesDisplay}>{savedNotes}</span>
+              ) : (
+                <span className={styles.placeholderVal}>—</span>
+              )
+            }
+          />
+        </div>
+      </div>
+
+      {(responseNotes.length > 0 ||
+        (subscription?.warnings?.length ?? 0) > 0) && (
+        <div className={styles.notesBlock}>
+          {responseNotes.map((n, i) => (
+            <span key={`n-${i}`} className={styles.noteChip}>
+              {n}
+            </span>
+          ))}
+          {(subscription?.warnings ?? []).map((w, i) => (
+            <span key={`w-${i}`} className={styles.warnChip}>
+              {w}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {saveError && (
+        <p className={styles.error} role="alert">
+          {saveError}
+        </p>
+      )}
+      {savedMsg && !saveError && (
+        <p className={styles.success} role="status">
+          {savedMsg}
+        </p>
+      )}
+
+      {cancelDialog && (
+        <ConfirmModal
+          title={cancelDialog.title}
+          message={cancelDialog.message}
+          confirmLabel={
+            cancelDialog.force ? 'Cancel pending offer' : 'Cancel offer'
+          }
+          danger
+          loading={isPending}
+          onConfirm={() => executeCancelOffer(cancelDialog.force)}
+          onClose={() => {
+            if (!isPending) setCancelDialog(null)
+          }}
+        />
+      )}
+    </form>
+  )
+}

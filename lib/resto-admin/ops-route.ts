@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCachedProfile } from '@/lib/dataCache'
-import { hasOpsAccess } from '@/lib/roles'
+import { hasOpsProductAccess } from '@/lib/roles'
 import {
   isRestoAdminConfigured,
   RestoAdminApiError,
@@ -48,7 +48,7 @@ export function mapRestoAdminUpstreamError(err: unknown, env: RestoAdminEnv) {
  */
 export async function requireOpsTenantProxy(request: NextRequest, tenantIdRaw: string) {
   const profile = await getCachedProfile()
-  if (!hasOpsAccess(profile)) {
+  if (!hasOpsProductAccess(profile, 'resto')) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
@@ -73,7 +73,7 @@ export async function requireOpsNotesProxy(
   tenantIdRaw: string
 ) {
   const profile = await getCachedProfile()
-  if (!hasOpsAccess(profile)) {
+  if (!hasOpsProductAccess(profile, 'resto')) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 

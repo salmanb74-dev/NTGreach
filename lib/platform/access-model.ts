@@ -70,7 +70,7 @@ export function toPlatformRoles(roles: UserRole[] | null | undefined): PlatformR
  * Modules granted to a profile.
  * - New format: products holds explicit Module keys, filtered by role capability.
  * - Legacy format: brand products × role families.
- * Alma modules are excluded while product is not live (see ASSIGNABLE_MODULES).
+ * Filtered by ASSIGNABLE_MODULES (live modules only).
  */
 export function modulesForProfile(
   roles: UserRole[] | null | undefined,
@@ -249,7 +249,7 @@ export function encodeModuleRoleMap(map: ModuleRoleMap): EncodeAccessResult {
       else if (roles.includes('support_rep') && csLevel !== 'admin') {
         csLevel = 'rep'
       }
-    } else if (mod === 'ops_resto') {
+    } else if (mod === 'ops_resto' || mod === 'ops_alma') {
       if (roles.includes('admin')) opsProduct = true
     } else if (mod === 'ops') {
       if (roles.includes('admin')) platformOps = 'admin'
@@ -344,7 +344,8 @@ export function encodeAccess(
 
   const wantsCrm = selected.some(m => m.startsWith('crm_'))
   const wantsCs = selected.some(m => m.startsWith('cs_'))
-  const wantsOpsProduct = selected.includes('ops_resto')
+  const wantsOpsProduct =
+    selected.includes('ops_resto') || selected.includes('ops_alma')
   const wantsPlatformOps = selected.includes('ops')
 
   if (wantsCrm && !hasAdmin && !hasSales) {
@@ -354,7 +355,7 @@ export function encodeAccess(
     return { ok: false, error: 'Support modules need Support Rep or Admin' }
   }
   if (wantsOpsProduct && !hasAdmin) {
-    return { ok: false, error: 'Ops Resto requires Admin' }
+    return { ok: false, error: 'Ops Resto / Ops Alma require Admin' }
   }
   if (wantsPlatformOps && !hasAdmin && !hasUser) {
     return { ok: false, error: 'Ops (platform) needs Admin or User' }

@@ -7,6 +7,8 @@ import type {
   RestoEnterpriseClearResult,
   RestoLogsPage,
   RestoLogsQuery,
+  RestoOrdersLockPutResult,
+  RestoOrdersLockStatus,
   RestoSubscriptionGetResult,
   RestoSubscriptionSnapshot,
   RestoSubscriptionTenant,
@@ -232,6 +234,9 @@ function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
     subscriptionStart: asDateOnly(
       raw.subscriptionStart ?? raw.subscription_start
     ),
+    firstSubscriptionStartDate: asDateOnly(
+      raw.firstSubscriptionStartDate ?? raw.first_subscription_start_date
+    ),
     trialStartedAt: asDateOnly(
       raw.trialStartedAt ?? raw.trial_started_at
     ),
@@ -250,6 +255,10 @@ function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
     ordersUsed: asNumber(raw.ordersUsed) ?? asNumber(raw.orders_used),
     ordersLimit: asNumber(raw.ordersLimit) ?? asNumber(raw.orders_limit),
     lastOrderAt: asDateOnly(raw.lastOrderAt ?? raw.last_order_at),
+    ordersPlacementLocked:
+      asBoolean(
+        raw.ordersPlacementLocked ?? raw.orders_placement_locked
+      ) === true,
   }
 }
 
@@ -655,6 +664,9 @@ function normalizeSubscription(
     setupFeePaidUsd:
       asNumber(raw.setupFeePaidUsd) ??
       asNumber(raw.setup_fee_paid_usd),
+    firstSubscriptionStartDate: asDateOnly(
+      raw.firstSubscriptionStartDate ?? raw.first_subscription_start_date
+    ),
     stripeSubscriptionId:
       asTrimmedString(raw.stripeSubscriptionId) ??
       asTrimmedString(raw.stripe_subscription_id),
@@ -814,6 +826,103 @@ export async function putRestoEnterpriseOffer(
     tenant: normalizeSubTenant(tenantRaw),
     subscription: normalizeSubscription(subRaw),
     notes: asStringArray(record.notes),
+  }
+}
+
+function normalizeOrdersLock(
+  raw: Record<string, unknown>,
+  fallbackTenantId?: string
+): RestoOrdersLockStatus | null {
+  const tenantId =
+    asTrimmedString(raw.tenantId) ??
+    asTrimmedString(raw.tenant_id) ??
+    (fallbackTenantId?.trim() || null)
+  if (!tenantId) return null
+
+  const locked = asBoolean(raw.locked)
+  if (locked == null) return null
+
+  return {
+    tenantId,
+    tenantName:
+      asTrimmedString(raw.tenantName) ?? asTrimmedString(raw.tenant_name),
+    subdomain: asTrimmedString(raw.subdomain),
+    locked,
+    lockedAt: asTrimmedString(raw.lockedAt) ?? asTrimmedString(raw.locked_at),
+    reason: asTrimmedString(raw.reason),
+  }
+}
+
+/**
+ * Server-only: GET indefinite order-placement lock status.
+ * Never import into client components.
+ */
+export async function fetchRestoOrdersLock(
+  env: RestoAdminEnv,
+  tenantId: string
+): Promise<RestoOrdersLockStatus> {
+  const id = tenantId.trim()
+  if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
+
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/tenants/${encodeURIComponent(id)}/orders-lock`
+  )
+
+  if (!body || typeof body !== 'object') {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  const status = normalizeOrdersLock(body as Record<string, unknown>, id)
+  if (!status) {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+  return status
+}
+
+/**
+ * Server-only: PUT indefinite order-placement lock.
+ * Lock: `{ locked: true, reason?: string }`. Unlock: `{ locked: false }`.
+ * Never import into client components.
+ */
+export async function putRestoOrdersLock(
+  env: RestoAdminEnv,
+  tenantId: string,
+  input: { locked: boolean; reason?: string | null }
+): Promise<RestoOrdersLockPutResult> {
+  const id = tenantId.trim()
+  if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
+
+  const payload: { locked: boolean; reason?: string } = {
+    locked: input.locked === true,
+  }
+  if (payload.locked) {
+    const reason = asTrimmedString(input.reason)
+    if (reason) payload.reason = reason
+  }
+
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/tenants/${encodeURIComponent(id)}/orders-lock`,
+    {
+      method: 'PUT',
+      body: payload,
+    }
+  )
+
+  if (!body || typeof body !== 'object') {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  const record = body as Record<string, unknown>
+  const status = normalizeOrdersLock(record, id)
+  if (!status) {
+    throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
+  }
+
+  return {
+    ...status,
+    changed: record.changed === true || record.changed === 'true',
   }
 }
 

@@ -23,13 +23,13 @@ export const ALL_MODULES: Module[] = [
 
 /**
  * Modules currently live in the app (module switcher / assignable in Ops Users).
- * Alma is reserved for later — not offered in UI until enabled.
  */
 export const ASSIGNABLE_MODULES: Module[] = [
   'crm_resto',
   'cs_resto',
   'cs_alma',
   'ops_resto',
+  'ops_alma',
   'ops',
 ]
 

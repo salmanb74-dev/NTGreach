@@ -1,16 +1,20 @@
 # Resto Ops portal (Reach → Nest)
 
-Internal ops UI at `/ops` for users with the `ops_admin` role (and the matching
-product on their profile, e.g. `resto` → **Ops Resto**).
+Internal ops UI at `/ops_resto` (rewritten from `/ops/*`) for users with the
+`ops_admin` role and the `resto` / `ops_resto` product (**Ops Resto**).
+
+**Ops Alma** is a separate module — see [`ALMA_OPS.md`](./ALMA_OPS.md). Do not
+share Nest keys or `/api/ops` proxies between products.
 
 ## What v1 does
 
 - Sidebar: **Home** (blank), **Tenants**
 - **Tenants:** Staging/Production toggle; searchable tenant list; open a tenant for Overview, Subscription, Logs, Delete (tabs)
 - Tenant **Delete** tab: Nest hard-delete (`DELETE /api/v1/admin/tenants/:id`) with name + id confirmation
+- Tenant **Overview**: indefinite **order-placement lock** (Lock / Unlock Orders)
 - Global Reports / Logs / Subscription nav items removed — those actions belong on the tenant detail page
 - Tenant **Logs** tab: Nest `api_hits` via `GET /api/v1/admin/logs` (~24h HTTP traffic)
-- Contracts: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md), [`RESTO_ADMIN_DELETE_CONTRACT.md`](./RESTO_ADMIN_DELETE_CONTRACT.md), [`RESTO_ADMIN_SUBSCRIPTION_CONTRACT.md`](./RESTO_ADMIN_SUBSCRIPTION_CONTRACT.md)
+- Contracts: [`RESTO_ADMIN_LOGS_CONTRACT.md`](./RESTO_ADMIN_LOGS_CONTRACT.md), [`RESTO_ADMIN_DELETE_CONTRACT.md`](./RESTO_ADMIN_DELETE_CONTRACT.md), [`RESTO_ADMIN_SUBSCRIPTION_CONTRACT.md`](./RESTO_ADMIN_SUBSCRIPTION_CONTRACT.md), [`RESTO_ADMIN_ORDERS_LOCK_CONTRACT.md`](./RESTO_ADMIN_ORDERS_LOCK_CONTRACT.md)
 
 Reach never talks to Resto Supabase for this. The browser never sees Resto API keys.
 
@@ -57,15 +61,16 @@ Response (Nest shape; bare array / `{ "tenants": [...] }` also accepted):
       "usersLimit": 5,
       "ordersUsed": 120,
       "ordersLimit": 500,
-      "lastOrderAt": "2026-03-20"
+      "lastOrderAt": "2026-03-20",
+      "ordersPlacementLocked": false
     }
   ]
 }
 ```
 
-`owner_name` / `owner_email` snake_case is also accepted. Plan fields come from the tenant’s subscription row (`subscriptionStart` is null on free). Newer list fields (`trialStartedAt`, `billingCycle`, usage counts, `lastOrderAt`) are optional — Reach shows `—` until Nest returns them.
+`owner_name` / `owner_email` snake_case is also accepted. Plan fields come from the tenant’s subscription row (`subscriptionStart` is null on free). Newer list fields (`trialStartedAt`, `billingCycle`, usage counts, `lastOrderAt`, `ordersPlacementLocked`) are optional — Reach shows `—` / treats lock as false until Nest returns them.
 
-Ops list columns: Restaurant, Owner, Email, Plan (`Ent/Sub` · `Ent/Trial` · `Pro` · `Starter` · `Free`), Sub start, Trial start, Billing cycle (blank on Free/Trial), Usage (`L/C/U/O` current/max; orders = subscription-period month), Last order, Cash due (prod), Actions, Tenant ID.
+Ops list columns: Lock (narrow; red lock icon when `ordersPlacementLocked`), Restaurant, Owner, Email, Plan (`Ent/Sub` · `Ent/Trial` · `Pro` · `Starter` · `Free`), Trial, First (first subscription start), Current (current subscription start), Billing cycle (blank on Free/Trial), Usage (`L/C/U/O` current/max; orders = subscription-period month), Last order, Cash due (prod), Actions, Tenant ID.
 
 ## Reach proxies
 
@@ -77,6 +82,8 @@ Authenticated Reach ops users call:
 | `GET /api/ops/tenants/:id/subscription?env=…` | `GET /api/v1/admin/tenants/:id/subscription` |
 | `PUT /api/ops/tenants/:id/subscription/enterprise?env=…` | `PUT /api/v1/admin/tenants/:id/subscription/enterprise` |
 | `DELETE /api/ops/tenants/:id/subscription/enterprise?env=&force=` | `DELETE /api/v1/admin/tenants/:id/subscription/enterprise` |
+| `GET /api/ops/tenants/:id/orders-lock?env=…` | `GET /api/v1/admin/tenants/:id/orders-lock` |
+| `PUT /api/ops/tenants/:id/orders-lock?env=…` | `PUT /api/v1/admin/tenants/:id/orders-lock` |
 | `DELETE /api/ops/tenants/:id?env=…` body `{ confirmTenantId }` | `DELETE /api/v1/admin/tenants/:tenantId` |
 | `GET /api/ops/logs?env=…&tenantId=&method=&statusCode=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` (`api_hits`) |
 

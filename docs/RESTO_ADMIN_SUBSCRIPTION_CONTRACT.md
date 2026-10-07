@@ -27,6 +27,8 @@ Content-Type: application/json
 
 `subscription.setupFeePaidUsd` — lifetime setup fees paid to date (USD): regular + pre-trial + post-trial already collected (`setup_fee_paid_usd`). **Read-only** (never on PUT). Future checkout charges `max(0, new list setup − this balance)`. Display only — do not invent client-side.
 
+`subscription.firstSubscriptionStartDate` — `YYYY-MM-DD` when the tenant first activated Starter, Pro, or Enterprise (**subscription**). Not set for Enterprise (trial). Write-once (never resets; may be backdated for Enterprise subscription). **Read-only** (never on PUT).
+
 ### PUT body
 
 Full replace — every key required:
@@ -102,6 +104,7 @@ Cancels a **pending** offer only (clears `enterprise_*`). Does not cancel live p
 - Dropped from UI: trial days, post-trial setup (still sent as `paidTrialDays: null`, `postTrialSetupFee: 0`)
 - Locations (not Branches)
 - Show `setupFeePaidUsd` as **Total setup fees paid** (both columns / reference; read-only)
+- Show `firstSubscriptionStartDate` as **First subscription start date** (both columns / reference; read-only; never on PUT)
 - **Cancel pending offer** → DELETE (force when tenant already on Enterprise / accepted terms)
 - Surface `notes[]` and `subscription.warnings[]`
 

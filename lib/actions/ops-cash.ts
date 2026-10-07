@@ -16,8 +16,6 @@ import { isPlatformOpsAdmin } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-const PRODUCT: CashProduct = 'resto'
-
 async function requireOpsAdmin() {
   const profile = await getCachedProfile()
   if (!isPlatformOpsAdmin(profile)) {
@@ -81,15 +79,17 @@ export type CashTenantSummary = {
   due: CashDueStatus
 }
 
-/** List cash settings + next-due for all enabled resto tenants (production UI). */
-export async function listCashTenantSummaries(): Promise<CashTenantSummary[]> {
+/** List cash settings + next-due for all enabled tenants (production UI). */
+export async function listCashTenantSummaries(
+  product: CashProduct = 'resto'
+): Promise<CashTenantSummary[]> {
   await requireOpsAdmin()
   const supabase = await createClient()
 
   const { data: settingsRows, error: sErr } = await supabase
     .from('ops_cash_tenants')
     .select('*')
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .eq('enabled', true)
 
   assertNoError(sErr, 'Failed to load cash tenants')
@@ -100,7 +100,7 @@ export async function listCashTenantSummaries(): Promise<CashTenantSummary[]> {
   const { data: colRows, error: cErr } = await supabase
     .from('ops_cash_collections')
     .select('tenant_id, kind, due_date')
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .in('tenant_id', tenantIds)
 
   assertNoError(cErr, 'Failed to load cash collections')
@@ -141,7 +141,8 @@ export async function listCashTenantSummaries(): Promise<CashTenantSummary[]> {
 }
 
 export async function getCashTenant(
-  tenantId: string
+  tenantId: string,
+  product: CashProduct = 'resto'
 ): Promise<{
   settings: OpsCashTenant | null
   collections: OpsCashCollection[]
@@ -153,7 +154,7 @@ export async function getCashTenant(
   const { data: settingsRow, error: sErr } = await supabase
     .from('ops_cash_tenants')
     .select('*')
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .eq('tenant_id', tenantId)
     .maybeSingle()
 
@@ -162,7 +163,7 @@ export async function getCashTenant(
   const { data: colRows, error: cErr } = await supabase
     .from('ops_cash_collections')
     .select('*')
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .eq('tenant_id', tenantId)
     .order('due_date', { ascending: false })
     .order('collected_on', { ascending: false })
@@ -190,6 +191,7 @@ export async function getCashTenant(
 
 export type UpsertCashSettingsInput = {
   tenantId: string
+  product?: CashProduct
   enabled: boolean
   currency?: string
   scheduleAnchor?: string | null
@@ -206,12 +208,13 @@ export async function upsertCashSettings(
 ): Promise<OpsCashTenant> {
   const profile = await requireOpsAdmin()
   const supabase = await createClient()
+  const product = input.product ?? 'resto'
   const defaults = cashDefaultsFromSubscription(input.subscription)
 
   const { data: existing, error: exErr } = await supabase
     .from('ops_cash_tenants')
     .select('*')
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .eq('tenant_id', input.tenantId)
     .maybeSingle()
 
@@ -253,7 +256,7 @@ export async function upsertCashSettings(
 
   const payload = {
     tenant_id: input.tenantId,
-    product: PRODUCT,
+    product,
     enabled: input.enabled,
     currency,
     schedule_anchor: scheduleAnchor,
@@ -285,12 +288,14 @@ export async function upsertCashSettings(
 /** Refresh schedule defaults from a Nest subscription without toggling enabled. */
 export async function syncCashDefaultsFromSubscription(
   tenantId: string,
-  subscription: Record<string, unknown> | null
+  subscription: Record<string, unknown> | null,
+  product: CashProduct = 'resto'
 ): Promise<OpsCashTenant> {
   await requireOpsAdmin()
   const defaults = cashDefaultsFromSubscription(subscription)
   return upsertCashSettings({
     tenantId,
+    product,
     enabled: true,
     scheduleAnchor: defaults.scheduleAnchor,
     cycleMonths: defaults.cycleMonths,
@@ -303,6 +308,7 @@ export async function syncCashDefaultsFromSubscription(
 
 export type CreateCashCollectionInput = {
   tenantId: string
+  product?: CashProduct
   kind: CashCollectionKind
   amount: number
   currency: string
@@ -316,6 +322,7 @@ export async function createCashCollection(
 ): Promise<OpsCashCollection> {
   const profile = await requireOpsAdmin()
   const supabase = await createClient()
+  const product = input.product ?? 'resto'
 
   if (!(input.amount >= 0) || !Number.isFinite(input.amount)) {
     throw new Error('Amount must be a non-negative number')
@@ -328,7 +335,7 @@ export async function createCashCollection(
     .from('ops_cash_collections')
     .insert({
       tenant_id: input.tenantId,
-      product: PRODUCT,
+      product,
       kind: input.kind,
       amount: input.amount,
       currency: input.currency || 'USD',
@@ -349,6 +356,7 @@ export async function createCashCollection(
 export type UpdateCashCollectionInput = {
   id: string
   tenantId: string
+  product?: CashProduct
   kind?: CashCollectionKind
   amount?: number
   currency?: string
@@ -362,6 +370,7 @@ export async function updateCashCollection(
 ): Promise<OpsCashCollection> {
   await requireOpsAdmin()
   const supabase = await createClient()
+  const product = input.product ?? 'resto'
 
   const patch: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -383,7 +392,7 @@ export async function updateCashCollection(
     .from('ops_cash_collections')
     .update(patch)
     .eq('id', input.id)
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .eq('tenant_id', input.tenantId)
     .select('*')
     .single()
@@ -396,7 +405,8 @@ export async function updateCashCollection(
 
 export async function deleteCashCollection(
   id: string,
-  tenantId: string
+  tenantId: string,
+  product: CashProduct = 'resto'
 ): Promise<void> {
   await requireOpsAdmin()
   const supabase = await createClient()
@@ -405,7 +415,7 @@ export async function deleteCashCollection(
     .from('ops_cash_collections')
     .delete()
     .eq('id', id)
-    .eq('product', PRODUCT)
+    .eq('product', product)
     .eq('tenant_id', tenantId)
 
   assertNoError(error, 'Failed to delete collection')

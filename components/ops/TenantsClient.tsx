@@ -3,6 +3,17 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import type {
+  AlmaAdminEnv,
+  AlmaPlanFilter,
+  AlmaTenant,
+} from '@/lib/alma-admin/types'
+import {
+  almaBillingCycleLabel,
+  almaPlanBucket,
+  almaPlanLabel,
+  almaUsageLabel,
+} from '@/lib/alma-admin/types'
+import type {
   RestoAdminEnv,
   RestoPlanFilter,
   RestoTenant,
@@ -13,6 +24,11 @@ import {
   restoPlanLabel,
   restoUsageLabel,
 } from '@/lib/resto-admin/types'
+import {
+  opsApiBasePath,
+  opsProductFromModule,
+  type OpsNestProduct,
+} from '@/lib/ops/product'
 import {
   createCashCollection,
   listCashTenantSummaries,
@@ -27,29 +43,86 @@ import { moduleFromPathname, modulePath } from '@/lib/module-routing'
 import type { Module } from '@/lib/modules'
 import styles from './TenantsClient.module.css'
 
+type OpsAdminEnv = RestoAdminEnv | AlmaAdminEnv
+
 interface Props {
-  initialEnv: RestoAdminEnv
+  initialEnv: OpsAdminEnv
 }
+
+type TenantRow = RestoTenant | AlmaTenant
 
 type LoadState =
   | { status: 'loading' }
-  | { status: 'ready'; tenants: RestoTenant[] }
+  | { status: 'ready'; tenants: TenantRow[] }
   | { status: 'error'; message: string; code?: string }
 
 type CashFilter = 'all' | 'cash' | 'due_week'
 
-const COPY_FIELDS: { label: string; value: (t: RestoTenant) => string }[] = [
-  { label: 'Restaurant', value: t => t.name || '—' },
-  { label: 'Owner', value: t => t.ownerName || '—' },
-  { label: 'Owner email', value: t => t.ownerEmail || '—' },
-  { label: 'Plan', value: t => restoPlanLabel(t) },
-  { label: 'Sub start', value: t => t.subscriptionStart || '—' },
-  { label: 'Trial start', value: t => t.trialStartedAt || '—' },
-  { label: 'Billing cycle', value: t => restoBillingCycleLabel(t) || '—' },
-  { label: 'Usage', value: t => restoUsageLabel(t) || '—' },
-  { label: 'Last order', value: t => t.lastOrderAt || '—' },
-  { label: 'Tenant ID', value: t => t.id || '—' },
-]
+type PlanFilter = RestoPlanFilter | AlmaPlanFilter
+
+function copyFields(product: OpsNestProduct): {
+  label: string
+  value: (t: TenantRow) => string
+}[] {
+  if (product === 'alma') {
+    return [
+      { label: 'School', value: t => t.name || '—' },
+      { label: 'Owner', value: t => t.ownerName || '—' },
+      { label: 'Owner email', value: t => t.ownerEmail || '—' },
+      { label: 'Plan', value: t => almaPlanLabel(t as AlmaTenant) },
+      { label: 'Trial', value: t => t.trialStartedAt || '—' },
+      {
+        label: 'First',
+        value: t => t.firstSubscriptionStartDate || '',
+      },
+      { label: 'Current', value: t => t.subscriptionStart || '—' },
+      {
+        label: 'Billing cycle',
+        value: t => almaBillingCycleLabel(t as AlmaTenant) || '—',
+      },
+      {
+        label: 'Usage',
+        value: t => almaUsageLabel(t as AlmaTenant) || '—',
+      },
+      {
+        label: 'Assessments lock',
+        value: t =>
+          (t as AlmaTenant).assessmentsCreationLocked ? 'Locked' : 'Open',
+      },
+      { label: 'Tenant ID', value: t => t.id || '—' },
+    ]
+  }
+  return [
+    { label: 'Restaurant', value: t => t.name || '—' },
+    { label: 'Owner', value: t => t.ownerName || '—' },
+    { label: 'Owner email', value: t => t.ownerEmail || '—' },
+    { label: 'Plan', value: t => restoPlanLabel(t as RestoTenant) },
+    { label: 'Trial', value: t => t.trialStartedAt || '—' },
+    {
+      label: 'First',
+      value: t => t.firstSubscriptionStartDate || '',
+    },
+    { label: 'Current', value: t => t.subscriptionStart || '—' },
+    {
+      label: 'Billing cycle',
+      value: t => restoBillingCycleLabel(t as RestoTenant) || '—',
+    },
+    {
+      label: 'Usage',
+      value: t => restoUsageLabel(t as RestoTenant) || '—',
+    },
+    {
+      label: 'Last order',
+      value: t => (t as RestoTenant).lastOrderAt || '—',
+    },
+    {
+      label: 'Orders lock',
+      value: t =>
+        (t as RestoTenant).ordersPlacementLocked ? 'Locked' : 'Open',
+    },
+    { label: 'Tenant ID', value: t => t.id || '—' },
+  ]
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -59,8 +132,11 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function buildTenantClipboard(tenant: RestoTenant): { plain: string; html: string } {
-  const rows = COPY_FIELDS.map(({ label, value }) => ({
+function buildTenantClipboard(
+  tenant: TenantRow,
+  product: OpsNestProduct
+): { plain: string; html: string } {
+  const rows = copyFields(product).map(({ label, value }) => ({
     label,
     value: value(tenant),
   }))
@@ -76,8 +152,11 @@ function buildTenantClipboard(tenant: RestoTenant): { plain: string; html: strin
   return { plain, html }
 }
 
-async function copyTenantDetails(tenant: RestoTenant): Promise<void> {
-  const { plain, html } = buildTenantClipboard(tenant)
+async function copyTenantDetails(
+  tenant: TenantRow,
+  product: OpsNestProduct
+): Promise<void> {
+  const { plain, html } = buildTenantClipboard(tenant, product)
 
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     try {
@@ -117,10 +196,14 @@ export default function TenantsClient({ initialEnv }: Props) {
     moduleFromPathname(pathname)?.startsWith('ops_')
       ? (moduleFromPathname(pathname) as Module)
       : 'ops_resto'
-  const [env, setEnv] = useState<RestoAdminEnv>(initialEnv)
+  const product: OpsNestProduct =
+    opsProductFromModule(productModule) ?? 'resto'
+  const apiBase = opsApiBasePath(product)
+  const isAlma = product === 'alma'
+  const [env, setEnv] = useState<OpsAdminEnv>(initialEnv)
   const [query, setQuery] = useState('')
   const [cashFilter, setCashFilter] = useState<CashFilter>('all')
-  const [planFilter, setPlanFilter] = useState<RestoPlanFilter>('all')
+  const [planFilter, setPlanFilter] = useState<PlanFilter>('all')
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [cashByTenant, setCashByTenant] = useState<
     Record<string, CashTenantSummary>
@@ -132,22 +215,22 @@ export default function TenantsClient({ initialEnv }: Props) {
 
   const loadCash = useCallback(async () => {
     try {
-      const rows = await listCashTenantSummaries()
+      const rows = await listCashTenantSummaries(product)
       const map: Record<string, CashTenantSummary> = {}
       for (const row of rows) map[row.tenantId] = row
       setCashByTenant(map)
     } catch {
       setCashByTenant({})
     }
-  }, [])
+  }, [product])
 
-  const load = useCallback(async (nextEnv: RestoAdminEnv) => {
+  const load = useCallback(async (nextEnv: OpsAdminEnv) => {
     setState({ status: 'loading' })
     const controller = new AbortController()
     const timer = window.setTimeout(() => controller.abort(), 20_000)
     try {
       const response = await fetch(
-        `/api/ops/tenants?env=${encodeURIComponent(nextEnv)}`,
+        `${apiBase}/tenants?env=${encodeURIComponent(nextEnv)}`,
         { cache: 'no-store', signal: controller.signal }
       )
       const body = await response.json().catch(() => ({}))
@@ -157,7 +240,7 @@ export default function TenantsClient({ initialEnv }: Props) {
           message:
             body.error ??
             (response.status === 404
-              ? 'Reach API route /api/ops/tenants not found (404). Restart the Reach dev server after clearing .next.'
+              ? `Reach API route ${apiBase}/tenants not found (404). Restart the Reach dev server after clearing .next.`
               : `Failed to load tenants (${response.status})`),
           code: typeof body.code === 'string' ? body.code : undefined,
         })
@@ -179,19 +262,19 @@ export default function TenantsClient({ initialEnv }: Props) {
       setState({
         status: 'error',
         message: timedOut
-          ? 'Request timed out after 20s. Reach may be hung — restart `npm run dev -- -p 3002`, or Nest is slow at RESTO_*_BASE_URL.'
+          ? `Request timed out after 20s. Reach may be hung — restart \`npm run dev -- -p 3002\`, or Nest is slow at ${isAlma ? 'ALMA' : 'RESTO'}_*_BASE_URL.`
           : 'Could not load tenants. Check your connection and try again.',
       })
     } finally {
       window.clearTimeout(timer)
     }
-  }, [loadCash])
+  }, [apiBase, isAlma, loadCash])
 
   useEffect(() => {
     void load(env)
   }, [env, load])
 
-  function selectEnv(next: RestoAdminEnv) {
+  function selectEnv(next: OpsAdminEnv) {
     if (next === env) return
     setEnv(next)
     setQuery('')
@@ -219,29 +302,34 @@ export default function TenantsClient({ initialEnv }: Props) {
           t.ownerName ?? '',
           t.ownerEmail ?? '',
           t.id,
-          restoPlanLabel(t),
+          isAlma ? almaPlanLabel(t as AlmaTenant) : restoPlanLabel(t as RestoTenant),
         ]
           .join(' ')
           .toLowerCase()
         if (!haystack.includes(q)) return false
       }
-      if (planFilter !== 'all' && restoPlanBucket(t) !== planFilter) return false
+      if (planFilter !== 'all') {
+        const bucket = isAlma
+          ? almaPlanBucket(t as AlmaTenant)
+          : restoPlanBucket(t as RestoTenant)
+        if (bucket !== planFilter) return false
+      }
       if (env !== 'production' || cashFilter === 'all') return true
       const cash = cashByTenant[t.id]
       if (cashFilter === 'cash') return !!cash
       if (cashFilter === 'due_week') return !!cash && cash.due.dueSoon
       return true
     })
-  }, [state, query, env, cashFilter, planFilter, cashByTenant])
+  }, [state, query, env, cashFilter, planFilter, cashByTenant, isAlma])
 
   async function handleCopy(
     e: React.MouseEvent,
-    tenant: RestoTenant
+    tenant: TenantRow
   ) {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await copyTenantDetails(tenant)
+      await copyTenantDetails(tenant, product)
       setCopiedId(tenant.id)
       window.setTimeout(() => {
         setCopiedId(prev => (prev === tenant.id ? null : prev))
@@ -284,6 +372,7 @@ export default function TenantsClient({ initialEnv }: Props) {
       try {
         await createCashCollection({
           tenantId,
+          product,
           kind,
           amount,
           currency: cash.settings.currency,
@@ -306,10 +395,13 @@ export default function TenantsClient({ initialEnv }: Props) {
     <div className={styles.page}>
       <div className={styles.topBar}>
         <div className={styles.titleBlock}>
-          <h2 className={styles.title}>Resto tenants</h2>
+          <h2 className={styles.title}>
+            {isAlma ? 'Alma tenants' : 'Resto tenants'}
+          </h2>
           <p className={styles.sub}>
-            Internal ops view of restaurants in the selected Resto environment.
-            Keys stay on the Reach server — never in the browser.
+            Internal ops view of {isAlma ? 'schools' : 'restaurants'} in the
+            selected {isAlma ? 'Alma' : 'Resto'} environment. Keys stay on the
+            Reach server — never in the browser.
           </p>
         </div>
 
@@ -427,7 +519,7 @@ export default function TenantsClient({ initialEnv }: Props) {
 
       {state.status === 'loading' && (
         <div className={styles.loadingBox} role="status">
-          Loading tenants from Resto…
+          Loading tenants from {isAlma ? 'Alma' : 'Resto'}…
         </div>
       )}
 
@@ -435,7 +527,7 @@ export default function TenantsClient({ initialEnv }: Props) {
         <div className={styles.errorBox} role="alert">
           <p className={styles.errorTitle}>
             {state.code === 'not_configured'
-              ? 'Resto admin API not configured'
+              ? `${isAlma ? 'Alma' : 'Resto'} admin API not configured`
               : 'Could not load tenants'}
           </p>
           <p className={styles.errorBody}>{state.message}</p>
@@ -462,15 +554,21 @@ export default function TenantsClient({ initialEnv }: Props) {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Restaurant</th>
+                <th className={styles.lockCol}>
+                  <span className={styles.srOnly}>
+                    {isAlma ? 'Assessments lock' : 'Orders lock'}
+                  </span>
+                </th>
+                <th>{isAlma ? 'School' : 'Restaurant'}</th>
                 <th>Owner</th>
                 <th>Email</th>
                 <th>Plan</th>
-                <th>Sub start</th>
-                <th>Trial start</th>
+                <th title="Trial start">Trial</th>
+                <th title="First subscription start">First</th>
+                <th title="Current subscription start">Current</th>
                 <th>Billing cycle</th>
                 <th>Usage</th>
-                <th>Last order</th>
+                {!isAlma && <th>Last order</th>}
                 {isProduction && <th>Cash due</th>}
                 <th className={styles.actionsCol}>
                   <span className={styles.srOnly}>Actions</span>
@@ -499,6 +597,36 @@ export default function TenantsClient({ initialEnv }: Props) {
                     role="link"
                     aria-label={`Open ${tenant.name}`}
                   >
+                    <td className={styles.lockCell}>
+                      {(isAlma
+                        ? (tenant as AlmaTenant).assessmentsCreationLocked
+                        : (tenant as RestoTenant).ordersPlacementLocked) ? (
+                        <span
+                          className={styles.lockIcon}
+                          title={
+                            isAlma ? 'Assessments locked' : 'Orders locked'
+                          }
+                          aria-label={
+                            isAlma ? 'Assessments locked' : 'Orders locked'
+                          }
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.25"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                          >
+                            <rect x="5" y="11" width="14" height="10" rx="2" />
+                            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </td>
                     <td className={styles.tenantName}>{tenant.name}</td>
                     <td>
                       {tenant.ownerName || (
@@ -510,11 +638,10 @@ export default function TenantsClient({ initialEnv }: Props) {
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
-                    <td>{restoPlanLabel(tenant)}</td>
-                    <td className={styles.dateCell}>
-                      {tenant.subscriptionStart || (
-                        <span className={styles.muted}>—</span>
-                      )}
+                    <td>
+                      {isAlma
+                        ? almaPlanLabel(tenant as AlmaTenant)
+                        : restoPlanLabel(tenant as RestoTenant)}
                     </td>
                     <td className={styles.dateCell}>
                       {tenant.trialStartedAt || (
@@ -522,20 +649,34 @@ export default function TenantsClient({ initialEnv }: Props) {
                       )}
                     </td>
                     <td className={styles.dateCell}>
-                      {restoBillingCycleLabel(tenant) || (
-                        <span className={styles.muted}>—</span>
-                      )}
+                      {tenant.firstSubscriptionStartDate || ''}
                     </td>
-                    <td className={styles.usageCell}>
-                      {restoUsageLabel(tenant) || (
+                    <td className={styles.dateCell}>
+                      {tenant.subscriptionStart || (
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
                     <td className={styles.dateCell}>
-                      {tenant.lastOrderAt || (
+                      {(isAlma
+                        ? almaBillingCycleLabel(tenant as AlmaTenant)
+                        : restoBillingCycleLabel(tenant as RestoTenant)) || (
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
+                    <td className={styles.usageCell}>
+                      {(isAlma
+                        ? almaUsageLabel(tenant as AlmaTenant)
+                        : restoUsageLabel(tenant as RestoTenant)) || (
+                        <span className={styles.muted}>—</span>
+                      )}
+                    </td>
+                    {!isAlma && (
+                      <td className={styles.dateCell}>
+                        {(tenant as RestoTenant).lastOrderAt || (
+                          <span className={styles.muted}>—</span>
+                        )}
+                      </td>
+                    )}
                     {isProduction && (
                       <td className={styles.cashCell}>
                         {cash ? (

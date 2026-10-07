@@ -1,19 +1,25 @@
 'use client'
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
+import type { AlmaAdminEnv, AlmaApiHit } from '@/lib/alma-admin/types'
+import { metaNumber as almaMetaNumber, metaString as almaMetaString } from '@/lib/alma-admin/types'
 import type { RestoAdminEnv, RestoApiHit } from '@/lib/resto-admin/types'
 import { metaNumber, metaString } from '@/lib/resto-admin/types'
+import type { OpsNestProduct } from '@/lib/ops/product'
 import { formatWhen } from '@/lib/format-when'
 import styles from './LogsClient.module.css'
 
+type OpsAdminEnv = RestoAdminEnv | AlmaAdminEnv
+type ApiHit = RestoApiHit | AlmaApiHit
+
 interface Props {
-  initialEnv: RestoAdminEnv
+  initialEnv: OpsAdminEnv
   initialTenantId?: string
   initialActionType?: string
-  /** When set, tenant filter is fixed (tenant detail Logs tab). */
   lockTenantId?: boolean
-  /** Compact chrome for embedding (no env toggle, lighter title). */
   embed?: boolean
+  product?: OpsNestProduct
+  apiBase?: '/api/ops' | '/api/ops/alma'
 }
 
 type Filters = {
@@ -27,23 +33,31 @@ type LoadState =
   | { status: 'loading' }
   | {
       status: 'ready'
-      logs: RestoApiHit[]
+      logs: ApiHit[]
       nextCursor: string | null
     }
   | { status: 'error'; message: string; code?: string }
 
-function summarizeHit(log: RestoApiHit) {
+function hitMetaString(log: ApiHit, key: string): string | null {
+  return metaString(log.metadata, key) ?? almaMetaString(log.metadata, key)
+}
+
+function hitMetaNumber(log: ApiHit, key: string): number | null {
+  return metaNumber(log.metadata, key) ?? almaMetaNumber(log.metadata, key)
+}
+
+function summarizeHit(log: ApiHit) {
   const method =
-    metaString(log.metadata, 'method') ||
+    hitMetaString(log, 'method') ||
     log.actionType.split(/\s+/)[0] ||
     '—'
-  const status = metaNumber(log.metadata, 'statusCode')
-  const ms = metaNumber(log.metadata, 'responseTimeMs')
-  const url = metaString(log.metadata, 'url')
+  const status = hitMetaNumber(log, 'statusCode')
+  const ms = hitMetaNumber(log, 'responseTimeMs')
+  const url = hitMetaString(log, 'url')
   return { method, status, ms, url }
 }
 
-function formatBodies(log: RestoApiHit): string {
+function formatBodies(log: ApiHit): string {
   const parts: string[] = []
   const req = log.metadata.requestBody
   const res = log.metadata.responseBody
@@ -74,8 +88,11 @@ export default function LogsClient({
   initialActionType = '',
   lockTenantId = false,
   embed = false,
+  product = 'resto',
+  apiBase = product === 'alma' ? '/api/ops/alma' : '/api/ops',
 }: Props) {
-  const [env, setEnv] = useState<RestoAdminEnv>(initialEnv)
+  const [env, setEnv] = useState<OpsAdminEnv>(initialEnv)
+  const isAlma = product === 'alma'
   const [tenantId, setTenantId] = useState(initialTenantId)
   const [actionType, setActionType] = useState(initialActionType)
   const [method, setMethod] = useState('')
@@ -102,7 +119,7 @@ export default function LogsClient({
   }, [initialTenantId, lockTenantId])
 
   const syncUrl = useCallback(
-    (nextEnv: RestoAdminEnv, next: Filters) => {
+    (nextEnv: OpsAdminEnv, next: Filters) => {
       if (embed) return
       const url = new URL(window.location.href)
       url.searchParams.set('env', nextEnv)
@@ -137,7 +154,7 @@ export default function LogsClient({
 
   const load = useCallback(
     async (
-      nextEnv: RestoAdminEnv,
+      nextEnv: OpsAdminEnv,
       filters: Filters,
       cursor?: string | null
     ) => {
@@ -163,7 +180,7 @@ export default function LogsClient({
         }
         if (cursor) params.set('cursor', cursor)
 
-        const response = await fetch(`/api/ops/logs?${params.toString()}`, {
+        const response = await fetch(`${apiBase}/logs?${params.toString()}`, {
           cache: 'no-store',
         })
         const body = await response.json().catch(() => ({}))
@@ -176,7 +193,7 @@ export default function LogsClient({
           return
         }
 
-        const pageLogs: RestoApiHit[] = Array.isArray(body.logs) ? body.logs : []
+        const pageLogs: ApiHit[] = Array.isArray(body.logs) ? body.logs : []
         const nextCursor =
           typeof body.nextCursor === 'string' && body.nextCursor
             ? body.nextCursor
@@ -202,14 +219,14 @@ export default function LogsClient({
         setLoadingMore(false)
       }
     },
-    []
+    [apiBase]
   )
 
   useEffect(() => {
     void load(env, applied)
   }, [env, applied, load])
 
-  function selectEnv(next: RestoAdminEnv) {
+  function selectEnv(next: OpsAdminEnv) {
     if (next === env) return
     setEnv(next)
     syncUrl(next, applied)
@@ -376,7 +393,7 @@ export default function LogsClient({
 
       {state.status === 'loading' && (
         <div className={styles.loadingBox} role="status">
-          Loading API hits from Resto…
+          Loading API hits from {isAlma ? 'Alma' : 'Resto'}…
         </div>
       )}
 
@@ -384,7 +401,7 @@ export default function LogsClient({
         <div className={styles.errorBox} role="alert">
           <p className={styles.errorTitle}>
             {state.code === 'not_configured'
-              ? 'Resto admin API not configured'
+              ? `${isAlma ? 'Alma' : 'Resto'} admin API not configured`
               : 'Could not load logs'}
           </p>
           <p className={styles.errorBody}>{state.message}</p>
