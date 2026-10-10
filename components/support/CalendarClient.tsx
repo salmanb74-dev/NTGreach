@@ -1,10 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import AddShiftModal from './AddShiftModal'
+import ShiftCountModal from './ShiftCountModal'
 import ShiftDetailModal from './ShiftDetailModal'
-import type { OnDutyAgent } from '@/lib/support/shifts'
+import { undoShiftChange } from '@/lib/actions/support-shifts'
+import type { SupportProduct } from '@/lib/support/product'
+import type { OnDutyAgent, ShiftChangeUndo } from '@/lib/support/shifts'
 import {
   addDays,
   agentColorIndex,
@@ -20,11 +24,16 @@ import {
 } from '@/lib/support/shifts'
 import styles from './CalendarClient.module.css'
 
+function undoStorageKey(product: SupportProduct) {
+  return `support-shift-undo:${product}`
+}
+
 interface Props {
   initialShifts: ShiftItem[]
   agents:        ShiftAgent[]
   onDuty:        OnDutyAgent | null
   canManage:     boolean
+  product:       SupportProduct
 }
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -35,17 +44,66 @@ export default function CalendarClient({
   agents,
   onDuty,
   canManage,
+  product,
 }: Props) {
+  const router = useRouter()
+  const [undoPending, startUndo] = useTransition()
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [showAdd, setShowAdd] = useState(false)
+  const [showCounts, setShowCounts] = useState(false)
   const [addDate, setAddDate] = useState<string | undefined>()
   const [selected, setSelected] = useState<ShiftItem | null>(null)
+  const [undo, setUndo] = useState<ShiftChangeUndo | null>(null)
+  const [undoError, setUndoError] = useState<string | null>(null)
   const today = useMemo(() => new Date(), [])
+
+  useEffect(() => {
+    setUndo(null)
+    try {
+      const raw = sessionStorage.getItem(undoStorageKey(product))
+      if (raw) setUndo(JSON.parse(raw) as ShiftChangeUndo)
+    } catch {
+      /* ignore */
+    }
+  }, [product])
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
   )
+
+  function rememberUndo(next: ShiftChangeUndo) {
+    setUndo(next)
+    setUndoError(null)
+    try {
+      sessionStorage.setItem(undoStorageKey(product), JSON.stringify(next))
+    } catch {
+      /* ignore quota */
+    }
+  }
+
+  function clearUndo() {
+    setUndo(null)
+    try {
+      sessionStorage.removeItem(undoStorageKey(product))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function handleUndo() {
+    if (!undo) return
+    setUndoError(null)
+    startUndo(async () => {
+      try {
+        await undoShiftChange(undo)
+        clearUndo()
+        router.refresh()
+      } catch (err) {
+        setUndoError(err instanceof Error ? err.message : 'Undo failed')
+      }
+    })
+  }
 
   function openAdd(day?: Date) {
     if (!canManage) return
@@ -62,6 +120,37 @@ export default function CalendarClient({
 
   return (
     <div className={styles.shell}>
+      {canManage && undo && (
+        <div className={styles.undoBar} role="status">
+          <span className={styles.undoLabel}>
+            {undo.label}
+            {undoError ? (
+              <span className={styles.undoError}> · {undoError}</span>
+            ) : null}
+          </span>
+          <div className={styles.undoActions}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={undoPending}
+              onClick={clearUndo}
+            >
+              Dismiss
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={undoPending}
+              onClick={handleUndo}
+            >
+              {undoPending ? 'Undoing…' : 'Undo'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div
         className={`${styles.banner} ${
           onDuty ? styles.bannerOn : styles.bannerOff
@@ -118,9 +207,14 @@ export default function CalendarClient({
         </div>
 
         {canManage && (
-          <Button variant="primary" size="sm" onClick={() => openAdd()}>
-            Add Shift
-          </Button>
+          <div className={styles.toolbarActions}>
+            <Button variant="outline" size="sm" onClick={() => setShowCounts(true)}>
+              Shift counts
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => openAdd()}>
+              Add Shift
+            </Button>
+          </div>
         )}
       </div>
 
@@ -226,7 +320,16 @@ export default function CalendarClient({
           agents={agents}
           existing={initialShifts}
           defaultDate={addDate}
+          product={product}
           onClose={() => setShowAdd(false)}
+          onChangeComplete={rememberUndo}
+        />
+      )}
+
+      {showCounts && (
+        <ShiftCountModal
+          product={product}
+          onClose={() => setShowCounts(false)}
         />
       )}
 
@@ -237,6 +340,7 @@ export default function CalendarClient({
           allShifts={initialShifts}
           canManage={canManage}
           onClose={() => setSelected(null)}
+          onChangeComplete={rememberUndo}
         />
       )}
     </div>

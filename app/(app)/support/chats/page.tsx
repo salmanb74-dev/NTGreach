@@ -9,13 +9,7 @@ import {
   type ConversationItem,
 } from '@/components/support/types'
 import type { Module } from '@/lib/modules'
-
-/** Map a cs_* module to the product value stored in support_conversations. */
-function productForModule(mod: Module): 'resto' | 'alma' | null {
-  if (mod === 'cs_resto') return 'resto'
-  if (mod === 'cs_alma') return 'alma'
-  return null
-}
+import { productFromCsModule } from '@/lib/support/product'
 
 export default async function SupportChatsPage() {
   const supabase = createClient()
@@ -29,7 +23,7 @@ export default async function SupportChatsPage() {
       : modules.find(m => m.startsWith('cs_')) ?? modules[0]
   )!
 
-  const product = productForModule(activeModule)
+  const product = productFromCsModule(activeModule)
   // Never show a mixed product list — if module is unknown, show nothing.
   if (!product) {
     return (

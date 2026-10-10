@@ -1,3 +1,5 @@
+import type { SupportProduct } from '@/lib/support/product'
+
 export type ShiftAgent = {
   id:        string
   full_name: string | null
@@ -14,6 +16,7 @@ export type ShiftItem = {
   created_by: string
   created_at: string
   series_id:  string | null
+  product:    SupportProduct
 }
 
 export type OnDutyAgent = {
@@ -23,6 +26,36 @@ export type OnDutyAgent = {
   start_at:   string
   end_at:     string
 }
+
+/** Snapshot of a shift row for delete undo. */
+export type ShiftRowSnapshot = {
+  id:         string
+  agent_id:   string
+  start_at:   string
+  end_at:     string
+  created_by: string
+  created_at: string
+  series_id:  string | null
+  product:    SupportProduct
+}
+
+/** One-level undo payload for the last add, transfer, or delete. */
+export type ShiftChangeUndo =
+  | {
+      kind:  'create'
+      label: string
+      ids:   string[]
+    }
+  | {
+      kind:   'transfer'
+      label:  string
+      before: { id: string; agent_id: string; series_id: string | null }[]
+    }
+  | {
+      kind:  'delete'
+      label: string
+      rows:  ShiftRowSnapshot[]
+    }
 
 export const DEFAULT_OFFLINE_MESSAGE =
   'Our support team is currently offline. We will get back to you as soon as possible.'
@@ -165,6 +198,30 @@ export function toLocalDateString(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+/** Calendar day (YYYY-MM-DD) of a shift start in Pakistan time — used for payroll counts. */
+export function shiftStartDateYmd(
+  startAt: string,
+  timeZone = 'Asia/Karachi'
+): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year:  'numeric',
+    month: '2-digit',
+    day:   '2-digit',
+  }).format(new Date(startAt))
+}
+
+export type ShiftCountRow = {
+  agent_id:   string
+  agent_name: string
+  count:      number
+}
+
+export type ShiftCountRange = {
+  start: string // YYYY-MM-DD inclusive
+  end:   string // YYYY-MM-DD inclusive
+}
+
 /**
  * Build start/end ISO for a local calendar day + times.
  * If endTime <= startTime, the shift ends the next calendar day (overnight).
@@ -208,9 +265,12 @@ export type ExpandRecurringShiftsInput = {
   weekdays:      number[] // 0=Sun … 6=Sat (JS getDay)
   startTime:     string   // HH:mm
   endTime:       string   // HH:mm
-  /** Safety cap (default 400). */
+  /** Safety cap (default 2000 ≈ 5+ years daily). */
   maxOccurrences?: number
 }
+
+/** Max shifts allowed in one recurring create (5 years × 7 days). */
+export const MAX_RECURRING_SHIFTS = 2000
 
 /**
  * Expand a weekly recurring pattern into concrete shift intervals.
@@ -225,7 +285,7 @@ export function expandRecurringShifts(
     weekdays,
     startTime,
     endTime,
-    maxOccurrences = 400,
+    maxOccurrences = MAX_RECURRING_SHIFTS,
   } = input
 
   const uniqueDays = [...new Set(weekdays)].filter(d => d >= 0 && d <= 6)
@@ -257,6 +317,25 @@ export function shiftTimePatternKey(startAt: string, endAt: string): string {
   const fmt = (d: Date) =>
     `${d.getUTCHours().toString().padStart(2, '0')}:${d.getUTCMinutes().toString().padStart(2, '0')}`
   return `${fmt(s)}→${fmt(e)}`
+}
+
+/** Local weekday of shift start (0=Sun … 6=Sat), matching calendar / create flow. */
+export function shiftLocalWeekday(startAt: string): number {
+  return new Date(startAt).getDay()
+}
+
+const WEEKDAY_LONG = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
+
+export function formatShiftWeekday(startAt: string): string {
+  return WEEKDAY_LONG[shiftLocalWeekday(startAt)] ?? 'day'
 }
 
 export type LaidOutShift = {

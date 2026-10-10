@@ -5,25 +5,29 @@ import { useRouter } from 'next/navigation'
 import Modal from '@/components/modals/Modal'
 import Button from '@/components/ui/Button'
 import { createRecurringShifts, createShift } from '@/lib/actions/support-shifts'
+import type { SupportProduct } from '@/lib/support/product'
 import {
   WEEKDAY_OPTIONS,
-  addDays,
+  MAX_RECURRING_SHIFTS,
   agentDisplayName,
   buildShiftInterval,
   expandRecurringShifts,
   intervalsOverlap,
   toLocalDateString,
   type ShiftAgent,
+  type ShiftChangeUndo,
   type ShiftItem,
 } from '@/lib/support/shifts'
 import modalStyles from '@/components/modals/modals.module.css'
 import styles from './AddShiftModal.module.css'
 
 interface Props {
-  agents:       ShiftAgent[]
-  existing:     ShiftItem[]
-  defaultDate?: string // YYYY-MM-DD
-  onClose:      () => void
+  agents:            ShiftAgent[]
+  existing:          ShiftItem[]
+  product:           SupportProduct
+  defaultDate?:      string // YYYY-MM-DD
+  onClose:           () => void
+  onChangeComplete?: (undo: ShiftChangeUndo) => void
 }
 
 function monthsAheadYmd(fromYmd: string, months: number): string {
@@ -35,8 +39,10 @@ function monthsAheadYmd(fromYmd: string, months: number): string {
 export default function AddShiftModal({
   agents,
   existing,
+  product,
   defaultDate,
   onClose,
+  onChangeComplete,
 }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -123,11 +129,11 @@ export default function AddShiftModal({
 
     startTransition(async () => {
       try {
-        if (mode === 'once') {
-          await createShift(agentId, preview[0].startAt, preview[0].endAt)
-        } else {
-          await createRecurringShifts(agentId, preview)
-        }
+        const result =
+          mode === 'once'
+            ? await createShift(agentId, preview[0].startAt, preview[0].endAt, product)
+            : await createRecurringShifts(agentId, preview, product)
+        if (result.undo) onChangeComplete?.(result.undo)
         router.refresh()
         onClose()
       } catch (err) {
@@ -277,9 +283,25 @@ export default function AddShiftModal({
                 type="button"
                 className={styles.quickBtn}
                 disabled={pending}
-                onClick={() => setRangeEnd(toLocalDateString(addDays(new Date(`${rangeStart}T12:00:00`), 365)))}
+                onClick={() => setRangeEnd(monthsAheadYmd(rangeStart, 12))}
               >
                 1 year
+              </button>
+              <button
+                type="button"
+                className={styles.quickBtn}
+                disabled={pending}
+                onClick={() => setRangeEnd(monthsAheadYmd(rangeStart, 36))}
+              >
+                3 years
+              </button>
+              <button
+                type="button"
+                className={styles.quickBtn}
+                disabled={pending}
+                onClick={() => setRangeEnd(monthsAheadYmd(rangeStart, 60))}
+              >
+                5 years
               </button>
             </div>
           </>
@@ -324,6 +346,9 @@ export default function AddShiftModal({
             {preview.length === 1 ? '' : 's'}
             {weekdayLabels ? ` on ${weekdayLabels}` : ''}
             {' '}from {rangeStart} to {rangeEnd}.
+            {preview.length >= MAX_RECURRING_SHIFTS
+              ? ` Cap is ${MAX_RECURRING_SHIFTS} — shorten the range or fewer weekdays.`
+              : ''}
           </p>
         )}
 

@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const admin = getSupportAdmin()
+    const product = authResult.product
     const now = new Date()
     const nowIso = now.toISOString()
     const horizonIso = new Date(now.getTime() + LOOKAHEAD_MS).toISOString()
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
       admin
         .from('support_shifts')
         .select('start_at, end_at')
+        .eq('product', product)
         .lt('start_at', horizonIso)
         .gt('end_at', nowIso)
         .order('start_at', { ascending: true }),

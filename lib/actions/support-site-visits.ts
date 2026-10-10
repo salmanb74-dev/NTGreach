@@ -9,6 +9,7 @@ import {
   fetchRestoTenants,
   isRestoAdminConfigured,
 } from '@/lib/resto-admin/client'
+import { parseSupportProduct } from '@/lib/support/product'
 import {
   assertDurationMinutes,
   monthDateRange,
@@ -30,8 +31,7 @@ async function requireCsUser() {
 }
 
 function parseProduct(value: string): SupportProduct {
-  if (value === 'resto' || value === 'alma') return value
-  throw new Error('Invalid product')
+  return parseSupportProduct(value)
 }
 
 function normalizeInput(input: SiteVisitInput) {

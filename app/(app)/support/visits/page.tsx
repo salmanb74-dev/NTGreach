@@ -13,12 +13,7 @@ import {
   type SupportProduct,
 } from '@/lib/support/site-visits'
 import type { Module } from '@/lib/modules'
-
-function productForModule(mod: Module): SupportProduct | null {
-  if (mod === 'cs_resto') return 'resto'
-  if (mod === 'cs_alma') return 'alma'
-  return null
-}
+import { productFromCsModule } from '@/lib/support/product'
 
 export default async function SupportVisitsPage() {
   const supabase = createClient()
@@ -37,7 +32,7 @@ export default async function SupportVisitsPage() {
       : modules.find(m => m.startsWith('cs_')) ?? modules[0]
   )!
 
-  const product = productForModule(activeModule)
+  const product = productFromCsModule(activeModule)
   if (!product) {
     return (
       <p style={{ padding: '1.5rem', color: 'var(--color-text-muted)' }}>

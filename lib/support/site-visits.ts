@@ -1,4 +1,5 @@
-export type SupportProduct = 'resto' | 'alma'
+export type { SupportProduct } from '@/lib/support/product'
+import type { SupportProduct } from '@/lib/support/product'
 
 export type SiteVisit = {
   id:               string

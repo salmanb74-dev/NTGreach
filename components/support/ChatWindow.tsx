@@ -12,6 +12,7 @@ import { useChatMessages } from './useChatMessages'
 import { useConversationEdits } from './useConversationEdits'
 import { useSupportCoverage } from './useSupportCoverage'
 import { useMessageDelete } from './useMessageDelete'
+import type { SupportProduct } from '@/lib/support/product'
 import type { ConversationItem } from './types'
 import styles from './ChatWindow.module.css'
 
@@ -19,6 +20,7 @@ interface Props {
   conversation:     ConversationItem | null
   currentUserId:    string
   currentUserName:  string
+  product:          SupportProduct
   onTitleChange:    (id: string, title: string | null) => void
   onConversationPatch?: (
     id: string,
@@ -35,6 +37,7 @@ export default function ChatWindow({
   conversation,
   currentUserId,
   currentUserName,
+  product,
   onTitleChange,
   onConversationPatch,
   onDelete,
@@ -45,7 +48,7 @@ export default function ChatWindow({
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const setErrorRef = useRef<(message: string) => void>(() => {})
-  const offlineMessage = useSupportCoverage()
+  const offlineMessage = useSupportCoverage(product)
 
   const {
     editingTitle,

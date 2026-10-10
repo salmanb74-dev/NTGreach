@@ -768,6 +768,7 @@ export default function ConversationList({
           conversation={selected}
           currentUserId={currentUserId}
           currentUserName={currentUserName}
+          product={productFilter}
           onTitleChange={handleTitleChange}
           onConversationPatch={handleConversationPatch}
           onDelete={requestDelete}

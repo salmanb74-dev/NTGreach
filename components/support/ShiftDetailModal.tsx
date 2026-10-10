@@ -8,29 +8,34 @@ import Button from '@/components/ui/Button'
 import {
   deleteMatchingShifts,
   deleteShift,
-  updateShift,
+  transferMatchingShifts,
 } from '@/lib/actions/support-shifts'
 import {
   agentDisplayName,
   findOverlappingShifts,
   formatShiftDate,
   formatShiftTime,
+  formatShiftWeekday,
+  shiftLocalWeekday,
   shiftTimePatternKey,
   type ShiftAgent,
+  type ShiftChangeUndo,
   type ShiftItem,
 } from '@/lib/support/shifts'
 import modalStyles from '@/components/modals/modals.module.css'
 import styles from './ShiftDetailModal.module.css'
 
 interface Props {
-  shift:     ShiftItem
-  agents:    ShiftAgent[]
-  allShifts: ShiftItem[]
-  canManage: boolean
-  onClose:   () => void
+  shift:           ShiftItem
+  agents:          ShiftAgent[]
+  allShifts:       ShiftItem[]
+  canManage:       boolean
+  onClose:         () => void
+  onChangeComplete?: (undo: ShiftChangeUndo) => void
 }
 
 type MatchingScope = 'from_here' | 'all'
+type TransferScope = 'one' | 'from_here' | 'all'
 
 export default function ShiftDetailModal({
   shift,
@@ -38,6 +43,7 @@ export default function ShiftDetailModal({
   allShifts,
   canManage,
   onClose,
+  onChangeComplete,
 }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -45,6 +51,8 @@ export default function ShiftDetailModal({
   const [transferTo, setTransferTo] = useState(
     agents.find(a => a.id !== shift.agent_id)?.id ?? ''
   )
+  const [transferScope, setTransferScope] = useState<TransferScope>('one')
+  const [sameWeekdayOnly, setSameWeekdayOnly] = useState(true)
   const [confirmOne, setConfirmOne] = useState(false)
   const [matchingOpen, setMatchingOpen] = useState(false)
   const [matchingScope, setMatchingScope] = useState<MatchingScope>('from_here')
@@ -60,12 +68,22 @@ export default function ShiftDetailModal({
     [shift.start_at, shift.end_at]
   )
 
+  const originWeekday = useMemo(
+    () => shiftLocalWeekday(shift.start_at),
+    [shift.start_at]
+  )
+
+  const weekdayLabel = useMemo(
+    () => formatShiftWeekday(shift.start_at),
+    [shift.start_at]
+  )
+
   const originStartMs = useMemo(
     () => new Date(shift.start_at).getTime(),
     [shift.start_at]
   )
 
-  const matchingAll = useMemo(() => {
+  const seriesOrPatternAll = useMemo(() => {
     if (shift.series_id) {
       return allShifts.filter(s => s.series_id === shift.series_id)
     }
@@ -75,6 +93,18 @@ export default function ShiftDetailModal({
         shiftTimePatternKey(s.start_at, s.end_at) === pattern
     )
   }, [shift, allShifts, pattern])
+
+  const hasMultipleWeekdays = useMemo(() => {
+    const days = new Set(seriesOrPatternAll.map(s => shiftLocalWeekday(s.start_at)))
+    return days.size > 1
+  }, [seriesOrPatternAll])
+
+  const matchingAll = useMemo(() => {
+    if (!sameWeekdayOnly) return seriesOrPatternAll
+    return seriesOrPatternAll.filter(
+      s => shiftLocalWeekday(s.start_at) === originWeekday
+    )
+  }, [seriesOrPatternAll, sameWeekdayOnly, originWeekday])
 
   const matchingFromHere = useMemo(
     () => matchingAll.filter(s => new Date(s.start_at).getTime() >= originStartMs),
@@ -86,14 +116,28 @@ export default function ShiftDetailModal({
   const selectedCount =
     matchingScope === 'from_here' ? matchingCountFromHere : matchingCountAll
 
-  const showMatchingButton = matchingCountAll > 1
+  const transferCount =
+    transferScope === 'one'
+      ? 1
+      : transferScope === 'from_here'
+        ? matchingCountFromHere
+        : matchingCountAll
+
+  const showMatchingButton = seriesOrPatternAll.length > 1
+  const showTransferScope = seriesOrPatternAll.length > 1
 
   function handleTransfer() {
     if (!transferTo || transferTo === shift.agent_id) return
     setError(null)
     startTransition(async () => {
       try {
-        await updateShift(shift.id, transferTo)
+        const result = await transferMatchingShifts(
+          shift.id,
+          transferTo,
+          transferScope,
+          sameWeekdayOnly
+        )
+        if (result.undo) onChangeComplete?.(result.undo)
         router.refresh()
         onClose()
       } catch (err) {
@@ -106,7 +150,8 @@ export default function ShiftDetailModal({
     setError(null)
     startTransition(async () => {
       try {
-        await deleteShift(shift.id)
+        const result = await deleteShift(shift.id)
+        if (result.undo) onChangeComplete?.(result.undo)
         router.refresh()
         setConfirmOne(false)
         onClose()
@@ -121,7 +166,12 @@ export default function ShiftDetailModal({
     setError(null)
     startTransition(async () => {
       try {
-        await deleteMatchingShifts(shift.id, matchingScope)
+        const result = await deleteMatchingShifts(
+          shift.id,
+          matchingScope,
+          sameWeekdayOnly
+        )
+        if (result.undo) onChangeComplete?.(result.undo)
         router.refresh()
         setMatchingOpen(false)
         onClose()
@@ -129,6 +179,41 @@ export default function ShiftDetailModal({
         setError(err instanceof Error ? err.message : 'Delete failed')
       }
     })
+  }
+
+  function WeekdayFilter({ name }: { name: string }) {
+    if (!hasMultipleWeekdays) return null
+    return (
+      <>
+        <p className={styles.matchingTitle}>Which weekdays?</p>
+        <label className={styles.scopeOption}>
+          <input
+            type="radio"
+            name={name}
+            checked={sameWeekdayOnly}
+            onChange={() => setSameWeekdayOnly(true)}
+            disabled={pending}
+          />
+          <span>
+            <strong>{weekdayLabel}s only</strong>
+            <em>Same weekday as this shift</em>
+          </span>
+        </label>
+        <label className={styles.scopeOption}>
+          <input
+            type="radio"
+            name={name}
+            checked={!sameWeekdayOnly}
+            onChange={() => setSameWeekdayOnly(false)}
+            disabled={pending}
+          />
+          <span>
+            <strong>Every weekday in series</strong>
+            <em>All days that share these hours</em>
+          </span>
+        </label>
+      </>
+    )
   }
 
   return (
@@ -158,7 +243,8 @@ export default function ShiftDetailModal({
               <div>
                 <dt>Series</dt>
                 <dd>
-                  {matchingCountAll} linked shift{matchingCountAll === 1 ? '' : 's'}
+                  {seriesOrPatternAll.length} linked shift
+                  {seriesOrPatternAll.length === 1 ? '' : 's'}
                 </dd>
               </div>
             )}
@@ -190,7 +276,11 @@ export default function ShiftDetailModal({
                   variant="outline"
                   size="md"
                   disabled={pending}
-                  onClick={() => setTransferring(true)}
+                  onClick={() => {
+                    setTransferScope('one')
+                    setSameWeekdayOnly(true)
+                    setTransferring(true)
+                  }}
                 >
                   Transfer shift
                 </Button>
@@ -214,6 +304,74 @@ export default function ShiftDetailModal({
                         </option>
                       ))}
                   </select>
+
+                  {showTransferScope && (
+                    <>
+                      <WeekdayFilter name="transfer-weekday" />
+
+                      <p className={styles.matchingTitle}>
+                        Which shifts to transfer?
+                      </p>
+
+                      <label className={styles.scopeOption}>
+                        <input
+                          type="radio"
+                          name="transfer-scope"
+                          checked={transferScope === 'one'}
+                          onChange={() => setTransferScope('one')}
+                          disabled={pending}
+                        />
+                        <span>
+                          <strong>This shift only</strong>
+                          <em>1 shift on {formatShiftDate(shift.start_at)}</em>
+                        </span>
+                      </label>
+
+                      <label className={styles.scopeOption}>
+                        <input
+                          type="radio"
+                          name="transfer-scope"
+                          checked={transferScope === 'from_here'}
+                          onChange={() => setTransferScope('from_here')}
+                          disabled={pending}
+                        />
+                        <span>
+                          <strong>
+                            {sameWeekdayOnly
+                              ? `This ${weekdayLabel} and future`
+                              : 'This day and future'}
+                          </strong>
+                          <em>
+                            {matchingCountFromHere} shift
+                            {matchingCountFromHere === 1 ? '' : 's'} from{' '}
+                            {formatShiftDate(shift.start_at)} onward
+                          </em>
+                        </span>
+                      </label>
+
+                      <label className={styles.scopeOption}>
+                        <input
+                          type="radio"
+                          name="transfer-scope"
+                          checked={transferScope === 'all'}
+                          onChange={() => setTransferScope('all')}
+                          disabled={pending}
+                        />
+                        <span>
+                          <strong>
+                            {sameWeekdayOnly
+                              ? `All ${weekdayLabel}s (past + future)`
+                              : 'All matching (past + future)'}
+                          </strong>
+                          <em>
+                            {matchingCountAll} shift
+                            {matchingCountAll === 1 ? '' : 's'} with these hours
+                          </em>
+                        </span>
+                      </label>
+                    </>
+                  )}
+
                   <div className={styles.transferActions}>
                     <Button
                       type="button"
@@ -228,10 +386,14 @@ export default function ShiftDetailModal({
                       type="button"
                       variant="primary"
                       size="sm"
-                      disabled={pending || !transferTo}
+                      disabled={pending || !transferTo || transferCount === 0}
                       onClick={handleTransfer}
                     >
-                      {pending ? 'Transferring…' : 'Confirm transfer'}
+                      {pending
+                        ? 'Transferring…'
+                        : showTransferScope
+                          ? `Transfer ${transferCount} shift${transferCount === 1 ? '' : 's'}`
+                          : 'Confirm transfer'}
                     </Button>
                   </div>
                 </div>
@@ -256,6 +418,7 @@ export default function ShiftDetailModal({
                     disabled={pending}
                     onClick={() => {
                       setMatchingScope('from_here')
+                      setSameWeekdayOnly(true)
                       setMatchingOpen(true)
                     }}
                   >
@@ -273,6 +436,8 @@ export default function ShiftDetailModal({
                     </span>
                   </p>
 
+                  <WeekdayFilter name="delete-weekday" />
+
                   <label className={styles.scopeOption}>
                     <input
                       type="radio"
@@ -282,7 +447,11 @@ export default function ShiftDetailModal({
                       disabled={pending}
                     />
                     <span>
-                      <strong>This date and future</strong>
+                      <strong>
+                        {sameWeekdayOnly
+                          ? `This ${weekdayLabel} and future`
+                          : 'This day and future'}
+                      </strong>
                       <em>
                         {matchingCountFromHere} shift
                         {matchingCountFromHere === 1 ? '' : 's'} from{' '}
@@ -300,7 +469,11 @@ export default function ShiftDetailModal({
                       disabled={pending}
                     />
                     <span>
-                      <strong>All matching (past + future)</strong>
+                      <strong>
+                        {sameWeekdayOnly
+                          ? `All ${weekdayLabel}s (past + future)`
+                          : 'All matching (past + future)'}
+                      </strong>
                       <em>
                         {matchingCountAll} shift
                         {matchingCountAll === 1 ? '' : 's'} with these hours
