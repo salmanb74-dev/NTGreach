@@ -33,6 +33,7 @@ import {
   subHasSavedOffer,
   isEnterpriseLive,
 } from './subscription/offer-form'
+import { cashSyncHintAfterSubscriptionSave } from '@/lib/ops/cash-sync-hint'
 import styles from './TenantSubscription.module.css'
 
 type CancelOfferDialog = {
@@ -422,13 +423,20 @@ export default function TenantSubscriptionPanel({
         }
 
         const pendingAfter = newOfferStatusLabel(sub)
-        setSavedMsg(
-          pendingAfter
-            ? alreadyLive
-              ? 'Re-offer saved and pending acceptance. Current plan stays on live terms until the tenant accepts — only the New column was updated.'
-              : `Offer saved and pending. Current plan stays “${livePlan}” until the tenant accepts (portal / Apply terms) — only the New column is updated by Save.`
-            : 'Offer saved. Live terms already match — nothing pending.'
-        )
+        let msg = pendingAfter
+          ? alreadyLive
+            ? 'Re-offer saved and pending acceptance. Current plan stays on live terms until the tenant accepts — only the New column was updated.'
+            : `Offer saved and pending. Current plan stays “${livePlan}” until the tenant accepts (portal / Apply terms) — only the New column is updated by Save.`
+          : 'Offer saved. Live terms already match — nothing pending.'
+        if (env === 'production') {
+          const cashHint = await cashSyncHintAfterSubscriptionSave(
+            tenantId,
+            'resto',
+            sub as unknown as Record<string, unknown>
+          )
+          if (cashHint) msg = `${msg} ${cashHint}`
+        }
+        setSavedMsg(msg)
       } catch {
         setSaveError('Could not save. Check connection and try again.')
       }

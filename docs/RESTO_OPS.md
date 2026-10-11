@@ -72,6 +72,10 @@ Response (Nest shape; bare array / `{ "tenants": [...] }` also accepted):
 
 Ops list columns: Lock (narrow; red lock icon when `ordersPlacementLocked`), Restaurant, Owner, Email, Plan (`Ent/Sub` · `Ent/Trial` · `Pro` · `Starter` · `Free`), Trial, First (first subscription start), Current (current subscription start), Billing cycle (blank on Free/Trial), Usage (`L/C/U/O` current/max; orders = subscription-period month), Last order, Cash due (prod), Actions, Tenant ID.
 
+### Cash collection (production)
+
+Reach-side (`ops_cash_tenants` / `ops_cash_collections`). Enable per tenant, sync from **enterprise** subscription terms, then work expected due rows (all past cycles + one future, plus setup / pre-trial setup when > 0). Record a collected amount + date on each row; under expected → **partial**. Sync keeps past rows and replaces unpaid future. SQL: `supabase/ops_cash_collection.sql` + `supabase/ops_cash_collection_v2.sql` for upgrades. Same model for Alma.
+
 ## Reach proxies
 
 Authenticated Reach ops users call:

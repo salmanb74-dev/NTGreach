@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import type {
   AlmaAdminEnv,
@@ -30,15 +30,10 @@ import {
   type OpsNestProduct,
 } from '@/lib/ops/product'
 import {
-  createCashCollection,
   listCashTenantSummaries,
   type CashTenantSummary,
 } from '@/lib/actions/ops-cash'
-import {
-  formatDueLabel,
-  formatMoney,
-  todayISO,
-} from '@/lib/ops/cash-collection'
+import { formatDueLabel } from '@/lib/ops/cash-collection'
 import { moduleFromPathname, modulePath } from '@/lib/module-routing'
 import type { Module } from '@/lib/modules'
 import styles from './TenantsClient.module.css'
@@ -181,12 +176,20 @@ function formatCashDueShort(cash: CashTenantSummary): string {
   const kind =
     cash.due.nextKind === 'setup'
       ? 'S'
-      : cash.due.nextKind === 'recurring'
-        ? 'R'
-        : cash.due.nextKind === 'other'
-          ? 'O'
-          : ''
-  return kind ? `${label} · ${kind}` : label
+      : cash.due.nextKind === 'setup_pre_trial'
+        ? 'PT'
+        : cash.due.nextKind === 'recurring'
+          ? 'R'
+          : cash.due.nextKind === 'other'
+            ? 'O'
+            : ''
+  const partial =
+    cash.due.nextKind &&
+    cash.due.nextAmountCollected != null &&
+    cash.due.nextAmountCollected > 0
+      ? ' · partial'
+      : ''
+  return kind ? `${label} · ${kind}${partial}` : label
 }
 
 export default function TenantsClient({ initialEnv }: Props) {
@@ -209,9 +212,6 @@ export default function TenantsClient({ initialEnv }: Props) {
     Record<string, CashTenantSummary>
   >({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [cashMsg, setCashMsg] = useState<string | null>(null)
-  const [cashError, setCashError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
 
   const loadCash = useCallback(async () => {
     try {
@@ -280,8 +280,6 @@ export default function TenantsClient({ initialEnv }: Props) {
     setQuery('')
     setCashFilter('all')
     setPlanFilter('all')
-    setCashMsg(null)
-    setCashError(null)
     const url = new URL(window.location.href)
     url.searchParams.set('env', next)
     window.history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}`)
@@ -343,50 +341,6 @@ export default function TenantsClient({ initialEnv }: Props) {
     router.push(
       `${modulePath(productModule, 'management', tenantId)}?env=${env}`
     )
-  }
-
-  function markCollected(e: React.MouseEvent, tenantId: string) {
-    e.preventDefault()
-    e.stopPropagation()
-    const cash = cashByTenant[tenantId]
-    if (!cash) return
-    const kind = cash.due.nextKind ?? 'recurring'
-    const amount =
-      kind === 'setup'
-        ? cash.settings.default_setup_amount
-        : cash.settings.default_recurring_amount
-    if (amount == null || !(amount >= 0)) {
-      setCashError(
-        'No default amount for this charge — open the tenant Cash tab to enter one.'
-      )
-      return
-    }
-    const dueDate = cash.due.nextDue ?? cash.settings.schedule_anchor
-    if (!dueDate) {
-      setCashError('No due date on schedule — set an anchor on the Cash tab.')
-      return
-    }
-    setCashError(null)
-    setCashMsg(null)
-    startTransition(async () => {
-      try {
-        await createCashCollection({
-          tenantId,
-          product,
-          kind,
-          amount,
-          currency: cash.settings.currency,
-          dueDate,
-          collectedOn: todayISO(),
-        })
-        setCashMsg(`Recorded ${kind} collection for due ${dueDate}.`)
-        await loadCash()
-      } catch (err) {
-        setCashError(
-          err instanceof Error ? err.message : 'Failed to record collection'
-        )
-      }
-    })
   }
 
   const isProduction = env === 'production'
@@ -510,13 +464,6 @@ export default function TenantsClient({ initialEnv }: Props) {
         </div>
       </div>
 
-      {cashError && (
-        <div className={styles.inlineError} role="alert">
-          {cashError}
-        </div>
-      )}
-      {cashMsg && <div className={styles.inlineOk}>{cashMsg}</div>}
-
       {state.status === 'loading' && (
         <div className={styles.loadingBox} role="status">
           Loading tenants from {isAlma ? 'Alma' : 'Resto'}…
@@ -557,6 +504,7 @@ export default function TenantsClient({ initialEnv }: Props) {
                 <th className={styles.lockCol}>
                   <span className={styles.srOnly}>
                     {isAlma ? 'Assessments lock' : 'Orders lock'}
+                    {isProduction ? ' / cash collection' : ''}
                   </span>
                 </th>
                 <th>{isAlma ? 'School' : 'Restaurant'}</th>
@@ -598,34 +546,82 @@ export default function TenantsClient({ initialEnv }: Props) {
                     aria-label={`Open ${tenant.name}`}
                   >
                     <td className={styles.lockCell}>
-                      {(isAlma
-                        ? (tenant as AlmaTenant).assessmentsCreationLocked
-                        : (tenant as RestoTenant).ordersPlacementLocked) ? (
-                        <span
-                          className={styles.lockIcon}
-                          title={
-                            isAlma ? 'Assessments locked' : 'Orders locked'
-                          }
-                          aria-label={
-                            isAlma ? 'Assessments locked' : 'Orders locked'
-                          }
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.25"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden
+                      <span className={styles.statusIcons}>
+                        {(isAlma
+                          ? (tenant as AlmaTenant).assessmentsCreationLocked
+                          : (tenant as RestoTenant)
+                              .ordersPlacementLocked) && (
+                          <span
+                            className={styles.lockIcon}
+                            title={
+                              isAlma ? 'Assessments locked' : 'Orders locked'
+                            }
+                            aria-label={
+                              isAlma ? 'Assessments locked' : 'Orders locked'
+                            }
                           >
-                            <rect x="5" y="11" width="14" height="10" rx="2" />
-                            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                          </svg>
-                        </span>
-                      ) : null}
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.25"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <rect
+                                x="5"
+                                y="11"
+                                width="14"
+                                height="10"
+                                rx="2"
+                              />
+                              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                            </svg>
+                          </span>
+                        )}
+                        {isProduction && cash && (
+                          <span
+                            className={`${styles.cashIcon} ${
+                              dueSoon ? styles.cashIconDue : ''
+                            }`}
+                            title={
+                              dueSoon
+                                ? `Cash collection · due soon ${formatCashDueShort(cash)}`
+                                : `Cash collection · ${formatCashDueShort(cash)}`
+                            }
+                            aria-label={
+                              dueSoon
+                                ? 'Cash collection tenant, due soon'
+                                : 'Cash collection tenant'
+                            }
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.25"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <rect
+                                x="2"
+                                y="6"
+                                width="20"
+                                height="12"
+                                rx="2"
+                              />
+                              <circle cx="12" cy="12" r="2.5" />
+                              <path d="M6 12h0.01M18 12h0.01" />
+                            </svg>
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className={styles.tenantName}>{tenant.name}</td>
                     <td>
@@ -693,28 +689,6 @@ export default function TenantsClient({ initialEnv }: Props) {
                       </td>
                     )}
                     <td className={styles.actionsCell}>
-                      {isProduction && cash?.due.nextDue && (
-                        <button
-                          type="button"
-                          className={styles.collectBtn}
-                          disabled={isPending}
-                          onClick={e => markCollected(e, tenant.id)}
-                          title={
-                            cash.settings.default_recurring_amount != null ||
-                            cash.settings.default_setup_amount != null
-                              ? `Record ${formatMoney(
-                                  (cash.due.nextKind === 'setup'
-                                    ? cash.settings.default_setup_amount
-                                    : cash.settings.default_recurring_amount) ??
-                                    0,
-                                  cash.settings.currency
-                                )} ${cash.due.nextKind ?? 'recurring'}`
-                              : 'Mark collected'
-                          }
-                        >
-                          Collect
-                        </button>
-                      )}
                       <button
                         type="button"
                         className={styles.copyBtn}

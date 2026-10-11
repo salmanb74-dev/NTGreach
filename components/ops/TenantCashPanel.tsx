@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import {
-  createCashCollection,
   deleteCashCollection,
   getCashTenant,
+  recordCashPayment,
+  syncCashDefaultsFromSubscription,
   updateCashCollection,
   upsertCashSettings,
 } from '@/lib/actions/ops-cash'
 import {
+  CASH_KIND_LABEL,
+  CASH_STATUS_LABEL,
   cashDefaultsFromSubscription,
   formatDueLabel,
   formatMoney,
   todayISO,
-  type CashCollectionKind,
+  type CashCollectionStatus,
   type CashDueStatus,
   type OpsCashCollection,
   type OpsCashTenant,
@@ -34,37 +37,28 @@ interface Props {
   apiBase?: '/api/ops' | '/api/ops/alma'
 }
 
-type FormState = {
-  kind: CashCollectionKind
+type CollectDraft = {
   amount: string
-  currency: string
-  dueDate: string
   collectedOn: string
   notes: string
 }
 
-const KIND_LABEL: Record<CashCollectionKind, string> = {
-  setup: 'Setup',
-  recurring: 'Recurring',
-  other: 'Other',
+function emptyDue(): CashDueStatus {
+  return {
+    nextDue: null,
+    overdue: false,
+    dueSoon: false,
+    nextKind: null,
+    nextExpectedAmount: null,
+    nextAmountCollected: null,
+    nextRowId: null,
+  }
 }
 
-function emptyForm(settings: OpsCashTenant | null, due: CashDueStatus): FormState {
-  const kind: CashCollectionKind = due.nextKind ?? 'recurring'
-  const amount =
-    kind === 'setup'
-      ? settings?.default_setup_amount
-      : kind === 'recurring'
-        ? settings?.default_recurring_amount
-        : null
-  return {
-    kind,
-    amount: amount != null ? String(amount) : '',
-    currency: settings?.currency ?? 'USD',
-    dueDate: due.nextDue ?? settings?.schedule_anchor ?? todayISO(),
-    collectedOn: todayISO(),
-    notes: '',
-  }
+function statusClass(status: CashCollectionStatus): string {
+  if (status === 'collected') return styles.statusCollected
+  if (status === 'partial') return styles.statusPartial
+  return styles.statusDue
 }
 
 export default function TenantCashPanel({
@@ -78,24 +72,23 @@ export default function TenantCashPanel({
   const isProduction = env === 'production'
   const [settings, setSettings] = useState<OpsCashTenant | null>(null)
   const [collections, setCollections] = useState<OpsCashCollection[]>([])
-  const [due, setDue] = useState<CashDueStatus>({
-    nextDue: null,
-    overdue: false,
-    dueSoon: false,
-    nextKind: null,
-  })
+  const [due, setDue] = useState<CashDueStatus>(emptyDue)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
-  const [form, setForm] = useState<FormState>(() => emptyForm(null, due))
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
+  const [activeRowId, setActiveRowId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<CollectDraft>({
+    amount: '',
+    collectedOn: todayISO(),
+    notes: '',
+  })
   const [isPending, startTransition] = useTransition()
 
   const [settingsForm, setSettingsForm] = useState({
     scheduleAnchor: '',
     cycleMonths: '1',
     defaultSetup: '',
+    defaultPreTrialSetup: '',
     defaultRecurring: '',
     currency: 'USD',
   })
@@ -108,7 +101,6 @@ export default function TenantCashPanel({
       setSettings(data.settings)
       setCollections(data.collections)
       setDue(data.due)
-      setForm(emptyForm(data.settings, data.due))
       if (data.settings) {
         setSettingsForm({
           scheduleAnchor: data.settings.schedule_anchor ?? '',
@@ -116,6 +108,10 @@ export default function TenantCashPanel({
           defaultSetup:
             data.settings.default_setup_amount != null
               ? String(data.settings.default_setup_amount)
+              : '',
+          defaultPreTrialSetup:
+            data.settings.default_pre_trial_setup_amount != null
+              ? String(data.settings.default_pre_trial_setup_amount)
               : '',
           defaultRecurring:
             data.settings.default_recurring_amount != null
@@ -168,7 +164,7 @@ export default function TenantCashPanel({
         setSettings(saved)
         setMsg(
           next
-            ? 'Cash collection enabled. Schedule defaults pulled from subscription when available.'
+            ? 'Cash collection enabled. Expected dues generated from enterprise terms when available.'
             : 'Cash collection disabled for this tenant.'
         )
         await load()
@@ -190,12 +186,20 @@ export default function TenantCashPanel({
       settingsForm.defaultSetup.trim() === ''
         ? null
         : Number(settingsForm.defaultSetup)
+    const preTrial =
+      settingsForm.defaultPreTrialSetup.trim() === ''
+        ? null
+        : Number(settingsForm.defaultPreTrialSetup)
     const recurring =
       settingsForm.defaultRecurring.trim() === ''
         ? null
         : Number(settingsForm.defaultRecurring)
     if (setup != null && (!Number.isFinite(setup) || setup < 0)) {
       setError('Invalid setup amount')
+      return
+    }
+    if (preTrial != null && (!Number.isFinite(preTrial) || preTrial < 0)) {
+      setError('Invalid pre-trial setup amount')
       return
     }
     if (recurring != null && (!Number.isFinite(recurring) || recurring < 0)) {
@@ -211,11 +215,12 @@ export default function TenantCashPanel({
           scheduleAnchor: settingsForm.scheduleAnchor || null,
           cycleMonths: Math.floor(cycle),
           defaultSetupAmount: setup,
+          defaultPreTrialSetupAmount: preTrial,
           defaultRecurringAmount: recurring,
           currency: settingsForm.currency || 'USD',
         })
         setSettings(saved)
-        setMsg('Schedule settings saved.')
+        setMsg('Schedule saved. Unpaid future dues refreshed.')
         await load()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save schedule')
@@ -230,19 +235,21 @@ export default function TenantCashPanel({
       try {
         const subscription = await fetchSubscription()
         const d = cashDefaultsFromSubscription(subscription)
-        const saved = await upsertCashSettings({
+        if (!d.isEnterprise) {
+          setError(
+            'No enterprise terms on this subscription — cash sync is enterprise-only.'
+          )
+          return
+        }
+        const saved = await syncCashDefaultsFromSubscription(
           tenantId,
-          product: cashProduct,
-          enabled: true,
-          subscription: subscription ?? undefined,
-          scheduleAnchor: d.scheduleAnchor,
-          cycleMonths: d.cycleMonths,
-          defaultSetupAmount: d.defaultSetupAmount,
-          defaultRecurringAmount: d.defaultRecurringAmount,
-          currency: d.currency,
-        })
+          subscription,
+          cashProduct
+        )
         setSettings(saved)
-        setMsg('Synced schedule and amounts from subscription.')
+        setMsg(
+          'Synced from enterprise subscription. Past dues kept; unpaid future replaced.'
+        )
         await load()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Sync failed')
@@ -250,96 +257,60 @@ export default function TenantCashPanel({
     })
   }
 
-  function onKindChange(kind: CashCollectionKind) {
-    setForm(prev => {
-      const amount =
-        kind === 'setup'
-          ? settings?.default_setup_amount
-          : kind === 'recurring'
-            ? settings?.default_recurring_amount
-            : null
-      return {
-        ...prev,
-        kind,
-        amount:
-          amount != null
-            ? String(amount)
-            : kind === prev.kind
-              ? prev.amount
-              : '',
-        dueDate:
-          kind === due.nextKind && due.nextDue
-            ? due.nextDue
-            : prev.dueDate || settings?.schedule_anchor || todayISO(),
-      }
-    })
-  }
-
-  function openCreate() {
-    setEditingId(null)
-    setForm(emptyForm(settings, due))
-    setShowForm(true)
-    setMsg(null)
-    setError(null)
-  }
-
-  function openEdit(row: OpsCashCollection) {
-    setEditingId(row.id)
-    setForm({
-      kind: row.kind,
-      amount: String(row.amount),
-      currency: row.currency,
-      dueDate: row.due_date,
-      collectedOn: row.collected_on,
+  function openCollect(row: OpsCashCollection) {
+    setActiveRowId(row.id)
+    setDraft({
+      amount:
+        row.amount_collected > 0
+          ? String(row.amount_collected)
+          : String(row.expected_amount),
+      collectedOn: row.collected_on ?? todayISO(),
       notes: row.notes ?? '',
     })
-    setShowForm(true)
     setMsg(null)
     setError(null)
   }
 
-  function submitForm() {
-    const amount = Number(form.amount)
+  function cancelCollect() {
+    setActiveRowId(null)
+  }
+
+  function submitCollect(row: OpsCashCollection) {
+    const amount = Number(draft.amount)
     if (!Number.isFinite(amount) || amount < 0) {
-      setError('Enter a valid amount')
+      setError('Enter a valid collected amount')
       return
     }
-    if (!form.dueDate || !form.collectedOn) {
-      setError('Due date and collected-on are required')
+    if (amount > 0 && !draft.collectedOn) {
+      setError('Collection date is required')
       return
     }
     setError(null)
     setMsg(null)
     startTransition(async () => {
       try {
-        if (editingId) {
-          await updateCashCollection({
-            id: editingId,
-            tenantId,
-            product: cashProduct,
-            kind: form.kind,
-            amount,
-            currency: form.currency,
-            dueDate: form.dueDate,
-            collectedOn: form.collectedOn,
-            notes: form.notes,
-          })
-          setMsg('Collection updated.')
-        } else {
-          await createCashCollection({
-            tenantId,
-            product: cashProduct,
-            kind: form.kind,
-            amount,
-            currency: form.currency,
-            dueDate: form.dueDate,
-            collectedOn: form.collectedOn,
-            notes: form.notes,
-          })
-          setMsg('Collection recorded.')
-        }
-        setShowForm(false)
-        setEditingId(null)
+        await recordCashPayment({
+          id: row.id,
+          tenantId,
+          product: cashProduct,
+          amountCollected: amount,
+          collectedOn: draft.collectedOn || null,
+          notes: draft.notes,
+        })
+        const status =
+          amount <= 0
+            ? 'cleared'
+            : amount < row.expected_amount
+              ? 'partial'
+              : 'collected'
+        setMsg(
+          status === 'partial'
+            ? 'Partial collection recorded.'
+            : status === 'collected'
+              ? 'Collection recorded.'
+              : 'Collection cleared.'
+        )
+        setActiveRowId(null)
         await load()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
@@ -347,13 +318,36 @@ export default function TenantCashPanel({
     })
   }
 
+  function saveExpected(row: OpsCashCollection, expectedRaw: string) {
+    const expected = Number(expectedRaw)
+    if (!Number.isFinite(expected) || expected < 0) {
+      setError('Invalid expected amount')
+      return
+    }
+    setError(null)
+    startTransition(async () => {
+      try {
+        await updateCashCollection({
+          id: row.id,
+          tenantId,
+          product: cashProduct,
+          expectedAmount: expected,
+          amountCollected: row.amount_collected,
+          collectedOn: row.collected_on,
+          notes: row.notes,
+        })
+        setMsg('Expected amount updated.')
+        await load()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Update failed')
+      }
+    })
+  }
+
   function removeCollection(row: OpsCashCollection) {
     if (
       !window.confirm(
-        `Delete ${KIND_LABEL[row.kind]} collection of ${formatMoney(
-          row.amount,
-          row.currency
-        )} due ${row.due_date}?`
+        `Delete ${CASH_KIND_LABEL[row.kind]} due ${row.due_date}? This removes the expected row.`
       )
     ) {
       return
@@ -362,7 +356,8 @@ export default function TenantCashPanel({
     startTransition(async () => {
       try {
         await deleteCashCollection(row.id, tenantId, cashProduct)
-        setMsg('Collection deleted.')
+        setMsg('Row deleted. It may reappear on the next schedule sync if still expected.')
+        if (activeRowId === row.id) setActiveRowId(null)
         await load()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Delete failed')
@@ -376,6 +371,13 @@ export default function TenantCashPanel({
     if (!settings?.schedule_anchor) return 'No schedule anchor set'
     return `Anchor ${settings.schedule_anchor} · every ${settings.cycle_months} mo`
   }, [settings])
+
+  const sortedCollections = useMemo(() => {
+    return [...collections].sort((a, b) => {
+      if (a.due_date !== b.due_date) return a.due_date < b.due_date ? 1 : -1
+      return a.kind.localeCompare(b.kind)
+    })
+  }, [collections])
 
   if (!isProduction) {
     return (
@@ -403,8 +405,8 @@ export default function TenantCashPanel({
         <div>
           <h3 className={styles.title}>Cash collection</h3>
           <p className={styles.body}>
-            Track cash received for this resto tenant. Next due follows the
-            subscription schedule, not the collection date.
+            Expected dues for all past cycles plus one future. Record a
+            collected amount on each row — less than expected marks it partial.
           </p>
         </div>
         <label className={styles.toggle}>
@@ -436,7 +438,10 @@ export default function TenantCashPanel({
                 }`}
               >
                 {formatDueLabel(due)}
-                {due.nextKind ? ` · ${KIND_LABEL[due.nextKind]}` : ''}
+                {due.nextKind ? ` · ${CASH_KIND_LABEL[due.nextKind]}` : ''}
+                {due.nextExpectedAmount != null
+                  ? ` · ${formatMoney(due.nextExpectedAmount, settings.currency)}`
+                  : ''}
               </span>
             </div>
             <div className={styles.metaCard}>
@@ -444,7 +449,7 @@ export default function TenantCashPanel({
               <span className={styles.metaValue}>{scheduleSummary}</span>
             </div>
             <div className={styles.metaCard}>
-              <span className={styles.metaLabel}>Default setup</span>
+              <span className={styles.metaLabel}>Setup</span>
               <span className={styles.metaValue}>
                 {settings.default_setup_amount != null
                   ? formatMoney(
@@ -455,7 +460,18 @@ export default function TenantCashPanel({
               </span>
             </div>
             <div className={styles.metaCard}>
-              <span className={styles.metaLabel}>Default recurring</span>
+              <span className={styles.metaLabel}>Pre-trial setup</span>
+              <span className={styles.metaValue}>
+                {settings.default_pre_trial_setup_amount != null
+                  ? formatMoney(
+                      settings.default_pre_trial_setup_amount,
+                      settings.currency
+                    )
+                  : '—'}
+              </span>
+            </div>
+            <div className={styles.metaCard}>
+              <span className={styles.metaLabel}>Recurring</span>
               <span className={styles.metaValue}>
                 {settings.default_recurring_amount != null
                   ? formatMoney(
@@ -512,7 +528,7 @@ export default function TenantCashPanel({
                 />
               </label>
               <label className={styles.field}>
-                <span>Default setup</span>
+                <span>Enterprise setup</span>
                 <input
                   type="number"
                   min="0"
@@ -527,7 +543,22 @@ export default function TenantCashPanel({
                 />
               </label>
               <label className={styles.field}>
-                <span>Default recurring</span>
+                <span>Pre-trial setup</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={settingsForm.defaultPreTrialSetup}
+                  onChange={e =>
+                    setSettingsForm(f => ({
+                      ...f,
+                      defaultPreTrialSetup: e.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Recurring</span>
                 <input
                   type="number"
                   min="0"
@@ -562,120 +593,12 @@ export default function TenantCashPanel({
             </div>
           </div>
 
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.primaryBtn}
-              disabled={isPending}
-              onClick={openCreate}
-            >
-              Mark collected
-            </button>
-          </div>
-
-          {showForm && (
-            <div className={styles.formCard}>
-              <h4 className={styles.formTitle}>
-                {editingId ? 'Edit collection' : 'Record collection'}
-              </h4>
-              <div className={styles.formGrid}>
-                <label className={styles.field}>
-                  <span>Type</span>
-                  <select
-                    value={form.kind}
-                    onChange={e =>
-                      onKindChange(e.target.value as CashCollectionKind)
-                    }
-                  >
-                    <option value="recurring">Recurring</option>
-                    <option value="setup">Setup</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  <span>Amount</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={e =>
-                      setForm(f => ({ ...f, amount: e.target.value }))
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Currency</span>
-                  <input
-                    type="text"
-                    value={form.currency}
-                    onChange={e =>
-                      setForm(f => ({
-                        ...f,
-                        currency: e.target.value.toUpperCase(),
-                      }))
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Due date (schedule)</span>
-                  <input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={e =>
-                      setForm(f => ({ ...f, dueDate: e.target.value }))
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Collected on</span>
-                  <input
-                    type="date"
-                    value={form.collectedOn}
-                    onChange={e =>
-                      setForm(f => ({ ...f, collectedOn: e.target.value }))
-                    }
-                  />
-                </label>
-                <label className={`${styles.field} ${styles.fieldWide}`}>
-                  <span>Notes</span>
-                  <input
-                    type="text"
-                    value={form.notes}
-                    onChange={e =>
-                      setForm(f => ({ ...f, notes: e.target.value }))
-                    }
-                    placeholder="Optional"
-                  />
-                </label>
-              </div>
-              <div className={styles.formActions}>
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  disabled={isPending}
-                  onClick={submitForm}
-                >
-                  {editingId ? 'Save changes' : 'Save collection'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryBtn}
-                  disabled={isPending}
-                  onClick={() => {
-                    setShowForm(false)
-                    setEditingId(null)
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          <h4 className={styles.sectionTitle}>History</h4>
-          {collections.length === 0 ? (
-            <p className={styles.body}>No collections recorded yet.</p>
+          <h4 className={styles.sectionTitle}>Expected collections</h4>
+          {sortedCollections.length === 0 ? (
+            <p className={styles.body}>
+              No expected dues yet. Set an anchor and amounts, or sync from an
+              enterprise subscription.
+            </p>
           ) : (
             <div className={styles.tableWrap}>
               <table className={styles.table}>
@@ -683,53 +606,185 @@ export default function TenantCashPanel({
                   <tr>
                     <th>Type</th>
                     <th>Due</th>
+                    <th>Expected</th>
                     <th>Collected</th>
-                    <th>Amount</th>
-                    <th>Notes</th>
+                    <th>Collected on</th>
+                    <th>Status</th>
+                    <th>Note</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {collections.map(row => (
-                    <tr key={row.id}>
-                      <td>{KIND_LABEL[row.kind]}</td>
-                      <td>{row.due_date}</td>
-                      <td>{row.collected_on}</td>
-                      <td>{formatMoney(row.amount, row.currency)}</td>
-                      <td className={styles.notes}>
-                        {row.notes || <span className={styles.muted}>—</span>}
-                      </td>
-                      <td className={styles.rowActions}>
-                        <button
-                          type="button"
-                          className={styles.linkBtn}
-                          disabled={isPending}
-                          onClick={() => openEdit(row)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.dangerBtn}
-                          disabled={isPending}
-                          onClick={() => removeCollection(row)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {sortedCollections.map(row => {
+                    const isActive = activeRowId === row.id
+                    return (
+                      <tr key={row.id}>
+                        <td>{CASH_KIND_LABEL[row.kind]}</td>
+                        <td>{row.due_date}</td>
+                        <td>
+                          {isActive ? (
+                            <input
+                              className={styles.inlineInput}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              defaultValue={String(row.expected_amount)}
+                              onBlur={e => {
+                                if (
+                                  e.target.value !== String(row.expected_amount)
+                                ) {
+                                  saveExpected(row, e.target.value)
+                                }
+                              }}
+                              aria-label="Expected amount"
+                            />
+                          ) : (
+                            formatMoney(row.expected_amount, row.currency)
+                          )}
+                        </td>
+                        <td>
+                          {row.amount_collected > 0
+                            ? formatMoney(row.amount_collected, row.currency)
+                            : '—'}
+                        </td>
+                        <td>{row.collected_on ?? '—'}</td>
+                        <td>
+                          <span
+                            className={`${styles.statusPill} ${statusClass(
+                              row.status
+                            )}`}
+                          >
+                            {CASH_STATUS_LABEL[row.status]}
+                          </span>
+                        </td>
+                        <td className={styles.notes}>
+                          {row.notes || <span className={styles.muted}>—</span>}
+                        </td>
+                        <td className={styles.rowActions}>
+                          {!isActive ? (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.linkBtn}
+                                disabled={isPending}
+                                onClick={() => openCollect(row)}
+                              >
+                                {row.status === 'due' ? 'Collect' : 'Edit'}
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.dangerBtn}
+                                disabled={isPending}
+                                onClick={() => removeCollection(row)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           )}
+
+          {activeRowId &&
+            (() => {
+              const row = collections.find(c => c.id === activeRowId)
+              if (!row) return null
+              const remaining = Math.max(
+                0,
+                row.expected_amount - (Number(draft.amount) || 0)
+              )
+              const willPartial =
+                Number(draft.amount) > 0 &&
+                Number(draft.amount) < row.expected_amount
+              return (
+                <div className={styles.formCard}>
+                  <h4 className={styles.formTitle}>
+                    {CASH_KIND_LABEL[row.kind]} · due {row.due_date}
+                  </h4>
+                  <p className={styles.body}>
+                    Expected{' '}
+                    {formatMoney(row.expected_amount, row.currency)}. Enter what
+                    was received
+                    {willPartial
+                      ? ` — will mark partial (short ${formatMoney(
+                          remaining,
+                          row.currency
+                        )})`
+                      : ''}
+                    .
+                  </p>
+                  <div className={styles.formGrid}>
+                    <label className={styles.field}>
+                      <span>Amount collected</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={draft.amount}
+                        onChange={e =>
+                          setDraft(d => ({ ...d, amount: e.target.value }))
+                        }
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span>Collected on</span>
+                      <input
+                        type="date"
+                        value={draft.collectedOn}
+                        onChange={e =>
+                          setDraft(d => ({
+                            ...d,
+                            collectedOn: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className={`${styles.field} ${styles.fieldWide}`}>
+                      <span>Note (5 words max)</span>
+                      <input
+                        type="text"
+                        value={draft.notes}
+                        onChange={e =>
+                          setDraft(d => ({ ...d, notes: e.target.value }))
+                        }
+                        placeholder="Optional"
+                        maxLength={60}
+                      />
+                    </label>
+                  </div>
+                  <div className={styles.formActions}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={isPending}
+                      onClick={() => submitCollect(row)}
+                    >
+                      Collected
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      disabled={isPending}
+                      onClick={cancelCollect}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
         </>
       )}
 
       {!enabled && (
         <p className={styles.body}>
-          Enable cash collection to track setup and recurring payments for this
-          tenant.
+          Enable cash collection to generate expected setup and recurring dues
+          for this tenant (enterprise terms).
         </p>
       )}
     </div>
