@@ -65,10 +65,20 @@ export default function SecondaryNav({ title, items }: Props) {
 
       <ul className={styles.list} role="list">
         {items.map(item => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/support/chats' &&
-             item.href !== '/support/dashboard' &&
-             pathname.startsWith(item.href))
+          // Longest matching href wins (nested settings tabs, etc.)
+          const bestHref = items
+            .filter(candidate => {
+              if (pathname === candidate.href) return true
+              if (
+                candidate.href === '/support/chats' ||
+                candidate.href === '/support/dashboard'
+              ) {
+                return false
+              }
+              return pathname.startsWith(`${candidate.href}/`)
+            })
+            .sort((a, b) => b.href.length - a.href.length)[0]?.href
+          const isActive = bestHref === item.href
           return (
             <li key={item.href}>
               <Link

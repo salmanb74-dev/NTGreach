@@ -10,6 +10,8 @@ const SUPPORT_TITLES = [
   { match: '/visits', title: 'Site Visits' },
   { match: '/time', title: 'Site Visits' },
   { match: '/reports', title: 'Hours' },
+  { match: '/checklists/items', title: 'Checklist items' },
+  { match: '/checklists', title: 'Checklists' },
   { match: '/settings', title: 'Settings' },
   { match: '/dashboard', title: 'Dashboard' },
 ]

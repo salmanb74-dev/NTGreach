@@ -96,8 +96,20 @@ const nextConfig = {
           destination: '/support/reports',
         },
         {
+          source: `/:mod(${CS_MODS})/checklists`,
+          destination: '/support/checklists',
+        },
+        {
+          source: `/:mod(${CS_MODS})/checklists/:path*`,
+          destination: '/support/checklists/:path*',
+        },
+        {
           source: `/:mod(${CS_MODS})/settings`,
           destination: '/support/settings',
+        },
+        {
+          source: `/:mod(${CS_MODS})/settings/:path*`,
+          destination: '/support/settings/:path*',
         },
 
         // ── Product Ops: /ops_resto → /ops (home), …/management ─

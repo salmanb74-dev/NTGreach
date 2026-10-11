@@ -21,6 +21,8 @@ type ItemDef = {
   csAdminOnly?: boolean
   /** Platform Ops Settings — ops_admin only */
   opsAdminOnly?: boolean
+  /** Only show when this CS product module is active */
+  csModuleOnly?: 'cs_resto' | 'cs_alma'
   families: Array<'crm' | 'cs' | 'ops_product' | 'ops_platform'>
 }
 
@@ -97,6 +99,14 @@ const NAV_DEFS: ItemDef[] = [
     svgPath:
       'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
     families: ['cs'],
+  },
+  {
+    section: 'checklists',
+    label: 'Checklists',
+    svgPath:
+      'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+    families: ['cs'],
+    csModuleOnly: 'cs_resto',
   },
   {
     section: 'reports',
@@ -196,6 +206,7 @@ export default function Sidebar({ roles = [], activeModule, modules = [] }: Prop
     if (item.csAdminOnly && !isCsAdmin) return false
     if (item.opsAdminOnly && !isOpsAdmin) return false
     if (item.adminOnly && !isAnyAdmin) return false
+    if (item.csModuleOnly && activeModule !== item.csModuleOnly) return false
     return true
   })
 
