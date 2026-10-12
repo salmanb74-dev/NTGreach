@@ -145,6 +145,14 @@ const nextConfig = {
           source: `/:mod(${OPS_PRODUCT})/subscription`,
           destination: '/ops/subscription',
         },
+        {
+          source: `/:mod(${OPS_PRODUCT})/releases`,
+          destination: '/ops/releases',
+        },
+        {
+          source: `/:mod(${OPS_PRODUCT})/releases/:path*`,
+          destination: '/ops/releases/:path*',
+        },
 
         // ── Platform Ops users under /ops/users ────────────────
         {

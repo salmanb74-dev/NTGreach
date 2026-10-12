@@ -113,7 +113,10 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  if (!user && pathname !== '/login') {
+  const isPublicReleaseNotes =
+    pathname === '/releases' || pathname.startsWith('/releases/')
+
+  if (!user && pathname !== '/login' && !isPublicReleaseNotes) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

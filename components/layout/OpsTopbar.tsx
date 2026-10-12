@@ -11,6 +11,7 @@ const OPS_TITLES = [
   { match: '/docs', title: 'Docs' },
   { match: '/settings', title: 'Settings' },
   { match: '/subscription', title: 'Subscription' },
+  { match: '/releases', title: 'Releases' },
   { match: '/reports', title: 'Reports' },
 ]
 

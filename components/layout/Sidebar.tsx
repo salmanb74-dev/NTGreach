@@ -136,6 +136,13 @@ const NAV_DEFS: ItemDef[] = [
     families: ['ops_product'],
   },
   {
+    section: 'releases',
+    label: 'Releases',
+    svgPath:
+      'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+    families: ['ops_product'],
+  },
+  {
     section: 'users',
     label: 'Users',
     svgPath:

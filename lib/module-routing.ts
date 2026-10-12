@@ -72,7 +72,9 @@ export function legacyProductOpsSection(pathname: string): string | null {
     p === '/ops/reports' ||
     p.startsWith('/ops/reports/') ||
     p === '/ops/subscription' ||
-    p.startsWith('/ops/subscription/')
+    p.startsWith('/ops/subscription/') ||
+    p === '/ops/releases' ||
+    p.startsWith('/ops/releases/')
   ) {
     return p.slice('/ops/'.length)
   }
