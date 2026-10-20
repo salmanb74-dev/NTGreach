@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { markOwnPasswordChanged } from '@/lib/actions/platform-users'
 import { ROLE_LABELS, type UserRole } from '@/lib/roles'
+import { usePwaInstall } from '@/components/pwa/usePwaInstall'
 import styles from './ProfileClient.module.css'
 
 interface Profile {
@@ -24,6 +25,7 @@ export default function ProfileClient({ profile }: { profile: Profile | null }) 
   const [pwMsg, setPwMsg] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const { canInstall, install, iosHint, dismissIosHint } = usePwaInstall()
 
   const initials = fullName
     ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -161,6 +163,30 @@ export default function ProfileClient({ profile }: { profile: Profile | null }) 
       {/* Account / Sign out */}
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Account</div>
+        {canInstall && (
+          <>
+            <button
+              type="button"
+              className={styles.installBtn}
+              onClick={() => void install()}
+            >
+              Install App
+            </button>
+            {iosHint && (
+              <div className={styles.installHint}>
+                Tap Share in Safari, then <strong>Add to Home Screen</strong>.
+                <button
+                  type="button"
+                  className={styles.installHintDismiss}
+                  onClick={dismissIosHint}
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </>
+        )}
         <button
           className={styles.logoutBtn}
           onClick={handleSignOut}
