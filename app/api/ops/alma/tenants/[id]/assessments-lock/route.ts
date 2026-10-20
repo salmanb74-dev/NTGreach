@@ -4,6 +4,7 @@ import {
   putAlmaAssessmentsLock,
 } from '@/lib/alma-admin/client'
 import {
+  forbidUnlessOpsAlmaAdmin,
   mapAlmaAdminUpstreamError,
   requireOpsAlmaTenantProxy,
 } from '@/lib/alma-admin/ops-route'
@@ -29,6 +30,8 @@ export async function PUT(
 ) {
   const ctx = await requireOpsAlmaTenantProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsAlmaAdmin(ctx.profile)
+  if (denied) return denied
 
   let body: unknown
   try {

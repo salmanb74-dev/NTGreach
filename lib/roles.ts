@@ -88,21 +88,47 @@ export function hasCsAccess(profile: UserProfile | null): boolean {
 }
 
 // ─── Product Ops (Nest tenants: Ops Resto / Ops Alma) ─────────
-/** Nest product ops portal — Admin only (not Ops User). */
+/** Elevated Nest product ops (delete, subscription writes, cash settings). */
 export function isOpsAdmin(profile: UserProfile | null): boolean {
   return !!profile?.roles?.includes('ops_admin')
 }
+
+/** Any product/platform Ops role (admin or user). */
 export function hasOpsAccess(profile: UserProfile | null): boolean {
-  return isOpsAdmin(profile)
+  return isOpsAdmin(profile) || isPlatformOpsUser(profile)
 }
 
+/** Can open Ops Resto / Ops Alma (Admin or User with that module). */
 export function hasOpsProductAccess(
+  profile: UserProfile | null,
+  product: OpsNestProduct
+): boolean {
+  if (!hasOpsAccess(profile)) return false
+  const modules = getAccessibleModules(profile)
+  return modules.includes(product === 'alma' ? 'ops_alma' : 'ops_resto')
+}
+
+/**
+ * Full product-ops admin for a Nest product (not Ops User).
+ * Required for delete, subscription mutations, lock writes, cash settings.
+ */
+export function isOpsProductAdmin(
   profile: UserProfile | null,
   product: OpsNestProduct
 ): boolean {
   if (!isOpsAdmin(profile)) return false
   const modules = getAccessibleModules(profile)
   return modules.includes(product === 'alma' ? 'ops_alma' : 'ops_resto')
+}
+
+/** Ops User for a Nest product (cash collect + read-only elsewhere). */
+export function isOpsProductUser(
+  profile: UserProfile | null,
+  product: OpsNestProduct
+): boolean {
+  return (
+    hasOpsProductAccess(profile, product) && !isOpsProductAdmin(profile, product)
+  )
 }
 
 // ─── Platform Ops (cross-module Users etc.) ───────────────────
@@ -112,9 +138,15 @@ export function isPlatformOpsAdmin(profile: UserProfile | null): boolean {
 export function isPlatformOpsUser(profile: UserProfile | null): boolean {
   return !!profile?.roles?.includes('ops_user')
 }
-/** Can open platform Ops module (Admin or User). */
+/**
+ * Can open platform Ops module (Users / Docs).
+ * Ops Admin always; Ops User only when the `ops` module is assigned
+ * (product-only Ops Users must not inherit platform Ops).
+ */
 export function hasPlatformOpsAccess(profile: UserProfile | null): boolean {
-  return isPlatformOpsAdmin(profile) || isPlatformOpsUser(profile)
+  if (isPlatformOpsAdmin(profile)) return true
+  if (!isPlatformOpsUser(profile)) return false
+  return getAccessibleModules(profile).includes('ops')
 }
 
 // ─── Generic helpers (backwards compat) ──────────────────────

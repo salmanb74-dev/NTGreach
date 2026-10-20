@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCachedProfile } from '@/lib/dataCache'
-import { hasOpsProductAccess } from '@/lib/roles'
+import {
+  hasOpsProductAccess,
+  isOpsProductAdmin,
+  type UserProfile,
+} from '@/lib/roles'
 import {
   isRestoAdminConfigured,
   RestoAdminApiError,
@@ -10,6 +14,13 @@ import {
   parseRestoAdminEnv,
   type RestoAdminEnv,
 } from '@/lib/resto-admin/types'
+
+export function forbidUnlessOpsRestoAdmin(profile: UserProfile | null) {
+  if (!isOpsProductAdmin(profile, 'resto')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  return null
+}
 
 export function restoAdminNotConfigured(env: RestoAdminEnv) {
   return NextResponse.json(

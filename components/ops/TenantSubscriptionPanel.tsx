@@ -46,6 +46,8 @@ interface Props {
   tenantId: string
   tenantName: string
   env: RestoAdminEnv
+  /** Ops User: view subscription; cannot save or cancel offers. */
+  readOnly?: boolean
 }
 
 function SectionRow({
@@ -70,6 +72,7 @@ export default function TenantSubscriptionPanel({
   tenantId,
   tenantName,
   env,
+  readOnly = false,
 }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [noSubYet, setNoSubYet] = useState(false)
@@ -350,6 +353,7 @@ export default function TenantSubscriptionPanel({
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    if (readOnly) return
     setSaveError(null)
     setSavedMsg(null)
     const offer = formToOffer(form)
@@ -502,28 +506,35 @@ export default function TenantSubscriptionPanel({
           >
             Reload
           </button>
-          <button
-            type="button"
-            className={styles.dangerBtn}
-            disabled={isPending || !canCancelOffer}
-            title={
-              !canCancelOffer
-                ? 'No pending Enterprise offer to cancel'
-                : needsForceCancel
-                  ? 'Cancel pending re-offer (tenant already on Enterprise)'
-                  : 'Cancel pending Enterprise offer'
-            }
-            onClick={() => requestCancelOffer()}
-          >
-            Cancel pending offer
-          </button>
-          <button
-            type="submit"
-            className={styles.primaryBtn}
-            disabled={isPending}
-          >
-            {isPending ? 'Saving…' : 'Save offer'}
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                className={styles.dangerBtn}
+                disabled={isPending || !canCancelOffer}
+                title={
+                  !canCancelOffer
+                    ? 'No pending Enterprise offer to cancel'
+                    : needsForceCancel
+                      ? 'Cancel pending re-offer (tenant already on Enterprise)'
+                      : 'Cancel pending Enterprise offer'
+                }
+                onClick={() => requestCancelOffer()}
+              >
+                Cancel pending offer
+              </button>
+              <button
+                type="submit"
+                className={styles.primaryBtn}
+                disabled={isPending}
+              >
+                {isPending ? 'Saving…' : 'Save offer'}
+              </button>
+            </>
+          )}
+          {readOnly && (
+            <span className={styles.sectionHint}>View only</span>
+          )}
         </div>
       </div>
 

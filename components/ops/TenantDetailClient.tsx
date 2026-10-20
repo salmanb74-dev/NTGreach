@@ -45,6 +45,8 @@ interface Props {
   tenantId: string
   initialEnv: OpsAdminEnv
   initialTab: OpsAdminTenantTab
+  /** Ops Admin: full edit. Ops User: hide Delete, read-only subscription/locks, cash collect only. */
+  canManage?: boolean
 }
 
 type TenantRow = RestoTenant | AlmaTenant
@@ -59,6 +61,7 @@ export default function TenantDetailClient({
   tenantId,
   initialEnv,
   initialTab,
+  canManage = true,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -72,7 +75,9 @@ export default function TenantDetailClient({
   const isAlma = product === 'alma'
   const managementHref = modulePath(productModule, 'management')
   const [env] = useState<OpsAdminEnv>(initialEnv)
-  const [tab, setTab] = useState<OpsAdminTenantTab>(initialTab)
+  const [tab, setTab] = useState<OpsAdminTenantTab>(
+    !canManage && initialTab === 'delete' ? 'overview' : initialTab
+  )
   const [state, setState] = useState<LoadState>({ status: 'loading' })
 
   const load = useCallback(async () => {
@@ -113,6 +118,7 @@ export default function TenantDetailClient({
 
   function selectTab(next: OpsAdminTenantTab) {
     if (next === 'cash' && env !== 'production') return
+    if (next === 'delete' && !canManage) return
     setTab(next)
     const url = new URL(window.location.href)
     url.searchParams.set('env', env)
@@ -124,7 +130,10 @@ export default function TenantDetailClient({
     if (tab === 'cash' && env !== 'production') {
       setTab('overview')
     }
-  }, [tab, env])
+    if (tab === 'delete' && !canManage) {
+      setTab('overview')
+    }
+  }, [tab, env, canManage])
 
   const isProduction = env === 'production'
 
@@ -189,7 +198,11 @@ export default function TenantDetailClient({
           </div>
 
           <div className={styles.tabs} role="tablist" aria-label="Tenant sections">
-            {TABS.filter(item => item.id !== 'cash' || isProduction).map(item => (
+            {TABS.filter(item => {
+              if (item.id === 'cash' && !isProduction) return false
+              if (item.id === 'delete' && !canManage) return false
+              return true
+            }).map(item => (
               <button
                 key={item.id}
                 type="button"
@@ -242,12 +255,14 @@ export default function TenantDetailClient({
                   tenant={state.tenant as AlmaTenant}
                   env={env as AlmaAdminEnv}
                   onChanged={() => void load()}
+                  readOnly={!canManage}
                 />
               ) : (
                 <TenantOrdersLockPanel
                   tenant={state.tenant as RestoTenant}
                   env={env as RestoAdminEnv}
                   onChanged={() => void load()}
+                  readOnly={!canManage}
                 />
               )}
             </>
@@ -268,12 +283,14 @@ export default function TenantDetailClient({
                 tenantId={state.tenant.id}
                 tenantName={state.tenant.name}
                 env={env as AlmaAdminEnv}
+                readOnly={!canManage}
               />
             ) : (
               <TenantSubscriptionPanel
                 tenantId={state.tenant.id}
                 tenantName={state.tenant.name}
                 env={env as RestoAdminEnv}
+                readOnly={!canManage}
               />
             ))}
 
@@ -284,10 +301,11 @@ export default function TenantDetailClient({
               env={env}
               product={product}
               apiBase={apiBase}
+              canManageSettings={canManage}
             />
           )}
 
-          {tab === 'delete' && (
+          {tab === 'delete' && canManage && (
             <TenantDeletePanel
               tenant={state.tenant}
               env={env}

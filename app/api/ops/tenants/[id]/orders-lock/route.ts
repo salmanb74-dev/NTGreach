@@ -4,6 +4,7 @@ import {
   putRestoOrdersLock,
 } from '@/lib/resto-admin/client'
 import {
+  forbidUnlessOpsRestoAdmin,
   mapRestoAdminUpstreamError,
   requireOpsTenantProxy,
 } from '@/lib/resto-admin/ops-route'
@@ -38,6 +39,8 @@ export async function PUT(
 ) {
   const ctx = await requireOpsTenantProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsRestoAdmin(ctx.profile)
+  if (denied) return denied
 
   let body: unknown
   try {

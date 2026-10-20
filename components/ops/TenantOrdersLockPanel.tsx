@@ -13,6 +13,8 @@ interface Props {
   env: RestoAdminEnv
   /** Called after a successful lock/unlock so the list badge can refresh. */
   onChanged?: () => void
+  /** Ops User: view lock status only. */
+  readOnly?: boolean
 }
 
 type LoadState =
@@ -37,6 +39,7 @@ export default function TenantOrdersLockPanel({
   tenant,
   env,
   onChanged,
+  readOnly = false,
 }: Props) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [confirmingLock, setConfirmingLock] = useState(false)
@@ -246,7 +249,7 @@ export default function TenantOrdersLockPanel({
             </p>
           )}
 
-          {!state.lock.locked && !confirmingLock && (
+          {!readOnly && !state.lock.locked && !confirmingLock && (
             <div className={styles.ordersLockActions}>
               <button
                 type="button"
@@ -263,7 +266,7 @@ export default function TenantOrdersLockPanel({
             </div>
           )}
 
-          {!state.lock.locked && confirmingLock && (
+          {!readOnly && !state.lock.locked && confirmingLock && (
             <form className={styles.deleteForm} onSubmit={handleLockSubmit}>
               <p className={styles.panelBody}>
                 Confirm lock for <strong>{tenant.name}</strong>{' '}
@@ -325,7 +328,7 @@ export default function TenantOrdersLockPanel({
             </form>
           )}
 
-          {state.lock.locked && (
+          {!readOnly && state.lock.locked && (
             <div className={styles.ordersLockActions}>
               <button
                 type="button"

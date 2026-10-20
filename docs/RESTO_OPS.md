@@ -1,7 +1,20 @@
 # Resto Ops portal (Reach → Nest)
 
 Internal ops UI at `/ops_resto` (rewritten from `/ops/*`) for users with the
-`ops_admin` role and the `resto` / `ops_resto` product (**Ops Resto**).
+`ops_admin` or `ops_user` role and the `ops_resto` module (**Ops Resto**).
+
+| Capability | Admin | User |
+|---|---|---|
+| Tenants list (staging + production) | yes | yes |
+| View Overview / Reports / Subscription / Cash / Logs | yes | yes |
+| Delete tab | yes | hidden |
+| Subscription save / cancel offer | yes | read-only |
+| Orders lock / unlock | yes | read-only |
+| Cash collect | yes | yes |
+| Cash settings (enable, schedule, sync, delete rows) | yes | no |
+
+Assign **User** on the Ops Resto row in Platform → Users. Run
+`supabase/ops_product_user_rls.sql` so RLS allows cash collect for `ops_user`.
 
 **Ops Alma** is a separate module — see [`ALMA_OPS.md`](./ALMA_OPS.md). Do not
 share Nest keys or `/api/ops` proxies between products.
@@ -91,7 +104,8 @@ Authenticated Reach ops users call:
 | `DELETE /api/ops/tenants/:id?env=…` body `{ confirmTenantId }` | `DELETE /api/v1/admin/tenants/:tenantId` |
 | `GET /api/ops/logs?env=…&tenantId=&method=&statusCode=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` (`api_hits`) |
 
-Those routes check the Reach session (`ops_admin`), then call Nest with the matching env key.
+Those routes check the Reach session (`ops_admin` or `ops_user` for reads;
+mutating Nest proxies require `ops_admin`), then call Nest with the matching env key.
 
 ### Delete tenant (Ops → Nest)
 

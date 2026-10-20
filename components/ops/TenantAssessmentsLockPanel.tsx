@@ -12,6 +12,8 @@ interface Props {
   tenant: AlmaTenant
   env: AlmaAdminEnv
   onChanged?: () => void
+  /** Ops User: view lock status only. */
+  readOnly?: boolean
 }
 
 type LoadState =
@@ -36,6 +38,7 @@ export default function TenantAssessmentsLockPanel({
   tenant,
   env,
   onChanged,
+  readOnly = false,
 }: Props) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [confirmingLock, setConfirmingLock] = useState(false)
@@ -247,7 +250,7 @@ export default function TenantAssessmentsLockPanel({
             </p>
           )}
 
-          {!state.lock.locked && !confirmingLock && (
+          {!readOnly && !state.lock.locked && !confirmingLock && (
             <div className={styles.ordersLockActions}>
               <button
                 type="button"
@@ -264,7 +267,7 @@ export default function TenantAssessmentsLockPanel({
             </div>
           )}
 
-          {!state.lock.locked && confirmingLock && (
+          {!readOnly && !state.lock.locked && confirmingLock && (
             <form className={styles.deleteForm} onSubmit={handleLockSubmit}>
               <p className={styles.panelBody}>
                 Confirm lock for <strong>{tenant.name}</strong>{' '}
@@ -326,7 +329,7 @@ export default function TenantAssessmentsLockPanel({
             </form>
           )}
 
-          {state.lock.locked && (
+          {!readOnly && state.lock.locked && (
             <div className={styles.ordersLockActions}>
               <button
                 type="button"

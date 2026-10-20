@@ -7,7 +7,7 @@ import {
   AlmaAdminConfigError,
 } from '@/lib/alma-admin/client'
 import { parseAlmaAdminEnv } from '@/lib/alma-admin/types'
-import { hasOpsProductAccess } from '@/lib/roles'
+import { isOpsProductAdmin } from '@/lib/roles'
 
 /**
  * DELETE /api/ops/alma/tenants/:id?env=staging|production
@@ -17,7 +17,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const profile = await getCachedProfile()
-  if (!hasOpsProductAccess(profile, 'alma')) {
+  if (!isOpsProductAdmin(profile, 'alma')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

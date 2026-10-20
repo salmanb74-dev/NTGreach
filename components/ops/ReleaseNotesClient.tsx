@@ -12,6 +12,8 @@ import styles from './ReleaseNotesClient.module.css'
 type Props = {
   product: OpsNestProduct
   notes: OpsReleaseNote[]
+  /** Ops Admin can create/edit/delete. Ops User is view-only. */
+  canEdit?: boolean
 }
 
 function formatDate(iso: string | null) {
@@ -25,7 +27,11 @@ function formatDate(iso: string | null) {
   })
 }
 
-export default function ReleaseNotesClient({ product, notes }: Props) {
+export default function ReleaseNotesClient({
+  product,
+  notes,
+  canEdit = true,
+}: Props) {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>(
@@ -84,16 +90,18 @@ export default function ReleaseNotesClient({ product, notes }: Props) {
             Open public page ↗
           </a>
         </div>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
-        >
-          + New note
-        </Button>
+        {canEdit && (
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            + New note
+          </Button>
+        )}
       </div>
 
       <div className={styles.filters}>
@@ -150,55 +158,57 @@ export default function ReleaseNotesClient({ product, notes }: Props) {
                   </span>
                 </div>
               </div>
-              <div className={styles.actions}>
-                {confirmDeleteId === note.id ? (
-                  <div className={styles.confirmRow}>
-                    Delete?
-                    <button
-                      type="button"
-                      className={`${styles.ghostBtn} ${styles.danger}`}
-                      disabled={isPending}
-                      onClick={() => handleDelete(note.id)}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.ghostBtn}
-                      disabled={isPending}
-                      onClick={() => setConfirmDeleteId(null)}
-                    >
-                      No
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.ghostBtn}
-                      onClick={() => {
-                        setEditing(note)
-                        setFormOpen(true)
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.ghostBtn} ${styles.danger}`}
-                      onClick={() => setConfirmDeleteId(note.id)}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </div>
+              {canEdit && (
+                <div className={styles.actions}>
+                  {confirmDeleteId === note.id ? (
+                    <div className={styles.confirmRow}>
+                      Delete?
+                      <button
+                        type="button"
+                        className={`${styles.ghostBtn} ${styles.danger}`}
+                        disabled={isPending}
+                        onClick={() => handleDelete(note.id)}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.ghostBtn}
+                        disabled={isPending}
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.ghostBtn}
+                        onClick={() => {
+                          setEditing(note)
+                          setFormOpen(true)
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.ghostBtn} ${styles.danger}`}
+                        onClick={() => setConfirmDeleteId(note.id)}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      {formOpen && (
+      {canEdit && formOpen && (
         <ReleaseNoteFormModal
           product={product}
           initial={editing}

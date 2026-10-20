@@ -35,6 +35,8 @@ interface Props {
   env: OpsAdminEnv
   product?: OpsNestProduct
   apiBase?: '/api/ops' | '/api/ops/alma'
+  /** Ops Admin: enable/settings/delete/edit expected. Ops User: collect only. */
+  canManageSettings?: boolean
 }
 
 type CollectDraft = {
@@ -67,6 +69,7 @@ export default function TenantCashPanel({
   env,
   product = 'resto',
   apiBase = product === 'alma' ? '/api/ops/alma' : '/api/ops',
+  canManageSettings = true,
 }: Props) {
   const cashProduct: CashProduct = product
   const isProduction = env === 'production'
@@ -409,15 +412,21 @@ export default function TenantCashPanel({
             collected amount on each row — less than expected marks it partial.
           </p>
         </div>
-        <label className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={enabled}
-            disabled={isPending}
-            onChange={e => toggleEnabled(e.target.checked)}
-          />
-          <span>{enabled ? 'Enabled' : 'Disabled'}</span>
-        </label>
+        {canManageSettings ? (
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={enabled}
+              disabled={isPending}
+              onChange={e => toggleEnabled(e.target.checked)}
+            />
+            <span>{enabled ? 'Enabled' : 'Disabled'}</span>
+          </label>
+        ) : (
+          <span className={styles.toggle}>
+            {enabled ? 'Enabled' : 'Disabled'}
+          </span>
+        )}
       </div>
 
       {error && (
@@ -483,115 +492,117 @@ export default function TenantCashPanel({
             </div>
           </div>
 
-          <div className={styles.formCard}>
-            <h4 className={styles.formTitle}>Schedule defaults</h4>
-            <div className={styles.formGrid}>
-              <label className={styles.field}>
-                <span>Anchor (start)</span>
-                <input
-                  type="date"
-                  value={settingsForm.scheduleAnchor}
-                  onChange={e =>
-                    setSettingsForm(f => ({
-                      ...f,
-                      scheduleAnchor: e.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Cycle (months)</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={settingsForm.cycleMonths}
-                  onChange={e =>
-                    setSettingsForm(f => ({
-                      ...f,
-                      cycleMonths: e.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Currency</span>
-                <input
-                  type="text"
-                  value={settingsForm.currency}
-                  onChange={e =>
-                    setSettingsForm(f => ({
-                      ...f,
-                      currency: e.target.value.toUpperCase(),
-                    }))
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Enterprise setup</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={settingsForm.defaultSetup}
-                  onChange={e =>
-                    setSettingsForm(f => ({
-                      ...f,
-                      defaultSetup: e.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Pre-trial setup</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={settingsForm.defaultPreTrialSetup}
-                  onChange={e =>
-                    setSettingsForm(f => ({
-                      ...f,
-                      defaultPreTrialSetup: e.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className={styles.field}>
-                <span>Recurring</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={settingsForm.defaultRecurring}
-                  onChange={e =>
-                    setSettingsForm(f => ({
-                      ...f,
-                      defaultRecurring: e.target.value,
-                    }))
-                  }
-                />
-              </label>
+          {canManageSettings && (
+            <div className={styles.formCard}>
+              <h4 className={styles.formTitle}>Schedule defaults</h4>
+              <div className={styles.formGrid}>
+                <label className={styles.field}>
+                  <span>Anchor (start)</span>
+                  <input
+                    type="date"
+                    value={settingsForm.scheduleAnchor}
+                    onChange={e =>
+                      setSettingsForm(f => ({
+                        ...f,
+                        scheduleAnchor: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Cycle (months)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={settingsForm.cycleMonths}
+                    onChange={e =>
+                      setSettingsForm(f => ({
+                        ...f,
+                        cycleMonths: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Currency</span>
+                  <input
+                    type="text"
+                    value={settingsForm.currency}
+                    onChange={e =>
+                      setSettingsForm(f => ({
+                        ...f,
+                        currency: e.target.value.toUpperCase(),
+                      }))
+                    }
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Enterprise setup</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={settingsForm.defaultSetup}
+                    onChange={e =>
+                      setSettingsForm(f => ({
+                        ...f,
+                        defaultSetup: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Pre-trial setup</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={settingsForm.defaultPreTrialSetup}
+                    onChange={e =>
+                      setSettingsForm(f => ({
+                        ...f,
+                        defaultPreTrialSetup: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Recurring</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={settingsForm.defaultRecurring}
+                    onChange={e =>
+                      setSettingsForm(f => ({
+                        ...f,
+                        defaultRecurring: e.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className={styles.formActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={isPending}
+                  onClick={saveSchedule}
+                >
+                  Save schedule
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={isPending}
+                  onClick={syncFromSubscription}
+                >
+                  Sync from subscription
+                </button>
+              </div>
             </div>
-            <div className={styles.formActions}>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                disabled={isPending}
-                onClick={saveSchedule}
-              >
-                Save schedule
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                disabled={isPending}
-                onClick={syncFromSubscription}
-              >
-                Sync from subscription
-              </button>
-            </div>
-          </div>
+          )}
 
           <h4 className={styles.sectionTitle}>Expected collections</h4>
           {sortedCollections.length === 0 ? (
@@ -622,7 +633,7 @@ export default function TenantCashPanel({
                         <td>{CASH_KIND_LABEL[row.kind]}</td>
                         <td>{row.due_date}</td>
                         <td>
-                          {isActive ? (
+                          {isActive && canManageSettings ? (
                             <input
                               className={styles.inlineInput}
                               type="number"
@@ -671,14 +682,16 @@ export default function TenantCashPanel({
                               >
                                 {row.status === 'due' ? 'Collect' : 'Edit'}
                               </button>
-                              <button
-                                type="button"
-                                className={styles.dangerBtn}
-                                disabled={isPending}
-                                onClick={() => removeCollection(row)}
-                              >
-                                Delete
-                              </button>
+                              {canManageSettings && (
+                                <button
+                                  type="button"
+                                  className={styles.dangerBtn}
+                                  disabled={isPending}
+                                  onClick={() => removeCollection(row)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </>
                           ) : null}
                         </td>
@@ -783,8 +796,9 @@ export default function TenantCashPanel({
 
       {!enabled && (
         <p className={styles.body}>
-          Enable cash collection to generate expected setup and recurring dues
-          for this tenant (enterprise terms).
+          {canManageSettings
+            ? 'Enable cash collection to generate expected setup and recurring dues for this tenant (enterprise terms).'
+            : 'Cash collection is not enabled for this tenant.'}
         </p>
       )}
     </div>

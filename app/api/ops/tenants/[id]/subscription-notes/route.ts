@@ -3,7 +3,10 @@ import {
   getSubscriptionOfferNotes,
   upsertSubscriptionOfferNotes,
 } from '@/lib/ops/subscription-notes'
-import { requireOpsNotesProxy } from '@/lib/resto-admin/ops-route'
+import {
+  forbidUnlessOpsRestoAdmin,
+  requireOpsNotesProxy,
+} from '@/lib/resto-admin/ops-route'
 
 /**
  * GET /api/ops/tenants/:id/subscription-notes?env=
@@ -39,6 +42,8 @@ export async function PUT(
 ) {
   const ctx = await requireOpsNotesProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsRestoAdmin(ctx.profile)
+  if (denied) return denied
 
   let body: unknown
   try {

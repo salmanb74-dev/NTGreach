@@ -3,7 +3,10 @@ import {
   getSubscriptionOfferNotes,
   upsertSubscriptionOfferNotes,
 } from '@/lib/ops/subscription-notes'
-import { requireOpsAlmaNotesProxy } from '@/lib/alma-admin/ops-route'
+import {
+  forbidUnlessOpsAlmaAdmin,
+  requireOpsAlmaNotesProxy,
+} from '@/lib/alma-admin/ops-route'
 
 export async function GET(
   request: NextRequest,
@@ -31,6 +34,8 @@ export async function PUT(
 ) {
   const ctx = await requireOpsAlmaNotesProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsAlmaAdmin(ctx.profile)
+  if (denied) return denied
 
   let body: unknown
   try {

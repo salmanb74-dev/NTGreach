@@ -4,7 +4,7 @@ import { assertNoError, assertRows } from '@/lib/assert'
 import { getCachedProfile } from '@/lib/dataCache'
 import type { OpsNestProduct } from '@/lib/ops/product'
 import type { OpsReleaseNoteInput } from '@/lib/ops-release-notes/types'
-import { hasOpsProductAccess } from '@/lib/roles'
+import { isOpsProductAdmin } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -14,10 +14,10 @@ function revalidateReleaseNotes(product: OpsNestProduct) {
   revalidatePath(`/releases/${product}`)
 }
 
-async function requireOpsProduct(product: OpsNestProduct) {
+async function requireOpsProductAdmin(product: OpsNestProduct) {
   const profile = await getCachedProfile()
-  if (!hasOpsProductAccess(profile, product)) {
-    throw new Error('Forbidden')
+  if (!isOpsProductAdmin(profile, product)) {
+    throw new Error('Forbidden — Ops Admin required')
   }
   return profile!
 }
@@ -48,7 +48,7 @@ export async function createOpsReleaseNote(
   product: OpsNestProduct,
   input: OpsReleaseNoteInput
 ) {
-  const profile = await requireOpsProduct(product)
+  const profile = await requireOpsProductAdmin(product)
   const payload = normalizeInput(input)
   const supabase = createClient()
 
@@ -71,7 +71,7 @@ export async function updateOpsReleaseNote(
   id: string,
   input: OpsReleaseNoteInput
 ) {
-  await requireOpsProduct(product)
+  await requireOpsProductAdmin(product)
   const payload = normalizeInput(input)
   const supabase = createClient()
 
@@ -105,7 +105,7 @@ export async function deleteOpsReleaseNote(
   product: OpsNestProduct,
   id: string
 ) {
-  await requireOpsProduct(product)
+  await requireOpsProductAdmin(product)
   const supabase = createClient()
 
   const { data, error } = await supabase

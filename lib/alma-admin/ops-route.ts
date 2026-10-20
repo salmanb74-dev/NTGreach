@@ -9,7 +9,18 @@ import {
   parseAlmaAdminEnv,
   type AlmaAdminEnv,
 } from '@/lib/alma-admin/types'
-import { hasOpsProductAccess } from '@/lib/roles'
+import {
+  hasOpsProductAccess,
+  isOpsProductAdmin,
+  type UserProfile,
+} from '@/lib/roles'
+
+export function forbidUnlessOpsAlmaAdmin(profile: UserProfile | null) {
+  if (!isOpsProductAdmin(profile, 'alma')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  return null
+}
 
 export function almaAdminNotConfigured(env: AlmaAdminEnv) {
   return NextResponse.json(

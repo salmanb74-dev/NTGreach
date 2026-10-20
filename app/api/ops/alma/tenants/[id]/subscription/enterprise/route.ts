@@ -4,6 +4,7 @@ import {
   putAlmaEnterpriseOffer,
 } from '@/lib/alma-admin/client'
 import {
+  forbidUnlessOpsAlmaAdmin,
   mapAlmaAdminUpstreamError,
   requireOpsAlmaTenantProxy,
 } from '@/lib/alma-admin/ops-route'
@@ -18,6 +19,8 @@ export async function PUT(
 ) {
   const ctx = await requireOpsAlmaTenantProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsAlmaAdmin(ctx.profile)
+  if (denied) return denied
 
   let body: unknown
   try {
@@ -61,6 +64,8 @@ export async function DELETE(
 ) {
   const ctx = await requireOpsAlmaTenantProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsAlmaAdmin(ctx.profile)
+  if (denied) return denied
 
   const sp = request.nextUrl.searchParams
   let force = sp.get('force') === 'true' || sp.get('force') === '1'

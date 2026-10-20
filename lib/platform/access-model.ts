@@ -30,7 +30,8 @@ export const PLATFORM_ROLES: {
   {
     value: 'user',
     label: 'User',
-    hint: 'Platform Ops view-only (Users list)',
+    hint:
+      'Ops Resto/Alma: view tenants, read-only subscription, cash collect only. Platform Ops: Users list view-only.',
   },
 ]
 
@@ -90,7 +91,7 @@ export function modulesForProfile(
       } else if (raw.startsWith('cs_')) {
         if (r.some(x => x.startsWith('cs_'))) modules.push(raw)
       } else if (raw.startsWith('ops_')) {
-        if (r.includes('ops_admin')) modules.push(raw)
+        if (r.includes('ops_admin') || r.includes('ops_user')) modules.push(raw)
       }
     }
   } else {
@@ -99,6 +100,8 @@ export function modulesForProfile(
     for (const brand of brands) {
       if (r.some(x => x.startsWith('crm_'))) modules.push(`crm_${brand}` as Module)
       if (r.some(x => x.startsWith('cs_'))) modules.push(`cs_${brand}` as Module)
+      // Legacy brands: product Ops stays Admin-only. Ops User + ops_resto
+      // is assigned via explicit module keys in products[].
       if (r.includes('ops_admin')) modules.push(`ops_${brand}` as Module)
     }
   }
@@ -141,7 +144,9 @@ export function platformRolesForModule(
     return out
   }
   if (mod === 'ops_resto' || mod === 'ops_alma') {
-    return r.includes('ops_admin') ? ['admin'] : []
+    if (r.includes('ops_admin')) return ['admin']
+    if (r.includes('ops_user')) return ['user']
+    return []
   }
   // platform Ops
   if (r.includes('ops_admin')) return ['admin']
@@ -153,7 +158,7 @@ export function platformRolesForModule(
 export function allowedRolesForModule(mod: Module): PlatformRole[] {
   if (mod.startsWith('crm_')) return ['sales_rep', 'admin']
   if (mod.startsWith('cs_')) return ['support_rep', 'admin']
-  if (mod === 'ops_resto' || mod === 'ops_alma') return ['admin']
+  if (mod === 'ops_resto' || mod === 'ops_alma') return ['admin', 'user']
   return ['admin', 'user']
 }
 
@@ -203,7 +208,7 @@ export function toggleModuleRole(
   const has = current.includes(role)
   let next = has ? current.filter(r => r !== role) : [...current, role]
 
-  if (mod === 'ops') {
+  if (mod === 'ops' || mod === 'ops_resto' || mod === 'ops_alma') {
     if (!has && role === 'admin') next = ['admin']
     if (!has && role === 'user') next = ['user']
   }
@@ -223,14 +228,14 @@ export function encodeModuleRoleMap(map: ModuleRoleMap): EncodeAccessResult {
   const selected: Module[] = []
   let crmLevel: 'none' | 'rep' | 'admin' = 'none'
   let csLevel: 'none' | 'rep' | 'admin' = 'none'
-  let opsProduct = false
+  let opsProduct: 'none' | 'user' | 'admin' = 'none'
   let platformOps: 'none' | 'user' | 'admin' = 'none'
 
   for (const mod of ASSIGNABLE_MODULES) {
     let roles = (map[mod] ?? []).filter(r =>
       allowedRolesForModule(mod).includes(r)
     )
-    if (mod === 'ops') {
+    if (mod === 'ops' || mod === 'ops_resto' || mod === 'ops_alma') {
       if (roles.includes('admin')) roles = ['admin']
       else if (roles.includes('user')) roles = ['user']
       else roles = []
@@ -250,7 +255,10 @@ export function encodeModuleRoleMap(map: ModuleRoleMap): EncodeAccessResult {
         csLevel = 'rep'
       }
     } else if (mod === 'ops_resto' || mod === 'ops_alma') {
-      if (roles.includes('admin')) opsProduct = true
+      if (roles.includes('admin')) opsProduct = 'admin'
+      else if (roles.includes('user') && opsProduct !== 'admin') {
+        opsProduct = 'user'
+      }
     } else if (mod === 'ops') {
       if (roles.includes('admin')) platformOps = 'admin'
       else if (roles.includes('user') && platformOps !== 'admin') {
@@ -270,8 +278,8 @@ export function encodeModuleRoleMap(map: ModuleRoleMap): EncodeAccessResult {
   if (csLevel === 'admin') roles.push('cs_admin')
   else if (csLevel === 'rep') roles.push('cs_support_rep')
 
-  if (opsProduct || platformOps === 'admin') roles.push('ops_admin')
-  else if (platformOps === 'user') roles.push('ops_user')
+  if (opsProduct === 'admin' || platformOps === 'admin') roles.push('ops_admin')
+  else if (opsProduct === 'user' || platformOps === 'user') roles.push('ops_user')
 
   if (roles.length === 0) {
     return { ok: false, error: 'Could not resolve access roles' }
@@ -354,8 +362,8 @@ export function encodeAccess(
   if (wantsCs && !hasAdmin && !hasSupport) {
     return { ok: false, error: 'Support modules need Support Rep or Admin' }
   }
-  if (wantsOpsProduct && !hasAdmin) {
-    return { ok: false, error: 'Ops Resto / Ops Alma require Admin' }
+  if (wantsOpsProduct && !hasAdmin && !hasUser) {
+    return { ok: false, error: 'Ops Resto / Ops Alma need Admin or User' }
   }
   if (wantsPlatformOps && !hasAdmin && !hasUser) {
     return { ok: false, error: 'Ops (platform) needs Admin or User' }
@@ -364,9 +372,15 @@ export function encodeAccess(
   const roles: UserRole[] = []
   if (wantsCrm) roles.push(hasAdmin ? 'crm_admin' : 'crm_sales_rep')
   if (wantsCs) roles.push(hasAdmin ? 'cs_admin' : 'cs_support_rep')
-  if (wantsOpsProduct || (wantsPlatformOps && hasAdmin)) {
+  if (
+    (wantsOpsProduct && hasAdmin) ||
+    (wantsPlatformOps && hasAdmin)
+  ) {
     roles.push('ops_admin')
-  } else if (wantsPlatformOps && hasUser) {
+  } else if (
+    (wantsOpsProduct && hasUser) ||
+    (wantsPlatformOps && hasUser)
+  ) {
     roles.push('ops_user')
   }
 

@@ -4,6 +4,7 @@ import {
   putRestoEnterpriseOffer,
 } from '@/lib/resto-admin/client'
 import {
+  forbidUnlessOpsRestoAdmin,
   mapRestoAdminUpstreamError,
   requireOpsTenantProxy,
 } from '@/lib/resto-admin/ops-route'
@@ -23,6 +24,8 @@ export async function PUT(
 ) {
   const ctx = await requireOpsTenantProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsRestoAdmin(ctx.profile)
+  if (denied) return denied
 
   let body: unknown
   try {
@@ -71,6 +74,8 @@ export async function DELETE(
 ) {
   const ctx = await requireOpsTenantProxy(request, params.id)
   if ('error' in ctx) return ctx.error
+  const denied = forbidUnlessOpsRestoAdmin(ctx.profile)
+  if (denied) return denied
 
   const sp = request.nextUrl.searchParams
   let force = sp.get('force') === 'true' || sp.get('force') === '1'

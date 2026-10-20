@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCachedProfile } from '@/lib/dataCache'
-import { hasOpsProductAccess } from '@/lib/roles'
+import { isOpsProductAdmin } from '@/lib/roles'
 import {
   deleteRestoTenant,
   isRestoAdminConfigured,
@@ -18,7 +18,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const profile = await getCachedProfile()
-  if (!hasOpsProductAccess(profile, 'resto')) {
+  if (!isOpsProductAdmin(profile, 'resto')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

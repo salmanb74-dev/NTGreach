@@ -17,14 +17,36 @@ import {
   type OpsCashCollection,
   type OpsCashTenant,
 } from '@/lib/ops/cash-collection'
-import { isPlatformOpsAdmin } from '@/lib/roles'
+import {
+  hasOpsProductAccess,
+  isOpsProductAdmin,
+  type UserProfile,
+} from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-async function requireOpsAdmin() {
+function nestProductFromCash(product: CashProduct): 'resto' | 'alma' {
+  return product === 'alma' ? 'alma' : 'resto'
+}
+
+/** Read + cash collect for Ops Admin or Ops User on the product. */
+async function requireOpsCashAccess(
+  product: CashProduct = 'resto'
+): Promise<UserProfile> {
   const profile = await getCachedProfile()
-  if (!isPlatformOpsAdmin(profile)) {
+  if (!hasOpsProductAccess(profile, nestProductFromCash(product))) {
+    throw new Error('Forbidden')
+  }
+  return profile!
+}
+
+/** Cash settings / row delete / expected edits — Ops Admin only. */
+async function requireOpsCashAdmin(
+  product: CashProduct = 'resto'
+): Promise<UserProfile> {
+  const profile = await getCachedProfile()
+  if (!isOpsProductAdmin(profile, nestProductFromCash(product))) {
     throw new Error('Forbidden — Ops Admin required')
   }
   return profile!
@@ -210,7 +232,7 @@ export type CashTenantSummary = {
 export async function listCashTenantSummaries(
   product: CashProduct = 'resto'
 ): Promise<CashTenantSummary[]> {
-  await requireOpsAdmin()
+  await requireOpsCashAccess(product)
   const supabase = await createClient()
 
   const { data: settingsRows, error: sErr } = await supabase
@@ -261,7 +283,7 @@ export async function getCashTenant(
   collections: OpsCashCollection[]
   due: CashDueStatus
 }> {
-  await requireOpsAdmin()
+  await requireOpsCashAccess(product)
   const supabase = await createClient()
 
   const { data: settingsRow, error: sErr } = await supabase
@@ -308,9 +330,9 @@ export type UpsertCashSettingsInput = {
 export async function upsertCashSettings(
   input: UpsertCashSettingsInput
 ): Promise<OpsCashTenant> {
-  await requireOpsAdmin()
-  const supabase = await createClient()
   const product = input.product ?? 'resto'
+  await requireOpsCashAdmin(product)
+  const supabase = await createClient()
   const defaults = cashDefaultsFromSubscription(input.subscription)
 
   const { data: existing, error: exErr } = await supabase
@@ -418,7 +440,7 @@ export async function syncCashDefaultsFromSubscription(
   subscription: Record<string, unknown> | null,
   product: CashProduct = 'resto'
 ): Promise<OpsCashTenant> {
-  await requireOpsAdmin()
+  await requireOpsCashAdmin(product)
   return upsertCashSettings({
     tenantId,
     product,
@@ -441,9 +463,9 @@ export type RecordCashPaymentInput = {
 export async function recordCashPayment(
   input: RecordCashPaymentInput
 ): Promise<OpsCashCollection> {
-  const profile = await requireOpsAdmin()
-  const supabase = await createClient()
   const product = input.product ?? 'resto'
+  const profile = await requireOpsCashAccess(product)
+  const supabase = await createClient()
 
   if (!(input.amountCollected >= 0) || !Number.isFinite(input.amountCollected)) {
     throw new Error('Amount must be a non-negative number')
@@ -509,9 +531,9 @@ export type UpdateCashCollectionInput = {
 export async function updateCashCollection(
   input: UpdateCashCollectionInput
 ): Promise<OpsCashCollection> {
-  const profile = await requireOpsAdmin()
-  const supabase = await createClient()
   const product = input.product ?? 'resto'
+  const profile = await requireOpsCashAdmin(product)
+  const supabase = await createClient()
 
   const { data: existing, error: exErr } = await supabase
     .from('ops_cash_collections')
@@ -596,9 +618,9 @@ export type CreateCashCollectionInput = {
 export async function createCashCollection(
   input: CreateCashCollectionInput
 ): Promise<OpsCashCollection> {
-  const profile = await requireOpsAdmin()
-  const supabase = await createClient()
   const product = input.product ?? 'resto'
+  const profile = await requireOpsCashAdmin(product)
+  const supabase = await createClient()
 
   if (!(input.amount >= 0) || !Number.isFinite(input.amount)) {
     throw new Error('Amount must be a non-negative number')
@@ -668,7 +690,7 @@ export async function deleteCashCollection(
   tenantId: string,
   product: CashProduct = 'resto'
 ): Promise<void> {
-  await requireOpsAdmin()
+  await requireOpsCashAdmin(product)
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -687,7 +709,7 @@ export async function collectNextCashDue(
   tenantId: string,
   product: CashProduct = 'resto'
 ): Promise<OpsCashCollection> {
-  await requireOpsAdmin()
+  await requireOpsCashAccess(product)
   const { due, collections } = await getCashTenant(tenantId, product)
   if (!due.nextRowId) {
     throw new Error('No unpaid cash due for this tenant')
