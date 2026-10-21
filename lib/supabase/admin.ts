@@ -13,6 +13,7 @@ export function getServiceRoleClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+      detectSessionInUrl: false,
     },
   })
 }

@@ -83,6 +83,15 @@ function legacyModuleRedirect(request: NextRequest): NextResponse | null {
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // API routes authenticate themselves (x-api-key, webhooks, etc.).
+  // Skip session lookup — a hung/slow getUser() here can burn Netlify's
+  // ~10s function budget and surface to Nest as a 504 on support create.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -107,11 +116,6 @@ export async function middleware(request: NextRequest) {
   )
 
   const user = await getUserWithTimeout(supabase)
-  const { pathname } = request.nextUrl
-
-  if (pathname.startsWith('/api/')) {
-    return supabaseResponse
-  }
 
   const isPublicReleaseNotes =
     pathname === '/releases' || pathname.startsWith('/releases/')
