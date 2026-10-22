@@ -18,6 +18,9 @@
 | Kitchen display / mo | `{{kds}}` |
 | Inventory / mo | `{{inventory}}` |
 | Ops support / mo | `{{ops_support}}` |
+| Supply Chain / mo | `{{supply_chain}}` |
+| Reservation / mo | `{{reservation}}` |
+| Chart of Accounts / mo | `{{chart_of_accounts}}` |
 | Trial starts | `{{trial_starts}}` |
 
 `quoted_mrr` is the **total monthly** recurring (base platform fee + enabled monthly feature fees). Web ordering setup is one-time and is **not** included. Billing cycle comes from Lists & Values (`billing_cycle`): **value** = months (`1`, `12`), **label** = suffix (`per month`, `per year`). Stored on the lead as `payment_frequency` / `quoted_subscription.durationMonths`.
@@ -30,7 +33,7 @@ Use `{{platform_fee_invoice}}` in quotations/contracts (includes currency, bille
 
 → `US$ 27 per month` or `US$ 324 per year (US$ 27/month × 12)`
 
-Feature add-ons (call center, KDS, inventory, ops support): enable + monthly `$`. Off → row omitted from PDF. Web ordering is a one-time setup fee plus optional `webOrderingRevenuePercent` for month-end invoice revenue share (Nest billing not wired yet).
+Feature add-ons (call center, KDS, inventory, ops support, supply chain, reservation, chart of accounts): enable + monthly `$`. Off → row omitted from PDF. Web ordering is a one-time setup fee plus optional `webOrderingRevenuePercent` for month-end invoice revenue share (Nest billing not wired yet).
 
 ## Formulas
 

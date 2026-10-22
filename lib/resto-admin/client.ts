@@ -597,6 +597,15 @@ function normalizeSubscription(
     enterpriseInventoryEnabled:
       asBoolean(raw.enterpriseInventoryEnabled) ??
       asBoolean(raw.enterprise_inventory_enabled),
+    enterpriseSupplyChainEnabled:
+      asBoolean(raw.enterpriseSupplyChainEnabled) ??
+      asBoolean(raw.enterprise_supply_chain_enabled),
+    enterpriseReservationEnabled:
+      asBoolean(raw.enterpriseReservationEnabled) ??
+      asBoolean(raw.enterprise_reservation_enabled),
+    enterpriseChartOfAccountsEnabled:
+      asBoolean(raw.enterpriseChartOfAccountsEnabled) ??
+      asBoolean(raw.enterprise_chart_of_accounts_enabled),
     addonSupportEnabled:
       asBoolean(raw.addonSupportEnabled) ??
       asBoolean(raw.addon_support_enabled),
@@ -655,6 +664,15 @@ function normalizeSubscription(
     currentEnterpriseInventoryEnabled:
       asBoolean(raw.currentEnterpriseInventoryEnabled) ??
       asBoolean(raw.current_enterprise_inventory_enabled),
+    currentEnterpriseSupplyChainEnabled:
+      asBoolean(raw.currentEnterpriseSupplyChainEnabled) ??
+      asBoolean(raw.current_enterprise_supply_chain_enabled),
+    currentEnterpriseReservationEnabled:
+      asBoolean(raw.currentEnterpriseReservationEnabled) ??
+      asBoolean(raw.current_enterprise_reservation_enabled),
+    currentEnterpriseChartOfAccountsEnabled:
+      asBoolean(raw.currentEnterpriseChartOfAccountsEnabled) ??
+      asBoolean(raw.current_enterprise_chart_of_accounts_enabled),
     currentEnterpriseSupportEnabled:
       asBoolean(raw.currentEnterpriseSupportEnabled) ??
       asBoolean(raw.current_enterprise_support_enabled),
@@ -698,6 +716,9 @@ export function offerFromSubscription(
       kds: false,
       inventory: false,
       support: false,
+      supplyChain: false,
+      reservation: false,
+      chartOfAccounts: false,
       webOrdering: false,
       paidTrial: false,
       paidTrialDays: null,
@@ -723,6 +744,9 @@ export function offerFromSubscription(
     kds: sub.enterpriseKdsEnabled,
     inventory: sub.enterpriseInventoryEnabled,
     support: sub.addonSupportEnabled,
+    supplyChain: sub.enterpriseSupplyChainEnabled,
+    reservation: sub.enterpriseReservationEnabled,
+    chartOfAccounts: sub.enterpriseChartOfAccountsEnabled,
     webOrdering: sub.addonWebOrderingEnabled,
     paidTrial,
     paidTrialDays: null,

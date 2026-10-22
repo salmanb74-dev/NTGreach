@@ -46,6 +46,12 @@ export type FormState = {
   inventoryFee: string
   support: boolean
   supportFee: string
+  supplyChain: boolean
+  supplyChainFee: string
+  reservation: boolean
+  reservationFee: string
+  chartOfAccounts: boolean
+  chartOfAccountsFee: string
   webOrdering: boolean
   webOrderingFee: string
   webOrderingRevenuePercent: string
@@ -135,6 +141,12 @@ export function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
     inventoryFee: '',
     support: boolFromApi(offer.support),
     supportFee: '',
+    supplyChain: boolFromApi(offer.supplyChain),
+    supplyChainFee: '',
+    reservation: boolFromApi(offer.reservation),
+    reservationFee: '',
+    chartOfAccounts: boolFromApi(offer.chartOfAccounts),
+    chartOfAccountsFee: '',
     webOrdering: boolFromApi(offer.webOrdering),
     webOrderingFee: '',
     webOrderingRevenuePercent: '',
@@ -341,6 +353,9 @@ export function formToOffer(
     kds: form.kds,
     inventory: form.inventory,
     support: form.support,
+    supplyChain: form.supplyChain,
+    reservation: form.reservation,
+    chartOfAccounts: form.chartOfAccounts,
     webOrdering: form.webOrdering,
     paidTrial: form.paidTrial,
     paidTrialDays: null,
@@ -382,6 +397,9 @@ export const DEFAULT_OFFER: RestoEnterpriseOfferInput = {
   kds: false,
   inventory: false,
   support: false,
+  supplyChain: false,
+  reservation: false,
+  chartOfAccounts: false,
   webOrdering: false,
   paidTrial: false,
   paidTrialDays: null,
@@ -431,6 +449,9 @@ export function hasCurrentEnterpriseSnapshot(
     sub.currentEnterpriseCallcenterEnabled != null ||
     sub.currentEnterpriseKdsEnabled != null ||
     sub.currentEnterpriseInventoryEnabled != null ||
+    sub.currentEnterpriseSupplyChainEnabled != null ||
+    sub.currentEnterpriseReservationEnabled != null ||
+    sub.currentEnterpriseChartOfAccountsEnabled != null ||
     sub.currentEnterpriseSupportEnabled != null ||
     sub.currentEnterpriseWebOrderingEnabled != null
   )
@@ -516,6 +537,18 @@ export function offerDiffersFromCurrent(
       sub.enterpriseInventoryEnabled,
       sub.currentEnterpriseInventoryEnabled
     ) ||
+    boolDiffers(
+      sub.enterpriseSupplyChainEnabled,
+      sub.currentEnterpriseSupplyChainEnabled
+    ) ||
+    boolDiffers(
+      sub.enterpriseReservationEnabled,
+      sub.currentEnterpriseReservationEnabled
+    ) ||
+    boolDiffers(
+      sub.enterpriseChartOfAccountsEnabled,
+      sub.currentEnterpriseChartOfAccountsEnabled
+    ) ||
     boolDiffers(sub.addonSupportEnabled, sub.currentEnterpriseSupportEnabled) ||
     boolDiffers(
       sub.addonWebOrderingEnabled,
@@ -592,6 +625,9 @@ function offerFromSaved(sub: RestoSubscriptionSnapshot): RestoEnterpriseOfferInp
     kds: boolFromApi(sub.enterpriseKdsEnabled),
     inventory: boolFromApi(sub.enterpriseInventoryEnabled),
     support: boolFromApi(sub.addonSupportEnabled),
+    supplyChain: boolFromApi(sub.enterpriseSupplyChainEnabled),
+    reservation: boolFromApi(sub.enterpriseReservationEnabled),
+    chartOfAccounts: boolFromApi(sub.enterpriseChartOfAccountsEnabled),
     webOrdering: boolFromApi(sub.addonWebOrderingEnabled),
     paidTrial: sub.enterprisePaidTrialEnabled === true,
     paidTrialDays: null,
@@ -627,6 +663,9 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
     kds: seed.kds,
     inventory: seed.inventory,
     support: seed.support,
+    supplyChain: seed.supplyChain,
+    reservation: seed.reservation,
+    chartOfAccounts: seed.chartOfAccounts,
     webOrdering: seed.webOrdering,
     paidTrial: false,
     paidTrialDays: null,
@@ -696,6 +735,9 @@ export function currentValues(
       kds: '—',
       inventory: '—',
       support: '—',
+      supplyChain: '—',
+      reservation: '—',
+      chartOfAccounts: '—',
       webOrdering: '—',
       trialStart: '—',
       subscriptionStart: '—',
@@ -737,6 +779,9 @@ export function currentValues(
     kds: fmtBool(plan.kds),
     inventory: fmtBool(plan.inventory),
     support: fmtBool(plan.support),
+    supplyChain: fmtBool(plan.supplyChain),
+    reservation: fmtBool(plan.reservation),
+    chartOfAccounts: fmtBool(plan.chartOfAccounts),
     webOrdering: fmtBool(plan.webOrdering),
     trialStart: sub?.trialStartedAt
       ? fmtDate(sub.trialStartedAt)
@@ -834,6 +879,9 @@ export function formDiffs(
     kds: form.kds !== plan.kds,
     inventory: form.inventory !== plan.inventory,
     support: form.support !== plan.support,
+    supplyChain: form.supplyChain !== plan.supplyChain,
+    reservation: form.reservation !== plan.reservation,
+    chartOfAccounts: form.chartOfAccounts !== plan.chartOfAccounts,
     webOrdering: form.webOrdering !== plan.webOrdering,
     trialStart: (() => {
       const formImm = form.trialStartsEmpty || !form.trialStartsAt

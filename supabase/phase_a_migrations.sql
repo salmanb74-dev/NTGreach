@@ -96,11 +96,13 @@ insert into public.enumerations (category, value, label, sort_order) values
 
   -- Billing cycles (value = months, label = template suffix)
   ('billing_cycle', '1',  'per month',     1),
-  ('billing_cycle', '3',  'per quarter',   2),
-  ('billing_cycle', '6',  'per 6 months',  3),
-  ('billing_cycle', '12', 'per year',      4),
-  ('billing_cycle', '24', 'per 2 years',   5),
-  ('billing_cycle', '36', 'per 3 years',   6)
+  ('billing_cycle', '2',  'per 2 months',  2),
+  ('billing_cycle', '3',  'per quarter',   3),
+  ('billing_cycle', '4',  'per 4 months',  4),
+  ('billing_cycle', '6',  'per 6 months',  5),
+  ('billing_cycle', '12', 'per year',      6),
+  ('billing_cycle', '24', 'per 2 years',   7),
+  ('billing_cycle', '36', 'per 3 years',   8)
 
 on conflict (category, value) do nothing;
 

@@ -35,10 +35,12 @@ Full replace — every key required:
 
 ```
 price, durationMonths, setupFee, locations, users, counters, ordersPerMonth,
-callCenter, kds, inventory, support, webOrdering, paidTrial, paidTrialDays,
-preTrialSetupFee, postTrialSetupFee, accessStartsAt, trialStartsAt,
-prorateBackdatedAccess, enterpriseEnabled
+callCenter, kds, inventory, support, supplyChain, reservation, chartOfAccounts,
+webOrdering, paidTrial, paidTrialDays, preTrialSetupFee, postTrialSetupFee,
+accessStartsAt, trialStartsAt, prorateBackdatedAccess, enterpriseEnabled
 ```
+
+Nest must accept `supplyChain`, `reservation`, and `chartOfAccounts` (booleans) and mirror them on GET as `enterprise_*_enabled` / `current_enterprise_*_enabled` before Ops can persist those toggles end-to-end.
 
 Reach Ops UI now:
 - Sends `paidTrialDays: null` always (trial length not collected).
@@ -68,6 +70,9 @@ Reach Ops Subscription UI collects these for parity with CRM Deal Values, but **
 | `kdsFee` | Monthly $ add-on when KDS is on |
 | `inventoryFee` | Monthly $ add-on when inventory is on |
 | `supportFee` | Monthly $ add-on when ops/operation support is on |
+| `supplyChainFee` | Monthly $ add-on when supply chain is on |
+| `reservationFee` | Monthly $ add-on when reservation is on |
+| `chartOfAccountsFee` | Monthly $ add-on when chart of accounts is on |
 | `webOrderingFee` | Monthly $ add-on when web ordering is on |
 | `webOrderingRevenuePercent` | % of revenue on month-end invoice (web ordering) |
 

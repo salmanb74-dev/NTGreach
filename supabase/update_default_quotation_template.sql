@@ -44,6 +44,9 @@ info@ntgclarity.com</p>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Kitchen display / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{kds}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Inventory / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{inventory}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Ops support / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{ops_support}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Supply Chain / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{supply_chain}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Reservation / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{reservation}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Chart of Accounts / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{chart_of_accounts}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Web ordering revenue %</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{web_ordering_revenue_pct}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Paid trial</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial}}</td></tr>

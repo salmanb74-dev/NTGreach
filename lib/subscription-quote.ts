@@ -17,12 +17,40 @@ export type BillingCycleOption = { value: string; label: string }
 /** Built-in cycles (also seeded in Lists & Values). */
 export const STARTER_BILLING_CYCLES: readonly BillingCycleOption[] = [
   { value: '1', label: 'per month' },
+  { value: '2', label: 'per 2 months' },
   { value: '3', label: 'per quarter' },
+  { value: '4', label: 'per 4 months' },
   { value: '6', label: 'per 6 months' },
   { value: '12', label: 'per year' },
   { value: '24', label: 'per 2 years' },
   { value: '36', label: 'per 3 years' },
 ]
+
+/**
+ * Deal Panel / Settings duration dropdown.
+ * Always includes STARTER_BILLING_CYCLES; DB Lists & Values can add extras
+ * or override labels. Prevents missing built-ins when the DB seed is stale.
+ */
+export function resolveBillingCycleOptions(
+  fromDb: readonly BillingCycleOption[] | null | undefined
+): BillingCycleOption[] {
+  const byValue = new Map<string, BillingCycleOption>()
+  for (const c of STARTER_BILLING_CYCLES) {
+    byValue.set(c.value, { value: c.value, label: c.label })
+  }
+  for (const c of fromDb ?? []) {
+    const value = String(c?.value ?? '').trim()
+    if (!value) continue
+    const label = String(c.label ?? '').trim()
+    byValue.set(value, {
+      value,
+      label: label || fmtBillingCycle(value),
+    })
+  }
+  return [...byValue.values()].sort(
+    (a, b) => parseDurationMonths(a.value) - parseDurationMonths(b.value)
+  )
+}
 
 const LEGACY_CYCLE_MONTHS: Record<string, number> = {
   monthly: 1,
@@ -118,7 +146,9 @@ export function fmtBillingCycle(
   }
   const m = parseDurationMonths(cycle)
   if (m === 1) return 'per month'
+  if (m === 2) return 'per 2 months'
   if (m === 3) return 'per quarter'
+  if (m === 4) return 'per 4 months'
   if (m === 12) return 'per year'
   if (m === 24) return 'per 2 years'
   if (m === 36) return 'per 3 years'
@@ -152,11 +182,25 @@ export function parseOptNum(s: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-export type FeatureAddonKey = 'callCenter' | 'kds' | 'inventory' | 'support'
+export type FeatureAddonKey =
+  | 'callCenter'
+  | 'kds'
+  | 'inventory'
+  | 'support'
+  | 'supplyChain'
+  | 'reservation'
+  | 'chartOfAccounts'
 
 export type FeatureAddonDef = {
   key: FeatureAddonKey
-  feeKey: 'callCenterFee' | 'kdsFee' | 'inventoryFee' | 'supportFee'
+  feeKey:
+    | 'callCenterFee'
+    | 'kdsFee'
+    | 'inventoryFee'
+    | 'supportFee'
+    | 'supplyChainFee'
+    | 'reservationFee'
+    | 'chartOfAccountsFee'
   label: string
 }
 
@@ -166,6 +210,13 @@ export const FEATURE_ADDONS: readonly FeatureAddonDef[] = [
   { key: 'kds', feeKey: 'kdsFee', label: 'KDS' },
   { key: 'inventory', feeKey: 'inventoryFee', label: 'Inventory' },
   { key: 'support', feeKey: 'supportFee', label: 'Operation Support' },
+  { key: 'supplyChain', feeKey: 'supplyChainFee', label: 'Supply Chain' },
+  { key: 'reservation', feeKey: 'reservationFee', label: 'Reservation' },
+  {
+    key: 'chartOfAccounts',
+    feeKey: 'chartOfAccountsFee',
+    label: 'Chart of Accounts',
+  },
 ] as const
 
 export type QuotedSubscription = {
@@ -192,6 +243,12 @@ export type QuotedSubscription = {
   inventoryFee: number | null
   support: boolean
   supportFee: number | null
+  supplyChain: boolean
+  supplyChainFee: number | null
+  reservation: boolean
+  reservationFee: number | null
+  chartOfAccounts: boolean
+  chartOfAccountsFee: number | null
   webOrdering: boolean
   /** One-time setup fee when web ordering is on (not monthly). */
   webOrderingFee: number | null
@@ -224,6 +281,12 @@ export const EMPTY_QUOTED_SUBSCRIPTION: QuotedSubscription = {
   inventoryFee: null,
   support: false,
   supportFee: null,
+  supplyChain: false,
+  supplyChainFee: null,
+  reservation: false,
+  reservationFee: null,
+  chartOfAccounts: false,
+  chartOfAccountsFee: null,
   webOrdering: false,
   webOrderingFee: null,
   webOrderingRevenuePercent: null,
@@ -258,6 +321,12 @@ export const STARTER_QUOTED_SUBSCRIPTION: QuotedSubscription = {
   inventoryFee: null,
   support: false,
   supportFee: null,
+  supplyChain: false,
+  supplyChainFee: null,
+  reservation: false,
+  reservationFee: null,
+  chartOfAccounts: false,
+  chartOfAccountsFee: null,
   webOrdering: false,
   webOrderingFee: null,
   webOrderingRevenuePercent: null,
@@ -311,6 +380,9 @@ export function normalizeQuotedSubscriptionForSave(
     kdsFee: sub.kds ? sub.kdsFee : null,
     inventoryFee: sub.inventory ? sub.inventoryFee : null,
     supportFee: sub.support ? sub.supportFee : null,
+    supplyChainFee: sub.supplyChain ? sub.supplyChainFee : null,
+    reservationFee: sub.reservation ? sub.reservationFee : null,
+    chartOfAccountsFee: sub.chartOfAccounts ? sub.chartOfAccountsFee : null,
     webOrderingFee: sub.webOrdering ? sub.webOrderingFee : null,
     webOrderingRevenuePercent: sub.webOrdering
       ? sub.webOrderingRevenuePercent
@@ -489,6 +561,13 @@ export const SUBSCRIPTION_TEMPLATE_VARIABLES = [
   { key: 'kds', label: 'KDS / mo', example: '10' },
   { key: 'inventory', label: 'Inventory / mo', example: '12' },
   { key: 'ops_support', label: 'Operation Support / mo', example: '25' },
+  { key: 'supply_chain', label: 'Supply Chain / mo', example: '20' },
+  { key: 'reservation', label: 'Reservation / mo', example: '15' },
+  {
+    key: 'chart_of_accounts',
+    label: 'Chart of Accounts / mo',
+    example: '18',
+  },
   { key: 'paid_trial', label: 'Trial', example: 'Yes' },
   {
     key: 'paid_trial_days',
@@ -584,6 +663,21 @@ export function parseQuotedSubscription(raw: unknown): QuotedSubscription {
     r.support,
     r.supportFee ?? r.support_fee
   )
+  const supplyChain = parseFeatureAddon(
+    r.supplyChain ?? r.supply_chain,
+    r.supplyChainFee ?? r.supply_chain_fee
+  )
+  const reservation = parseFeatureAddon(
+    r.reservation,
+    r.reservationFee ?? r.reservation_fee
+  )
+  const chartOfAccounts = parseFeatureAddon(
+    r.chartOfAccounts ?? r.chart_of_accounts ?? r.charterOfAccounts ?? r.charter_of_accounts,
+    r.chartOfAccountsFee ??
+      r.chart_of_accounts_fee ??
+      r.charterOfAccountsFee ??
+      r.charter_of_accounts_fee
+  )
   const webOrdering = parseFeatureAddon(
     r.webOrdering ?? r.web_ordering,
     r.webOrderingFee ?? r.web_ordering_fee
@@ -612,6 +706,12 @@ export function parseQuotedSubscription(raw: unknown): QuotedSubscription {
     inventoryFee: inventory.fee,
     support: support.enabled,
     supportFee: support.fee,
+    supplyChain: supplyChain.enabled,
+    supplyChainFee: supplyChain.fee,
+    reservation: reservation.enabled,
+    reservationFee: reservation.fee,
+    chartOfAccounts: chartOfAccounts.enabled,
+    chartOfAccountsFee: chartOfAccounts.fee,
     webOrdering: webOrdering.enabled,
     webOrderingFee: webOrdering.fee,
     webOrderingRevenuePercent: num(
@@ -784,6 +884,12 @@ export function subscriptionVarsFromLead(
     kds: fmtAddonFee(sub.kds, sub.kdsFee),
     inventory: fmtAddonFee(sub.inventory, sub.inventoryFee),
     ops_support: opsSupport,
+    supply_chain: fmtAddonFee(sub.supplyChain, sub.supplyChainFee),
+    reservation: fmtAddonFee(sub.reservation, sub.reservationFee),
+    chart_of_accounts: fmtAddonFee(
+      sub.chartOfAccounts,
+      sub.chartOfAccountsFee
+    ),
     web_ordering: fmtAddonFee(sub.webOrdering, sub.webOrderingFee),
     web_ordering_revenue_pct: sub.webOrdering
       ? fmtPercent(sub.webOrderingRevenuePercent)

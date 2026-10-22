@@ -52,6 +52,9 @@ info@ntgclarity.com</p>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Kitchen display / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{kds}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Inventory / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{inventory}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Ops support / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{ops_support}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Supply Chain / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{supply_chain}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Reservation / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{reservation}}</td></tr>
+<tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Chart of Accounts / mo</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{chart_of_accounts}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Paid trial</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Trial days</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{paid_trial_days}}</td></tr>
 <tr><td style="padding:3px 6px;border:1px solid #e5e7eb;line-height:1.25">Trial starts</td><td style="padding:3px 6px;border:1px solid #e5e7eb;text-align:right;line-height:1.25">{{trial_starts}}</td></tr>
@@ -112,6 +115,9 @@ and<br>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Kitchen display</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{kds}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Inventory</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{inventory}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Support</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{support}}</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Supply Chain</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{supply_chain}}</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Reservation</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{reservation}}</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Chart of Accounts</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{chart_of_accounts}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Paid trial</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{paid_trial}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Trial days</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{paid_trial_days}}</td></tr>
 <tr><td style="padding:8px 12px;border:1px solid #e5e7eb">Service start / access</td><td style="padding:8px 12px;border:1px solid #e5e7eb;text-align:right">{{access_starts}}</td></tr>
@@ -154,7 +160,7 @@ where is_default = true
 insert into public.app_settings (key, value, updated_at)
 values (
   'deal_quote_defaults',
-  '{"currency":"USD","billingCycle":"1","subscription":{"monthlyPrice":35,"billingCycle":"1","durationMonths":1,"setupFee":350,"locations":1,"locationsUnlimited":false,"users":50,"usersUnlimited":false,"counters":2,"countersUnlimited":false,"ordersPerMonth":3000,"ordersUnlimited":false,"callCenter":false,"callCenterFee":null,"kds":false,"kdsFee":null,"inventory":false,"inventoryFee":null,"support":false,"supportFee":null,"webOrdering":false,"webOrderingFee":null,"webOrderingRevenuePercent":null,"paidTrial":false,"paidTrialDays":null,"preTrialSetupFee":0,"postTrialSetupFee":0}}',
+  '{"currency":"USD","billingCycle":"1","subscription":{"monthlyPrice":35,"billingCycle":"1","durationMonths":1,"setupFee":350,"locations":1,"locationsUnlimited":false,"users":50,"usersUnlimited":false,"counters":2,"countersUnlimited":false,"ordersPerMonth":3000,"ordersUnlimited":false,"callCenter":false,"callCenterFee":null,"kds":false,"kdsFee":null,"inventory":false,"inventoryFee":null,"support":false,"supportFee":null,"supplyChain":false,"supplyChainFee":null,"reservation":false,"reservationFee":null,"chartOfAccounts":false,"chartOfAccountsFee":null,"webOrdering":false,"webOrderingFee":null,"webOrderingRevenuePercent":null,"paidTrial":false,"paidTrialDays":null,"preTrialSetupFee":0,"postTrialSetupFee":0}}',
   now()
 )
 on conflict (key) do nothing;

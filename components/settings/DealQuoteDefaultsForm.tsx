@@ -11,7 +11,7 @@ import {
   FEATURE_ADDONS,
   SAVE_FLASH_MS,
   DEFAULT_PAID_TRIAL_DAYS,
-  STARTER_BILLING_CYCLES,
+  resolveBillingCycleOptions,
   type BillingCycle,
   type BillingCycleOption,
   type DealQuoteDefaults,
@@ -38,6 +38,7 @@ export default function DealQuoteDefaultsForm({
   const [sub, setSub] = useState<QuotedSubscription>({
     ...initial.subscription,
   })
+  const cycleOptions = resolveBillingCycleOptions(billingCycles)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -167,18 +168,12 @@ export default function DealQuoteDefaultsForm({
             value={cycle}
             onChange={e => setCycle(e.target.value as BillingCycle)}
           >
-            {(billingCycles.length > 0
-              ? billingCycles
-              : STARTER_BILLING_CYCLES
-            ).map(c => (
+            {cycleOptions.map(c => (
               <option key={c.value} value={c.value}>
                 {c.label} ({c.value} mo)
               </option>
             ))}
-            {!(billingCycles.length > 0
-              ? billingCycles
-              : STARTER_BILLING_CYCLES
-            ).some(c => c.value === cycle) && (
+            {!cycleOptions.some(c => c.value === cycle) && (
               <option value={cycle}>{cycle}</option>
             )}
           </select>

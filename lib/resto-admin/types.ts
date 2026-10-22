@@ -258,6 +258,9 @@ export type RestoEnterpriseOfferInput = {
   kds: boolean | null
   inventory: boolean | null
   support: boolean | null
+  supplyChain: boolean | null
+  reservation: boolean | null
+  chartOfAccounts: boolean | null
   webOrdering: boolean | null
   paidTrial: boolean
   paidTrialDays: number | null
@@ -287,6 +290,9 @@ export const ENTERPRISE_OFFER_KEYS: ReadonlyArray<keyof RestoEnterpriseOfferInpu
   'kds',
   'inventory',
   'support',
+  'supplyChain',
+  'reservation',
+  'chartOfAccounts',
   'webOrdering',
   'paidTrial',
   'paidTrialDays',
@@ -321,6 +327,9 @@ export type RestoSubscriptionSnapshot = {
   enterpriseCallcenterEnabled: boolean | null
   enterpriseKdsEnabled: boolean | null
   enterpriseInventoryEnabled: boolean | null
+  enterpriseSupplyChainEnabled: boolean | null
+  enterpriseReservationEnabled: boolean | null
+  enterpriseChartOfAccountsEnabled: boolean | null
   addonSupportEnabled: boolean | null
   addonWebOrderingEnabled: boolean | null
   /** Offer flag: sales offer is a paid trial (enterprise_paid_trial_enabled). */
@@ -350,6 +359,9 @@ export type RestoSubscriptionSnapshot = {
   currentEnterpriseCallcenterEnabled: boolean | null
   currentEnterpriseKdsEnabled: boolean | null
   currentEnterpriseInventoryEnabled: boolean | null
+  currentEnterpriseSupplyChainEnabled: boolean | null
+  currentEnterpriseReservationEnabled: boolean | null
+  currentEnterpriseChartOfAccountsEnabled: boolean | null
   currentEnterpriseSupportEnabled: boolean | null
   currentEnterpriseWebOrderingEnabled: boolean | null
   /**

@@ -5,7 +5,7 @@ import Modal from './Modal'
 import Button from '@/components/ui/Button'
 import { updateLead } from '@/lib/actions/leads'
 import {
-  STARTER_BILLING_CYCLES,
+  resolveBillingCycleOptions,
   billingCycleFromStored,
   monthsForBillingCycle,
   type BillingCycleOption,
@@ -40,8 +40,7 @@ export default function DealValueModal({
   existingFrequency,
   onClose, onSaved,
 }: DealValueModalProps) {
-  const cycleOptions =
-    billingCycles.length > 0 ? billingCycles : [...STARTER_BILLING_CYCLES]
+  const cycleOptions = resolveBillingCycleOptions(billingCycles)
   const [setupFee, setSetupFee] = useState(existingSetupFee?.toString() ?? '')
   const [mrr, setMrr] = useState(existingMrr?.toString() ?? '')
   const [frequency, setFrequency] = useState(

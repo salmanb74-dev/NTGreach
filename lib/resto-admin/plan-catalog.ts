@@ -128,6 +128,9 @@ export type ActivePlanView = {
   kds: boolean
   inventory: boolean
   support: boolean
+  supplyChain: boolean
+  reservation: boolean
+  chartOfAccounts: boolean
   webOrdering: boolean
   hasReports: boolean
   periodStart: string | null
@@ -182,6 +185,9 @@ export type SubLike = {
   enterpriseCallcenterEnabled?: boolean | null
   enterpriseKdsEnabled?: boolean | null
   enterpriseInventoryEnabled?: boolean | null
+  enterpriseSupplyChainEnabled?: boolean | null
+  enterpriseReservationEnabled?: boolean | null
+  enterpriseChartOfAccountsEnabled?: boolean | null
   currentEnterprisePrice: number | null
   currentEnterpriseDurationMonths: number | null
   currentEnterpriseLocationsLimit?: number | null
@@ -191,6 +197,9 @@ export type SubLike = {
   currentEnterpriseCallcenterEnabled?: boolean | null
   currentEnterpriseKdsEnabled?: boolean | null
   currentEnterpriseInventoryEnabled?: boolean | null
+  currentEnterpriseSupplyChainEnabled?: boolean | null
+  currentEnterpriseReservationEnabled?: boolean | null
+  currentEnterpriseChartOfAccountsEnabled?: boolean | null
   currentEnterpriseSupportEnabled?: boolean | null
   currentEnterpriseWebOrderingEnabled?: boolean | null
 }
@@ -228,6 +237,9 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
     sub.currentEnterpriseCallcenterEnabled != null ||
     sub.currentEnterpriseKdsEnabled != null ||
     sub.currentEnterpriseInventoryEnabled != null ||
+    sub.currentEnterpriseSupplyChainEnabled != null ||
+    sub.currentEnterpriseReservationEnabled != null ||
+    sub.currentEnterpriseChartOfAccountsEnabled != null ||
     sub.currentEnterpriseSupportEnabled != null ||
     sub.currentEnterpriseWebOrderingEnabled != null
 
@@ -257,6 +269,12 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
         kds: boolOr(sub.currentEnterpriseKdsEnabled, false),
         inventory: boolOr(sub.currentEnterpriseInventoryEnabled, false),
         support: boolOr(sub.currentEnterpriseSupportEnabled, false),
+        supplyChain: boolOr(sub.currentEnterpriseSupplyChainEnabled, false),
+        reservation: boolOr(sub.currentEnterpriseReservationEnabled, false),
+        chartOfAccounts: boolOr(
+          sub.currentEnterpriseChartOfAccountsEnabled,
+          false
+        ),
         webOrdering: boolOr(sub.currentEnterpriseWebOrderingEnabled, false),
         hasReports: true,
         periodStart: sub.currentPeriodStart,
@@ -290,6 +308,12 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
       kds: boolOr(sub.currentEnterpriseKdsEnabled, false),
       inventory: boolOr(sub.currentEnterpriseInventoryEnabled, false),
       support: boolOr(sub.currentEnterpriseSupportEnabled, false),
+      supplyChain: boolOr(sub.currentEnterpriseSupplyChainEnabled, false),
+      reservation: boolOr(sub.currentEnterpriseReservationEnabled, false),
+      chartOfAccounts: boolOr(
+        sub.currentEnterpriseChartOfAccountsEnabled,
+        false
+      ),
       webOrdering: boolOr(sub.currentEnterpriseWebOrderingEnabled, false),
       hasReports: true,
       periodStart: sub.currentPeriodStart,
@@ -325,6 +349,9 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
       kds: false,
       inventory: false,
       support: false,
+      supplyChain: false,
+      reservation: false,
+      chartOfAccounts: false,
       webOrdering: false,
       hasReports: true,
       periodStart: sub.currentPeriodStart,
@@ -371,6 +398,9 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
     kds: catalog.hasKitchenDisplay,
     inventory: catalog.hasInventory,
     support: sub.addonSupportEnabled === true,
+    supplyChain: false,
+    reservation: false,
+    chartOfAccounts: false,
     webOrdering: sub.addonWebOrderingEnabled === true,
     hasReports: catalog.hasReports,
     periodStart: sub.currentPeriodStart,
@@ -411,6 +441,9 @@ export function activePlanToOfferSeed(
   kds: boolean
   inventory: boolean
   support: boolean
+  supplyChain: boolean
+  reservation: boolean
+  chartOfAccounts: boolean
   webOrdering: boolean
 } {
   const durationMonths =
@@ -440,6 +473,9 @@ export function activePlanToOfferSeed(
     kds: plan.kds,
     inventory: plan.inventory,
     support: plan.support,
+    supplyChain: plan.supplyChain,
+    reservation: plan.reservation,
+    chartOfAccounts: plan.chartOfAccounts,
     webOrdering: plan.webOrdering,
   }
 }

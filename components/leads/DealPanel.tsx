@@ -14,7 +14,7 @@ import {
   FEATURE_ADDONS,
   SAVE_FLASH_MS,
   DEFAULT_PAID_TRIAL_DAYS,
-  STARTER_BILLING_CYCLES,
+  resolveBillingCycleOptions,
   fmtBillingCycle,
   type BillingCycle,
   type QuotedSubscription,
@@ -81,8 +81,7 @@ export default function DealPanel({
   const monthly = totalMonthlyRecurring(sub)
   const baseMonthly = sub.monthlyPrice ?? 0
   const cycle = sub.billingCycle
-  const cycleOptions =
-    billingCycles.length > 0 ? billingCycles : [...STARTER_BILLING_CYCLES]
+  const cycleOptions = resolveBillingCycleOptions(billingCycles)
   const cycleLabel =
     cycleOptions.find(c => c.value === cycle)?.label ?? fmtBillingCycle(cycle)
   const discNum = parseFloat(disc) || 0

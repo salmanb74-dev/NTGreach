@@ -26,7 +26,7 @@ from public.leads;
 insert into public.app_settings (key, value, updated_at)
 values (
   'deal_quote_defaults',
-  '{"currency":"USD","billingCycle":"1","subscription":{"monthlyPrice":35,"billingCycle":"1","durationMonths":1,"setupFee":350,"locations":1,"locationsUnlimited":false,"users":50,"usersUnlimited":false,"counters":2,"countersUnlimited":false,"ordersPerMonth":3000,"ordersUnlimited":false,"callCenter":false,"callCenterFee":null,"kds":false,"kdsFee":null,"inventory":false,"inventoryFee":null,"support":false,"supportFee":null,"webOrdering":false,"webOrderingFee":null,"webOrderingRevenuePercent":null,"paidTrial":false,"paidTrialDays":null,"preTrialSetupFee":0,"postTrialSetupFee":0}}',
+  '{"currency":"USD","billingCycle":"1","subscription":{"monthlyPrice":35,"billingCycle":"1","durationMonths":1,"setupFee":350,"locations":1,"locationsUnlimited":false,"users":50,"usersUnlimited":false,"counters":2,"countersUnlimited":false,"ordersPerMonth":3000,"ordersUnlimited":false,"callCenter":false,"callCenterFee":null,"kds":false,"kdsFee":null,"inventory":false,"inventoryFee":null,"support":false,"supportFee":null,"supplyChain":false,"supplyChainFee":null,"reservation":false,"reservationFee":null,"chartOfAccounts":false,"chartOfAccountsFee":null,"webOrdering":false,"webOrderingFee":null,"webOrderingRevenuePercent":null,"paidTrial":false,"paidTrialDays":null,"preTrialSetupFee":0,"postTrialSetupFee":0}}',
   now()
 )
 on conflict (key) do nothing;
@@ -77,6 +77,12 @@ normalized as (
       'inventoryFee',       case when nullif(subscription->>'inventoryFee', 'null') is null then null else (subscription->>'inventoryFee')::numeric end,
       'support',            coalesce((subscription->>'support')::boolean, false),
       'supportFee',         case when nullif(subscription->>'supportFee', 'null') is null then null else (subscription->>'supportFee')::numeric end,
+      'supplyChain',        coalesce((subscription->>'supplyChain')::boolean, false),
+      'supplyChainFee',     case when nullif(subscription->>'supplyChainFee', 'null') is null then null else (subscription->>'supplyChainFee')::numeric end,
+      'reservation',        coalesce((subscription->>'reservation')::boolean, false),
+      'reservationFee',     case when nullif(subscription->>'reservationFee', 'null') is null then null else (subscription->>'reservationFee')::numeric end,
+      'chartOfAccounts',    coalesce((subscription->>'chartOfAccounts')::boolean, false),
+      'chartOfAccountsFee', case when nullif(subscription->>'chartOfAccountsFee', 'null') is null then null else (subscription->>'chartOfAccountsFee')::numeric end,
       'webOrdering',        coalesce((subscription->>'webOrdering')::boolean, false),
       'webOrderingFee',     case when nullif(subscription->>'webOrderingFee', 'null') is null then null else (subscription->>'webOrderingFee')::numeric end,
       'webOrderingRevenuePercent',
@@ -116,6 +122,12 @@ set
                                then coalesce((n.quoted_subscription->>'inventoryFee')::numeric, 0) else 0 end
                         + case when coalesce((n.quoted_subscription->>'support')::boolean, false)
                                then coalesce((n.quoted_subscription->>'supportFee')::numeric, 0) else 0 end
+                        + case when coalesce((n.quoted_subscription->>'supplyChain')::boolean, false)
+                               then coalesce((n.quoted_subscription->>'supplyChainFee')::numeric, 0) else 0 end
+                        + case when coalesce((n.quoted_subscription->>'reservation')::boolean, false)
+                               then coalesce((n.quoted_subscription->>'reservationFee')::numeric, 0) else 0 end
+                        + case when coalesce((n.quoted_subscription->>'chartOfAccounts')::boolean, false)
+                               then coalesce((n.quoted_subscription->>'chartOfAccountsFee')::numeric, 0) else 0 end
 from normalized n;
 
 -- After check
