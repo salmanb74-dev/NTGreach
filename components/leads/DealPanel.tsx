@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateLead } from '@/lib/actions/leads'
 import {
@@ -40,6 +40,98 @@ interface DealPanelProps {
   currencies: Currency[]
   billingCycles?: { value: string; label: string }[]
   inputCurrency: string
+}
+
+/** Keeps a string draft while focused so typing is not reset by number parsing. */
+function DealNumInput({
+  value,
+  onChange,
+  className,
+  disabled,
+  placeholder,
+  min,
+  max,
+  step,
+}: {
+  value: number | null
+  onChange: (n: number | null) => void
+  className?: string
+  disabled?: boolean
+  placeholder?: string
+  min?: number
+  max?: number
+  step?: string | number
+}) {
+  const [focused, setFocused] = useState(false)
+  const [draft, setDraft] = useState(() => numStr(value))
+
+  useEffect(() => {
+    if (!focused) setDraft(numStr(value))
+  }, [value, focused])
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      className={className}
+      disabled={disabled}
+      placeholder={placeholder}
+      value={focused ? draft : numStr(value)}
+      onFocus={() => {
+        setFocused(true)
+        setDraft(numStr(value))
+      }}
+      onBlur={() => {
+        setFocused(false)
+        onChange(parseOptNum(draft))
+      }}
+      onChange={e => {
+        const next = e.target.value
+        setDraft(next)
+        onChange(parseOptNum(next))
+      }}
+    />
+  )
+}
+
+function LimitField({
+  label,
+  value,
+  unlimited,
+  onValue,
+  onUnlimited,
+}: {
+  label: string
+  value: number | null
+  unlimited: boolean
+  onValue: (n: number | null) => void
+  onUnlimited: (u: boolean) => void
+}) {
+  return (
+    <div className={styles.field}>
+      <label className={styles.label}>{label}</label>
+      <div className={styles.limitRow}>
+        <DealNumInput
+          className={styles.input}
+          min={0}
+          disabled={unlimited}
+          value={unlimited ? null : value}
+          onChange={onValue}
+          placeholder={unlimited ? 'Unlimited' : '0'}
+        />
+        <label className={styles.checkLabel}>
+          <input
+            type="checkbox"
+            checked={unlimited}
+            onChange={e => onUnlimited(e.target.checked)}
+          />
+          Unlimited
+        </label>
+      </div>
+    </div>
+  )
 }
 
 export default function DealPanel({
@@ -125,45 +217,6 @@ export default function DealPanel({
     })
   }
 
-  function LimitField({
-    label,
-    value,
-    unlimited,
-    onValue,
-    onUnlimited,
-  }: {
-    label: string
-    value: number | null
-    unlimited: boolean
-    onValue: (n: number | null) => void
-    onUnlimited: (u: boolean) => void
-  }) {
-    return (
-      <div className={styles.field}>
-        <label className={styles.label}>{label}</label>
-        <div className={styles.limitRow}>
-          <input
-            type="number"
-            min={0}
-            className={styles.input}
-            disabled={unlimited}
-            value={unlimited ? '' : numStr(value)}
-            onChange={e => onValue(parseOptNum(e.target.value))}
-            placeholder={unlimited ? 'Unlimited' : '0'}
-          />
-          <label className={styles.checkLabel}>
-            <input
-              type="checkbox"
-              checked={unlimited}
-              onChange={e => onUnlimited(e.target.checked)}
-            />
-            Unlimited
-          </label>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className={styles.panel}>
       <button type="button" className={styles.header} onClick={() => setIsOpen(p => !p)}>
@@ -229,30 +282,22 @@ export default function DealPanel({
             <div className={styles.twoCol}>
               <div className={styles.field}>
                 <label className={styles.label}>Trial days</label>
-                <input
-                  type="number"
-                  min={0}
+                <DealNumInput
                   className={styles.input}
-                  value={numStr(sub.paidTrialDays)}
-                  onChange={e =>
-                    patchSub({ paidTrialDays: parseOptNum(e.target.value) })
-                  }
+                  min={0}
+                  value={sub.paidTrialDays}
+                  onChange={n => patchSub({ paidTrialDays: n })}
                   placeholder={String(DEFAULT_PAID_TRIAL_DAYS)}
                 />
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Pre-trial setup</label>
-                <input
-                  type="number"
+                <DealNumInput
+                  className={styles.input}
                   min={0}
                   step="0.01"
-                  className={styles.input}
-                  value={numStr(sub.preTrialSetupFee)}
-                  onChange={e =>
-                    patchSub({
-                      preTrialSetupFee: parseOptNum(e.target.value),
-                    })
-                  }
+                  value={sub.preTrialSetupFee}
+                  onChange={n => patchSub({ preTrialSetupFee: n })}
                   placeholder="0.00"
                 />
               </div>
@@ -271,15 +316,12 @@ export default function DealPanel({
           <div className={styles.twoCol}>
             <div className={styles.field}>
               <label className={styles.label}>Recurring ({currency}/mo)</label>
-              <input
-                type="number"
+              <DealNumInput
+                className={styles.input}
                 min={0}
                 step="0.01"
-                className={styles.input}
-                value={numStr(sub.monthlyPrice)}
-                onChange={e =>
-                  patchSub({ monthlyPrice: parseOptNum(e.target.value) })
-                }
+                value={sub.monthlyPrice}
+                onChange={n => patchSub({ monthlyPrice: n })}
                 placeholder="0.00"
               />
             </div>
@@ -314,15 +356,12 @@ export default function DealPanel({
 
           <div className={styles.field}>
             <label className={styles.label}>Setup fee</label>
-            <input
-              type="number"
+            <DealNumInput
+              className={styles.input}
               min={0}
               step="0.01"
-              className={styles.input}
-              value={numStr(sub.setupFee)}
-              onChange={e =>
-                patchSub({ setupFee: parseOptNum(e.target.value) })
-              }
+              value={sub.setupFee}
+              onChange={n => patchSub({ setupFee: n })}
               placeholder="0.00"
             />
           </div>
@@ -420,15 +459,12 @@ export default function DealPanel({
                     <label className={styles.label}>
                       {label} / mo ({currency})
                     </label>
-                    <input
-                      type="number"
+                    <DealNumInput
+                      className={styles.input}
                       min={0}
                       step="0.01"
-                      className={styles.input}
-                      value={numStr(sub[feeKey])}
-                      onChange={e =>
-                        patchSub({ [feeKey]: parseOptNum(e.target.value) })
-                      }
+                      value={sub[feeKey]}
+                      onChange={n => patchSub({ [feeKey]: n })}
                       placeholder="0.00"
                     />
                   </div>
@@ -463,33 +499,25 @@ export default function DealPanel({
                   <label className={styles.label}>
                     Web ordering setup ({currency})
                   </label>
-                  <input
-                    type="number"
+                  <DealNumInput
+                    className={styles.input}
                     min={0}
                     step="0.01"
-                    className={styles.input}
-                    value={numStr(sub.webOrderingFee)}
-                    onChange={e =>
-                      patchSub({
-                        webOrderingFee: parseOptNum(e.target.value),
-                      })
-                    }
+                    value={sub.webOrderingFee}
+                    onChange={n => patchSub({ webOrderingFee: n })}
                     placeholder="0.00"
                   />
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>Revenue share (%)</label>
-                  <input
-                    type="number"
+                  <DealNumInput
+                    className={styles.input}
                     min={0}
                     max={100}
                     step="0.01"
-                    className={styles.input}
-                    value={numStr(sub.webOrderingRevenuePercent)}
-                    onChange={e =>
-                      patchSub({
-                        webOrderingRevenuePercent: parseOptNum(e.target.value),
-                      })
+                    value={sub.webOrderingRevenuePercent}
+                    onChange={n =>
+                      patchSub({ webOrderingRevenuePercent: n })
                     }
                     placeholder="e.g. 2.5"
                   />
