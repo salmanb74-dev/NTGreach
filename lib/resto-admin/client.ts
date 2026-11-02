@@ -526,6 +526,18 @@ function asBoolean(value: unknown): boolean | null {
   return null
 }
 
+/** First defined Nest boolean across camelCase / snake_case aliases. */
+function pickBoolean(
+  raw: Record<string, unknown>,
+  ...keys: string[]
+): boolean | null {
+  for (const key of keys) {
+    const b = asBoolean(raw[key])
+    if (b != null) return b
+  }
+  return null
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
@@ -588,30 +600,63 @@ function normalizeSubscription(
     enterpriseOrdersMonthLimit:
       asNumber(raw.enterpriseOrdersMonthLimit) ??
       asNumber(raw.enterprise_orders_month_limit),
-    enterpriseCallcenterEnabled:
-      asBoolean(raw.enterpriseCallcenterEnabled) ??
-      asBoolean(raw.enterprise_callcenter_enabled),
-    enterpriseKdsEnabled:
-      asBoolean(raw.enterpriseKdsEnabled) ??
-      asBoolean(raw.enterprise_kds_enabled),
-    enterpriseInventoryEnabled:
-      asBoolean(raw.enterpriseInventoryEnabled) ??
-      asBoolean(raw.enterprise_inventory_enabled),
-    enterpriseSupplyChainEnabled:
-      asBoolean(raw.enterpriseSupplyChainEnabled) ??
-      asBoolean(raw.enterprise_supply_chain_enabled),
-    enterpriseReservationEnabled:
-      asBoolean(raw.enterpriseReservationEnabled) ??
-      asBoolean(raw.enterprise_reservation_enabled),
-    enterpriseChartOfAccountsEnabled:
-      asBoolean(raw.enterpriseChartOfAccountsEnabled) ??
-      asBoolean(raw.enterprise_chart_of_accounts_enabled),
-    addonSupportEnabled:
-      asBoolean(raw.addonSupportEnabled) ??
-      asBoolean(raw.addon_support_enabled),
-    addonWebOrderingEnabled:
-      asBoolean(raw.addonWebOrderingEnabled) ??
-      asBoolean(raw.addon_web_ordering_enabled),
+    enterpriseCallcenterEnabled: pickBoolean(
+      raw,
+      'callCenter',
+      'call_center',
+      'enterpriseCallcenterEnabled',
+      'enterprise_callcenter_enabled'
+    ),
+    enterpriseKdsEnabled: pickBoolean(
+      raw,
+      'kds',
+      'enterpriseKdsEnabled',
+      'enterprise_kds_enabled'
+    ),
+    enterpriseInventoryEnabled: pickBoolean(
+      raw,
+      'inventory',
+      'enterpriseInventoryEnabled',
+      'enterprise_inventory_enabled'
+    ),
+    // Offer flags — Nest may mirror PUT keys (supplyChain) and/or enterprise*Enabled.
+    // Booleans only; *Fee fields are Reach-only and never decide Yes/No.
+    enterpriseSupplyChainEnabled: pickBoolean(
+      raw,
+      'supplyChain',
+      'supply_chain',
+      'enterpriseSupplyChainEnabled',
+      'enterprise_supply_chain_enabled'
+    ),
+    enterpriseReservationEnabled: pickBoolean(
+      raw,
+      'reservation',
+      'reservations',
+      'enterpriseReservationEnabled',
+      'enterprise_reservation_enabled',
+      'enterpriseReservationsEnabled',
+      'enterprise_reservations_enabled'
+    ),
+    enterpriseChartOfAccountsEnabled: pickBoolean(
+      raw,
+      'chartOfAccounts',
+      'chart_of_accounts',
+      'enterpriseChartOfAccountsEnabled',
+      'enterprise_chart_of_accounts_enabled'
+    ),
+    addonSupportEnabled: pickBoolean(
+      raw,
+      'support',
+      'addonSupportEnabled',
+      'addon_support_enabled'
+    ),
+    addonWebOrderingEnabled: pickBoolean(
+      raw,
+      'webOrdering',
+      'web_ordering',
+      'addonWebOrderingEnabled',
+      'addon_web_ordering_enabled'
+    ),
     enterprisePaidTrialEnabled:
       asBoolean(raw.enterprisePaidTrialEnabled) ??
       asBoolean(raw.enterprise_paid_trial_enabled),
@@ -655,30 +700,67 @@ function normalizeSubscription(
     currentEnterpriseOrdersMonthLimit:
       asNumber(raw.currentEnterpriseOrdersMonthLimit) ??
       asNumber(raw.current_enterprise_orders_month_limit),
-    currentEnterpriseCallcenterEnabled:
-      asBoolean(raw.currentEnterpriseCallcenterEnabled) ??
-      asBoolean(raw.current_enterprise_callcenter_enabled),
-    currentEnterpriseKdsEnabled:
-      asBoolean(raw.currentEnterpriseKdsEnabled) ??
-      asBoolean(raw.current_enterprise_kds_enabled),
-    currentEnterpriseInventoryEnabled:
-      asBoolean(raw.currentEnterpriseInventoryEnabled) ??
-      asBoolean(raw.current_enterprise_inventory_enabled),
-    currentEnterpriseSupplyChainEnabled:
-      asBoolean(raw.currentEnterpriseSupplyChainEnabled) ??
-      asBoolean(raw.current_enterprise_supply_chain_enabled),
-    currentEnterpriseReservationEnabled:
-      asBoolean(raw.currentEnterpriseReservationEnabled) ??
-      asBoolean(raw.current_enterprise_reservation_enabled),
-    currentEnterpriseChartOfAccountsEnabled:
-      asBoolean(raw.currentEnterpriseChartOfAccountsEnabled) ??
-      asBoolean(raw.current_enterprise_chart_of_accounts_enabled),
-    currentEnterpriseSupportEnabled:
-      asBoolean(raw.currentEnterpriseSupportEnabled) ??
-      asBoolean(raw.current_enterprise_support_enabled),
-    currentEnterpriseWebOrderingEnabled:
-      asBoolean(raw.currentEnterpriseWebOrderingEnabled) ??
-      asBoolean(raw.current_enterprise_web_ordering_enabled),
+    currentEnterpriseCallcenterEnabled: pickBoolean(
+      raw,
+      'currentCallCenter',
+      'current_call_center',
+      'currentEnterpriseCallcenterEnabled',
+      'current_enterprise_callcenter_enabled'
+    ),
+    currentEnterpriseKdsEnabled: pickBoolean(
+      raw,
+      'currentKds',
+      'current_kds',
+      'currentEnterpriseKdsEnabled',
+      'current_enterprise_kds_enabled'
+    ),
+    currentEnterpriseInventoryEnabled: pickBoolean(
+      raw,
+      'currentInventory',
+      'current_inventory',
+      'currentEnterpriseInventoryEnabled',
+      'current_enterprise_inventory_enabled'
+    ),
+    // Live mirrors — short current* keys and/or currentEnterprise*Enabled.
+    currentEnterpriseSupplyChainEnabled: pickBoolean(
+      raw,
+      'currentSupplyChain',
+      'current_supply_chain',
+      'currentEnterpriseSupplyChainEnabled',
+      'current_enterprise_supply_chain_enabled'
+    ),
+    currentEnterpriseReservationEnabled: pickBoolean(
+      raw,
+      'currentReservation',
+      'current_reservation',
+      'currentReservations',
+      'current_reservations',
+      'currentEnterpriseReservationEnabled',
+      'current_enterprise_reservation_enabled',
+      'currentEnterpriseReservationsEnabled',
+      'current_enterprise_reservations_enabled'
+    ),
+    currentEnterpriseChartOfAccountsEnabled: pickBoolean(
+      raw,
+      'currentChartOfAccounts',
+      'current_chart_of_accounts',
+      'currentEnterpriseChartOfAccountsEnabled',
+      'current_enterprise_chart_of_accounts_enabled'
+    ),
+    currentEnterpriseSupportEnabled: pickBoolean(
+      raw,
+      'currentSupport',
+      'current_support',
+      'currentEnterpriseSupportEnabled',
+      'current_enterprise_support_enabled'
+    ),
+    currentEnterpriseWebOrderingEnabled: pickBoolean(
+      raw,
+      'currentWebOrdering',
+      'current_web_ordering',
+      'currentEnterpriseWebOrderingEnabled',
+      'current_enterprise_web_ordering_enabled'
+    ),
     setupFeePaidUsd:
       asNumber(raw.setupFeePaidUsd) ??
       asNumber(raw.setup_fee_paid_usd),

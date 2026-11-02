@@ -600,23 +600,25 @@ function parseFeatureAddon(
     const n = typeof v === 'number' ? v : Number(v)
     return Number.isFinite(n) ? n : null
   }
-  // Legacy: field was a bare number meaning the monthly fee
+  const fee = num(feeRaw)
+  // Explicit boolean always wins — *Fee is Reach-only pricing, never Yes/No.
+  if (typeof enabledRaw === 'boolean') {
+    return { enabled: enabledRaw, fee }
+  }
+  if (enabledRaw === 'true' || enabledRaw === 'false') {
+    return { enabled: enabledRaw === 'true', fee }
+  }
+  // Legacy: field was a bare number meaning the monthly fee (implies on).
   if (typeof enabledRaw === 'number' && Number.isFinite(enabledRaw)) {
     return { enabled: enabledRaw > 0, fee: enabledRaw }
   }
   if (typeof enabledRaw === 'string' && enabledRaw.trim() !== '') {
     const n = Number(enabledRaw)
-    if (Number.isFinite(n) && enabledRaw !== 'true' && enabledRaw !== 'false') {
+    if (Number.isFinite(n)) {
       return { enabled: n > 0, fee: n }
     }
   }
-  const fee = num(feeRaw)
-  if (typeof enabledRaw === 'boolean') {
-    return { enabled: enabledRaw, fee }
-  }
-  if (fee != null && fee > 0) {
-    return { enabled: true, fee }
-  }
+  // Missing toggle + fee only → off (fees do not imply Yes).
   return { enabled: false, fee }
 }
 
@@ -651,35 +653,59 @@ export function parseQuotedSubscription(raw: unknown): QuotedSubscription {
   })
 
   const callCenter = parseFeatureAddon(
-    r.callCenter ?? r.call_center,
+    r.callCenter ??
+      r.call_center ??
+      r.enterpriseCallcenterEnabled ??
+      r.enterprise_callcenter_enabled,
     r.callCenterFee ?? r.call_center_fee
   )
-  const kds = parseFeatureAddon(r.kds, r.kdsFee ?? r.kds_fee)
+  const kds = parseFeatureAddon(
+    r.kds ?? r.enterpriseKdsEnabled ?? r.enterprise_kds_enabled,
+    r.kdsFee ?? r.kds_fee
+  )
   const inventory = parseFeatureAddon(
-    r.inventory,
+    r.inventory ??
+      r.enterpriseInventoryEnabled ??
+      r.enterprise_inventory_enabled,
     r.inventoryFee ?? r.inventory_fee
   )
   const support = parseFeatureAddon(
-    r.support,
+    r.support ?? r.addonSupportEnabled ?? r.addon_support_enabled,
     r.supportFee ?? r.support_fee
   )
   const supplyChain = parseFeatureAddon(
-    r.supplyChain ?? r.supply_chain,
+    r.supplyChain ??
+      r.supply_chain ??
+      r.enterpriseSupplyChainEnabled ??
+      r.enterprise_supply_chain_enabled,
     r.supplyChainFee ?? r.supply_chain_fee
   )
   const reservation = parseFeatureAddon(
-    r.reservation,
+    r.reservation ??
+      r.reservations ??
+      r.enterpriseReservationEnabled ??
+      r.enterprise_reservation_enabled ??
+      r.enterpriseReservationsEnabled ??
+      r.enterprise_reservations_enabled,
     r.reservationFee ?? r.reservation_fee
   )
   const chartOfAccounts = parseFeatureAddon(
-    r.chartOfAccounts ?? r.chart_of_accounts ?? r.charterOfAccounts ?? r.charter_of_accounts,
+    r.chartOfAccounts ??
+      r.chart_of_accounts ??
+      r.charterOfAccounts ??
+      r.charter_of_accounts ??
+      r.enterpriseChartOfAccountsEnabled ??
+      r.enterprise_chart_of_accounts_enabled,
     r.chartOfAccountsFee ??
       r.chart_of_accounts_fee ??
       r.charterOfAccountsFee ??
       r.charter_of_accounts_fee
   )
   const webOrdering = parseFeatureAddon(
-    r.webOrdering ?? r.web_ordering,
+    r.webOrdering ??
+      r.web_ordering ??
+      r.addonWebOrderingEnabled ??
+      r.addon_web_ordering_enabled,
     r.webOrderingFee ?? r.web_ordering_fee
   )
 
