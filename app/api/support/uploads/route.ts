@@ -17,6 +17,11 @@ import {
 
 const MEDIA_TYPES = new Set(['image', 'voice', 'video', 'file'])
 
+/**
+ * Multipart upload for small files. Netlify caps sync function bodies ~6MB;
+ * for larger screen recordings use POST /api/support/uploads/sign then PUT
+ * to the returned signed_url.
+ */
 function maxBytesFor(type: string) {
   if (type === 'voice') return VOICE_MAX_BYTES
   if (type === 'video') return SCREEN_MAX_BYTES

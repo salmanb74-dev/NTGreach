@@ -327,7 +327,7 @@ export default function ScreenRecorder({
             <ul className={styles.limits}>
               <li>Pick a screen or this app</li>
               <li>{SWITCH_SECONDS}s to open the problem view, then recording starts</li>
-              <li>Max {SCREEN_MAX_SECONDS}s · deleted after {SCREEN_RETENTION_DAYS} days</li>
+              <li>Max {Math.floor(SCREEN_MAX_SECONDS / 60)} min · deleted after {SCREEN_RETENTION_DAYS} days</li>
               <li>Stop with <strong>Stop Sharing</strong> (or Stop here)</li>
               <li>Sends automatically — delete if you don’t want it</li>
             </ul>
@@ -375,7 +375,7 @@ export default function ScreenRecorder({
             </span>
           </div>
           <p className={styles.recordingHint}>
-            Stops automatically at {SCREEN_MAX_SECONDS}s — or stop anytime.
+            Stops automatically at {Math.floor(SCREEN_MAX_SECONDS / 60)} min — or stop anytime.
           </p>
           <div className={styles.recordingActions}>
             <button type="button" className={styles.stopBtn} onClick={stopRecording}>
@@ -398,7 +398,7 @@ export default function ScreenRecorder({
         onClick={openConfirm}
         disabled={disabled}
         aria-label="Record screen"
-        title={`Record screen (max ${SCREEN_MAX_SECONDS}s)`}
+        title={`Record screen (max ${Math.floor(SCREEN_MAX_SECONDS / 60)} min)`}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2" strokeLinecap="round"

@@ -129,7 +129,7 @@ export function videoStoragePath(conversationId: string) {
 export function displayMediaConstraints(): DisplayMediaStreamOptions {
   return {
     video: {
-      // Cap fps so a full 60s clip fits under SCREEN_MAX_BYTES at encode rates below.
+      // Cap fps so a full 5 min clip fits under SCREEN_MAX_BYTES at encode rates below.
       frameRate: { ideal: SCREEN_CAPTURE_FPS, max: SCREEN_CAPTURE_FPS },
       width:     { ideal: 1280, max: 1920 },
       height:    { ideal: 720,  max: 1080 },
