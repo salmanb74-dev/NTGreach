@@ -40,7 +40,7 @@ webOrdering, paidTrial, paidTrialDays, preTrialSetupFee, postTrialSetupFee,
 accessStartsAt, trialStartsAt, prorateBackdatedAccess, enterpriseEnabled
 ```
 
-Nest accepts `supplyChain`, `reservation`|`reservations`, and `chartOfAccounts` on PUT. GET may expose offer flags as short keys (`supplyChain`, `reservation`, `chartOfAccounts`) and/or `enterprise*Enabled`, and live mirrors as `currentSupplyChain` / `currentReservation`(s) / `currentChartOfAccounts` and/or `currentEnterprise*Enabled`. Reach maps all aliases into the Ops offer + Current columns (same as callCenter / inventory). `null` = product default. Yes/No comes from Nest booleans only — Reach `*Fee` fields stay Reach-only and never decide the toggle.
+Nest accepts `supplyChain`, `reservation`|`reservations`, and `chartOfAccounts` on PUT (Reach sends `reservation` only — no extra aliases, Nest rejects unknown keys). GET may expose offer flags as `enterprise*Enabled` and/or short keys (`supplyChain`, …), and live mirrors as `currentEnterprise*Enabled` and/or `currentSupplyChain` / `currentReservation`(s) / `currentChartOfAccounts`. Reach prefers the `enterprise*` / `currentEnterprise*` fields so short keys that mirror live/product state cannot keep the New column stuck on Yes. `null` = product default. Yes/No comes from Nest booleans only — Reach `*Fee` fields stay Reach-only and never decide the toggle.
 
 Reach Ops UI now:
 - Sends `paidTrialDays: null` always (trial length not collected).

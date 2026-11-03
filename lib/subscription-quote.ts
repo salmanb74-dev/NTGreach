@@ -652,60 +652,80 @@ export function parseQuotedSubscription(raw: unknown): QuotedSubscription {
     paymentFrequency: r.paymentFrequency ?? r.payment_frequency,
   })
 
+  // Prefer explicit CRM keys; Nest enterprise* aliases only when CRM key absent.
+  // Use firstDefined so `false` is not skipped by ?? (boolean false is valid).
+  const firstDefined = (...vals: unknown[]) => {
+    for (const v of vals) {
+      if (v !== undefined && v !== null) return v
+    }
+    return undefined
+  }
   const callCenter = parseFeatureAddon(
-    r.callCenter ??
-      r.call_center ??
-      r.enterpriseCallcenterEnabled ??
-      r.enterprise_callcenter_enabled,
+    firstDefined(
+      r.callCenter,
+      r.call_center,
+      r.enterpriseCallcenterEnabled,
+      r.enterprise_callcenter_enabled
+    ),
     r.callCenterFee ?? r.call_center_fee
   )
   const kds = parseFeatureAddon(
-    r.kds ?? r.enterpriseKdsEnabled ?? r.enterprise_kds_enabled,
+    firstDefined(r.kds, r.enterpriseKdsEnabled, r.enterprise_kds_enabled),
     r.kdsFee ?? r.kds_fee
   )
   const inventory = parseFeatureAddon(
-    r.inventory ??
-      r.enterpriseInventoryEnabled ??
-      r.enterprise_inventory_enabled,
+    firstDefined(
+      r.inventory,
+      r.enterpriseInventoryEnabled,
+      r.enterprise_inventory_enabled
+    ),
     r.inventoryFee ?? r.inventory_fee
   )
   const support = parseFeatureAddon(
-    r.support ?? r.addonSupportEnabled ?? r.addon_support_enabled,
+    firstDefined(r.support, r.addonSupportEnabled, r.addon_support_enabled),
     r.supportFee ?? r.support_fee
   )
   const supplyChain = parseFeatureAddon(
-    r.supplyChain ??
-      r.supply_chain ??
-      r.enterpriseSupplyChainEnabled ??
-      r.enterprise_supply_chain_enabled,
+    firstDefined(
+      r.supplyChain,
+      r.supply_chain,
+      r.enterpriseSupplyChainEnabled,
+      r.enterprise_supply_chain_enabled
+    ),
     r.supplyChainFee ?? r.supply_chain_fee
   )
   const reservation = parseFeatureAddon(
-    r.reservation ??
-      r.reservations ??
-      r.enterpriseReservationEnabled ??
-      r.enterprise_reservation_enabled ??
-      r.enterpriseReservationsEnabled ??
-      r.enterprise_reservations_enabled,
+    firstDefined(
+      r.reservation,
+      r.reservations,
+      r.enterpriseReservationEnabled,
+      r.enterprise_reservation_enabled,
+      r.enterpriseReservationsEnabled,
+      r.enterprise_reservations_enabled
+    ),
     r.reservationFee ?? r.reservation_fee
   )
   const chartOfAccounts = parseFeatureAddon(
-    r.chartOfAccounts ??
-      r.chart_of_accounts ??
-      r.charterOfAccounts ??
-      r.charter_of_accounts ??
-      r.enterpriseChartOfAccountsEnabled ??
-      r.enterprise_chart_of_accounts_enabled,
+    firstDefined(
+      r.chartOfAccounts,
+      r.chart_of_accounts,
+      r.charterOfAccounts,
+      r.charter_of_accounts,
+      r.enterpriseChartOfAccountsEnabled,
+      r.enterprise_chart_of_accounts_enabled
+    ),
     r.chartOfAccountsFee ??
       r.chart_of_accounts_fee ??
       r.charterOfAccountsFee ??
       r.charter_of_accounts_fee
   )
   const webOrdering = parseFeatureAddon(
-    r.webOrdering ??
-      r.web_ordering ??
-      r.addonWebOrderingEnabled ??
-      r.addon_web_ordering_enabled,
+    firstDefined(
+      r.webOrdering,
+      r.web_ordering,
+      r.addonWebOrderingEnabled,
+      r.addon_web_ordering_enabled
+    ),
     r.webOrderingFee ?? r.web_ordering_fee
   )
 

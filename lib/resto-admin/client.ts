@@ -600,62 +600,63 @@ function normalizeSubscription(
     enterpriseOrdersMonthLimit:
       asNumber(raw.enterpriseOrdersMonthLimit) ??
       asNumber(raw.enterprise_orders_month_limit),
+    // Prefer enterprise*Enabled (offer column). Short PUT-echo keys are fallback
+    // only — Nest may also expose live/product flags under the same short names.
     enterpriseCallcenterEnabled: pickBoolean(
       raw,
-      'callCenter',
-      'call_center',
       'enterpriseCallcenterEnabled',
-      'enterprise_callcenter_enabled'
+      'enterprise_callcenter_enabled',
+      'callCenter',
+      'call_center'
     ),
     enterpriseKdsEnabled: pickBoolean(
       raw,
-      'kds',
       'enterpriseKdsEnabled',
-      'enterprise_kds_enabled'
+      'enterprise_kds_enabled',
+      'kds'
     ),
     enterpriseInventoryEnabled: pickBoolean(
       raw,
-      'inventory',
       'enterpriseInventoryEnabled',
-      'enterprise_inventory_enabled'
+      'enterprise_inventory_enabled',
+      'inventory'
     ),
-    // Offer flags — Nest may mirror PUT keys (supplyChain) and/or enterprise*Enabled.
     // Booleans only; *Fee fields are Reach-only and never decide Yes/No.
     enterpriseSupplyChainEnabled: pickBoolean(
       raw,
-      'supplyChain',
-      'supply_chain',
       'enterpriseSupplyChainEnabled',
-      'enterprise_supply_chain_enabled'
+      'enterprise_supply_chain_enabled',
+      'supplyChain',
+      'supply_chain'
     ),
     enterpriseReservationEnabled: pickBoolean(
       raw,
-      'reservation',
-      'reservations',
       'enterpriseReservationEnabled',
       'enterprise_reservation_enabled',
       'enterpriseReservationsEnabled',
-      'enterprise_reservations_enabled'
+      'enterprise_reservations_enabled',
+      'reservation',
+      'reservations'
     ),
     enterpriseChartOfAccountsEnabled: pickBoolean(
       raw,
-      'chartOfAccounts',
-      'chart_of_accounts',
       'enterpriseChartOfAccountsEnabled',
-      'enterprise_chart_of_accounts_enabled'
+      'enterprise_chart_of_accounts_enabled',
+      'chartOfAccounts',
+      'chart_of_accounts'
     ),
     addonSupportEnabled: pickBoolean(
       raw,
-      'support',
       'addonSupportEnabled',
-      'addon_support_enabled'
+      'addon_support_enabled',
+      'support'
     ),
     addonWebOrderingEnabled: pickBoolean(
       raw,
-      'webOrdering',
-      'web_ordering',
       'addonWebOrderingEnabled',
-      'addon_web_ordering_enabled'
+      'addon_web_ordering_enabled',
+      'webOrdering',
+      'web_ordering'
     ),
     enterprisePaidTrialEnabled:
       asBoolean(raw.enterprisePaidTrialEnabled) ??
@@ -700,66 +701,66 @@ function normalizeSubscription(
     currentEnterpriseOrdersMonthLimit:
       asNumber(raw.currentEnterpriseOrdersMonthLimit) ??
       asNumber(raw.current_enterprise_orders_month_limit),
+    // Live mirrors — prefer currentEnterprise*Enabled; short current* as fallback.
     currentEnterpriseCallcenterEnabled: pickBoolean(
       raw,
-      'currentCallCenter',
-      'current_call_center',
       'currentEnterpriseCallcenterEnabled',
-      'current_enterprise_callcenter_enabled'
+      'current_enterprise_callcenter_enabled',
+      'currentCallCenter',
+      'current_call_center'
     ),
     currentEnterpriseKdsEnabled: pickBoolean(
       raw,
-      'currentKds',
-      'current_kds',
       'currentEnterpriseKdsEnabled',
-      'current_enterprise_kds_enabled'
+      'current_enterprise_kds_enabled',
+      'currentKds',
+      'current_kds'
     ),
     currentEnterpriseInventoryEnabled: pickBoolean(
       raw,
-      'currentInventory',
-      'current_inventory',
       'currentEnterpriseInventoryEnabled',
-      'current_enterprise_inventory_enabled'
+      'current_enterprise_inventory_enabled',
+      'currentInventory',
+      'current_inventory'
     ),
-    // Live mirrors — short current* keys and/or currentEnterprise*Enabled.
     currentEnterpriseSupplyChainEnabled: pickBoolean(
       raw,
-      'currentSupplyChain',
-      'current_supply_chain',
       'currentEnterpriseSupplyChainEnabled',
-      'current_enterprise_supply_chain_enabled'
+      'current_enterprise_supply_chain_enabled',
+      'currentSupplyChain',
+      'current_supply_chain'
     ),
     currentEnterpriseReservationEnabled: pickBoolean(
       raw,
-      'currentReservation',
-      'current_reservation',
-      'currentReservations',
-      'current_reservations',
       'currentEnterpriseReservationEnabled',
       'current_enterprise_reservation_enabled',
       'currentEnterpriseReservationsEnabled',
-      'current_enterprise_reservations_enabled'
+      'current_enterprise_reservations_enabled',
+      'currentReservation',
+      'current_reservation',
+      'currentReservations',
+      'current_reservations'
     ),
     currentEnterpriseChartOfAccountsEnabled: pickBoolean(
       raw,
-      'currentChartOfAccounts',
-      'current_chart_of_accounts',
       'currentEnterpriseChartOfAccountsEnabled',
-      'current_enterprise_chart_of_accounts_enabled'
+      'current_enterprise_chart_of_accounts_enabled',
+      'currentChartOfAccounts',
+      'current_chart_of_accounts'
     ),
     currentEnterpriseSupportEnabled: pickBoolean(
       raw,
-      'currentSupport',
-      'current_support',
       'currentEnterpriseSupportEnabled',
-      'current_enterprise_support_enabled'
+      'current_enterprise_support_enabled',
+      'currentSupport',
+      'current_support'
     ),
     currentEnterpriseWebOrderingEnabled: pickBoolean(
       raw,
-      'currentWebOrdering',
-      'current_web_ordering',
       'currentEnterpriseWebOrderingEnabled',
-      'current_enterprise_web_ordering_enabled'
+      'current_enterprise_web_ordering_enabled',
+      'currentWebOrdering',
+      'current_web_ordering'
     ),
     setupFeePaidUsd:
       asNumber(raw.setupFeePaidUsd) ??
@@ -894,7 +895,9 @@ export async function putRestoEnterpriseOffer(
   const id = tenantId.trim()
   if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
 
-  // Nest DB enforces NOT NULL on pre/post trial setup fee columns
+  // Nest DB enforces NOT NULL on pre/post trial setup fee columns.
+  // Send only ENTERPRISE_OFFER_KEYS — extra aliases (e.g. reservations) make
+  // Nest ValidationPipe reject the whole PUT when forbidNonWhitelisted is on.
   const payload: RestoEnterpriseOfferInput = {
     ...offer,
     setupFee: offer.setupFee ?? 0,
