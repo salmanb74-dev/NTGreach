@@ -259,7 +259,8 @@ export type RestoEnterpriseOfferInput = {
   inventory: boolean | null
   support: boolean | null
   supplyChain: boolean | null
-  reservation: boolean | null
+  /** Nest PUT/GET key (plural) — same as inventory-style short flag. */
+  reservations: boolean | null
   chartOfAccounts: boolean | null
   webOrdering: boolean | null
   paidTrial: boolean
@@ -291,7 +292,7 @@ export const ENTERPRISE_OFFER_KEYS: ReadonlyArray<keyof RestoEnterpriseOfferInpu
   'inventory',
   'support',
   'supplyChain',
-  'reservation',
+  'reservations',
   'chartOfAccounts',
   'webOrdering',
   'paidTrial',
@@ -328,7 +329,7 @@ export type RestoSubscriptionSnapshot = {
   enterpriseKdsEnabled: boolean | null
   enterpriseInventoryEnabled: boolean | null
   enterpriseSupplyChainEnabled: boolean | null
-  enterpriseReservationEnabled: boolean | null
+  enterpriseReservationsEnabled: boolean | null
   enterpriseChartOfAccountsEnabled: boolean | null
   addonSupportEnabled: boolean | null
   addonWebOrderingEnabled: boolean | null
@@ -360,7 +361,7 @@ export type RestoSubscriptionSnapshot = {
   currentEnterpriseKdsEnabled: boolean | null
   currentEnterpriseInventoryEnabled: boolean | null
   currentEnterpriseSupplyChainEnabled: boolean | null
-  currentEnterpriseReservationEnabled: boolean | null
+  currentEnterpriseReservationsEnabled: boolean | null
   currentEnterpriseChartOfAccountsEnabled: boolean | null
   currentEnterpriseSupportEnabled: boolean | null
   currentEnterpriseWebOrderingEnabled: boolean | null

@@ -48,8 +48,8 @@ export type FormState = {
   supportFee: string
   supplyChain: boolean
   supplyChainFee: string
-  reservation: boolean
-  reservationFee: string
+  reservations: boolean
+  reservationsFee: string
   chartOfAccounts: boolean
   chartOfAccountsFee: string
   webOrdering: boolean
@@ -143,8 +143,8 @@ export function offerToForm(offer: RestoEnterpriseOfferInput): FormState {
     supportFee: '',
     supplyChain: boolFromApi(offer.supplyChain),
     supplyChainFee: '',
-    reservation: boolFromApi(offer.reservation),
-    reservationFee: '',
+    reservations: boolFromApi(offer.reservations),
+    reservationsFee: '',
     chartOfAccounts: boolFromApi(offer.chartOfAccounts),
     chartOfAccountsFee: '',
     webOrdering: boolFromApi(offer.webOrdering),
@@ -354,7 +354,7 @@ export function formToOffer(
     inventory: form.inventory,
     support: form.support,
     supplyChain: form.supplyChain,
-    reservation: form.reservation,
+    reservations: form.reservations,
     chartOfAccounts: form.chartOfAccounts,
     webOrdering: form.webOrdering,
     paidTrial: form.paidTrial,
@@ -398,7 +398,7 @@ export const DEFAULT_OFFER: RestoEnterpriseOfferInput = {
   inventory: false,
   support: false,
   supplyChain: false,
-  reservation: false,
+  reservations: false,
   chartOfAccounts: false,
   webOrdering: false,
   paidTrial: false,
@@ -450,7 +450,7 @@ export function hasCurrentEnterpriseSnapshot(
     sub.currentEnterpriseKdsEnabled != null ||
     sub.currentEnterpriseInventoryEnabled != null ||
     sub.currentEnterpriseSupplyChainEnabled != null ||
-    sub.currentEnterpriseReservationEnabled != null ||
+    sub.currentEnterpriseReservationsEnabled != null ||
     sub.currentEnterpriseChartOfAccountsEnabled != null ||
     sub.currentEnterpriseSupportEnabled != null ||
     sub.currentEnterpriseWebOrderingEnabled != null
@@ -542,8 +542,8 @@ export function offerDiffersFromCurrent(
       sub.currentEnterpriseSupplyChainEnabled
     ) ||
     boolDiffers(
-      sub.enterpriseReservationEnabled,
-      sub.currentEnterpriseReservationEnabled
+      sub.enterpriseReservationsEnabled,
+      sub.currentEnterpriseReservationsEnabled
     ) ||
     boolDiffers(
       sub.enterpriseChartOfAccountsEnabled,
@@ -626,7 +626,7 @@ function offerFromSaved(sub: RestoSubscriptionSnapshot): RestoEnterpriseOfferInp
     inventory: boolFromApi(sub.enterpriseInventoryEnabled),
     support: boolFromApi(sub.addonSupportEnabled),
     supplyChain: boolFromApi(sub.enterpriseSupplyChainEnabled),
-    reservation: boolFromApi(sub.enterpriseReservationEnabled),
+    reservations: boolFromApi(sub.enterpriseReservationsEnabled),
     chartOfAccounts: boolFromApi(sub.enterpriseChartOfAccountsEnabled),
     webOrdering: boolFromApi(sub.addonWebOrderingEnabled),
     paidTrial: sub.enterprisePaidTrialEnabled === true,
@@ -664,7 +664,7 @@ function offerFromActivePlan(plan: ActivePlanView): RestoEnterpriseOfferInput {
     inventory: seed.inventory,
     support: seed.support,
     supplyChain: seed.supplyChain,
-    reservation: seed.reservation,
+    reservations: seed.reservations,
     chartOfAccounts: seed.chartOfAccounts,
     webOrdering: seed.webOrdering,
     paidTrial: false,
@@ -736,7 +736,7 @@ export function currentValues(
       inventory: '—',
       support: '—',
       supplyChain: '—',
-      reservation: '—',
+      reservations: '—',
       chartOfAccounts: '—',
       webOrdering: '—',
       trialStart: '—',
@@ -780,7 +780,7 @@ export function currentValues(
     inventory: fmtBool(plan.inventory),
     support: fmtBool(plan.support),
     supplyChain: fmtBool(plan.supplyChain),
-    reservation: fmtBool(plan.reservation),
+    reservations: fmtBool(plan.reservations),
     chartOfAccounts: fmtBool(plan.chartOfAccounts),
     webOrdering: fmtBool(plan.webOrdering),
     trialStart: sub?.trialStartedAt
@@ -880,7 +880,7 @@ export function formDiffs(
     inventory: form.inventory !== plan.inventory,
     support: form.support !== plan.support,
     supplyChain: form.supplyChain !== plan.supplyChain,
-    reservation: form.reservation !== plan.reservation,
+    reservations: form.reservations !== plan.reservations,
     chartOfAccounts: form.chartOfAccounts !== plan.chartOfAccounts,
     webOrdering: form.webOrdering !== plan.webOrdering,
     trialStart: (() => {

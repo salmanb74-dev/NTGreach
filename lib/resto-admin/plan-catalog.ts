@@ -129,7 +129,7 @@ export type ActivePlanView = {
   inventory: boolean
   support: boolean
   supplyChain: boolean
-  reservation: boolean
+  reservations: boolean
   chartOfAccounts: boolean
   webOrdering: boolean
   hasReports: boolean
@@ -159,6 +159,7 @@ function boolOr(
   return fallback
 }
 
+
 export type SubLike = {
   planId: string | null
   billingCycle: string | null
@@ -186,7 +187,7 @@ export type SubLike = {
   enterpriseKdsEnabled?: boolean | null
   enterpriseInventoryEnabled?: boolean | null
   enterpriseSupplyChainEnabled?: boolean | null
-  enterpriseReservationEnabled?: boolean | null
+  enterpriseReservationsEnabled?: boolean | null
   enterpriseChartOfAccountsEnabled?: boolean | null
   currentEnterprisePrice: number | null
   currentEnterpriseDurationMonths: number | null
@@ -198,7 +199,7 @@ export type SubLike = {
   currentEnterpriseKdsEnabled?: boolean | null
   currentEnterpriseInventoryEnabled?: boolean | null
   currentEnterpriseSupplyChainEnabled?: boolean | null
-  currentEnterpriseReservationEnabled?: boolean | null
+  currentEnterpriseReservationsEnabled?: boolean | null
   currentEnterpriseChartOfAccountsEnabled?: boolean | null
   currentEnterpriseSupportEnabled?: boolean | null
   currentEnterpriseWebOrderingEnabled?: boolean | null
@@ -238,7 +239,7 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
     sub.currentEnterpriseKdsEnabled != null ||
     sub.currentEnterpriseInventoryEnabled != null ||
     sub.currentEnterpriseSupplyChainEnabled != null ||
-    sub.currentEnterpriseReservationEnabled != null ||
+    sub.currentEnterpriseReservationsEnabled != null ||
     sub.currentEnterpriseChartOfAccountsEnabled != null ||
     sub.currentEnterpriseSupportEnabled != null ||
     sub.currentEnterpriseWebOrderingEnabled != null
@@ -270,7 +271,7 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
         inventory: boolOr(sub.currentEnterpriseInventoryEnabled, false),
         support: boolOr(sub.currentEnterpriseSupportEnabled, false),
         supplyChain: boolOr(sub.currentEnterpriseSupplyChainEnabled, false),
-        reservation: boolOr(sub.currentEnterpriseReservationEnabled, false),
+        reservations: boolOr(sub.currentEnterpriseReservationsEnabled, false),
         chartOfAccounts: boolOr(
           sub.currentEnterpriseChartOfAccountsEnabled,
           false
@@ -309,7 +310,7 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
       inventory: boolOr(sub.currentEnterpriseInventoryEnabled, false),
       support: boolOr(sub.currentEnterpriseSupportEnabled, false),
       supplyChain: boolOr(sub.currentEnterpriseSupplyChainEnabled, false),
-      reservation: boolOr(sub.currentEnterpriseReservationEnabled, false),
+      reservations: boolOr(sub.currentEnterpriseReservationsEnabled, false),
       chartOfAccounts: boolOr(
         sub.currentEnterpriseChartOfAccountsEnabled,
         false
@@ -350,7 +351,7 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
       inventory: false,
       support: false,
       supplyChain: false,
-      reservation: false,
+      reservations: false,
       chartOfAccounts: false,
       webOrdering: false,
       hasReports: true,
@@ -399,7 +400,7 @@ export function resolveActivePlanView(sub: SubLike | null): ActivePlanView | nul
     inventory: catalog.hasInventory,
     support: sub.addonSupportEnabled === true,
     supplyChain: false,
-    reservation: false,
+    reservations: false,
     chartOfAccounts: false,
     webOrdering: sub.addonWebOrderingEnabled === true,
     hasReports: catalog.hasReports,
@@ -442,7 +443,7 @@ export function activePlanToOfferSeed(
   inventory: boolean
   support: boolean
   supplyChain: boolean
-  reservation: boolean
+  reservations: boolean
   chartOfAccounts: boolean
   webOrdering: boolean
 } {
@@ -474,7 +475,7 @@ export function activePlanToOfferSeed(
     inventory: plan.inventory,
     support: plan.support,
     supplyChain: plan.supplyChain,
-    reservation: plan.reservation,
+    reservations: plan.reservations,
     chartOfAccounts: plan.chartOfAccounts,
     webOrdering: plan.webOrdering,
   }

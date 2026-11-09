@@ -523,6 +523,8 @@ export async function deleteRestoTenant(
 
 function asBoolean(value: unknown): boolean | null {
   if (typeof value === 'boolean') return value
+  if (value === 'true' || value === 1) return true
+  if (value === 'false' || value === 0) return false
   return null
 }
 
@@ -621,7 +623,7 @@ function normalizeSubscription(
       'enterprise_inventory_enabled',
       'inventory'
     ),
-    // Booleans only; *Fee fields are Reach-only and never decide Yes/No.
+    // Same pattern as inventory (enterprise* first, short key fallback).
     enterpriseSupplyChainEnabled: pickBoolean(
       raw,
       'enterpriseSupplyChainEnabled',
@@ -629,13 +631,11 @@ function normalizeSubscription(
       'supplyChain',
       'supply_chain'
     ),
-    enterpriseReservationEnabled: pickBoolean(
+    // Nest: reservations (plural) — same short-key pattern as inventory.
+    enterpriseReservationsEnabled: pickBoolean(
       raw,
-      'enterpriseReservationEnabled',
-      'enterprise_reservation_enabled',
       'enterpriseReservationsEnabled',
       'enterprise_reservations_enabled',
-      'reservation',
       'reservations'
     ),
     enterpriseChartOfAccountsEnabled: pickBoolean(
@@ -730,14 +730,10 @@ function normalizeSubscription(
       'currentSupplyChain',
       'current_supply_chain'
     ),
-    currentEnterpriseReservationEnabled: pickBoolean(
+    currentEnterpriseReservationsEnabled: pickBoolean(
       raw,
-      'currentEnterpriseReservationEnabled',
-      'current_enterprise_reservation_enabled',
       'currentEnterpriseReservationsEnabled',
       'current_enterprise_reservations_enabled',
-      'currentReservation',
-      'current_reservation',
       'currentReservations',
       'current_reservations'
     ),
@@ -800,7 +796,7 @@ export function offerFromSubscription(
       inventory: false,
       support: false,
       supplyChain: false,
-      reservation: false,
+      reservations: false,
       chartOfAccounts: false,
       webOrdering: false,
       paidTrial: false,
@@ -828,7 +824,7 @@ export function offerFromSubscription(
     inventory: sub.enterpriseInventoryEnabled,
     support: sub.addonSupportEnabled,
     supplyChain: sub.enterpriseSupplyChainEnabled,
-    reservation: sub.enterpriseReservationEnabled,
+    reservations: sub.enterpriseReservationsEnabled,
     chartOfAccounts: sub.enterpriseChartOfAccountsEnabled,
     webOrdering: sub.addonWebOrderingEnabled,
     paidTrial,
@@ -896,8 +892,6 @@ export async function putRestoEnterpriseOffer(
   if (!id) throw new RestoAdminApiError('Missing tenant id', 400)
 
   // Nest DB enforces NOT NULL on pre/post trial setup fee columns.
-  // Send only ENTERPRISE_OFFER_KEYS — extra aliases (e.g. reservations) make
-  // Nest ValidationPipe reject the whole PUT when forbidNonWhitelisted is on.
   const payload: RestoEnterpriseOfferInput = {
     ...offer,
     setupFee: offer.setupFee ?? 0,

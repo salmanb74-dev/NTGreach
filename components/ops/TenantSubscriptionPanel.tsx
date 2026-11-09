@@ -863,9 +863,9 @@ export default function TenantSubscriptionPanel({
                 label: 'Supply Chain',
               },
               {
-                key: 'reservation' as const,
-                feeKey: 'reservationFee' as const,
-                label: 'Reservation',
+                key: 'reservations' as const,
+                feeKey: 'reservationsFee' as const,
+                label: 'Table Reservations',
               },
               {
                 key: 'chartOfAccounts' as const,
@@ -952,8 +952,8 @@ export default function TenantSubscriptionPanel({
                         ? current.support
                         : key === 'supplyChain'
                           ? current.supplyChain
-                          : key === 'reservation'
-                            ? current.reservation
+                          : key === 'reservations'
+                            ? current.reservations
                             : key === 'chartOfAccounts'
                               ? current.chartOfAccounts
                               : current.webOrdering

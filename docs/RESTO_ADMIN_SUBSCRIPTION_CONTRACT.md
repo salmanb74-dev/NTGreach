@@ -35,12 +35,25 @@ Full replace — every key required:
 
 ```
 price, durationMonths, setupFee, locations, users, counters, ordersPerMonth,
-callCenter, kds, inventory, support, supplyChain, reservation, chartOfAccounts,
+callCenter, kds, inventory, support, supplyChain, reservations, chartOfAccounts,
 webOrdering, paidTrial, paidTrialDays, preTrialSetupFee, postTrialSetupFee,
 accessStartsAt, trialStartsAt, prorateBackdatedAccess, enterpriseEnabled
 ```
 
-Nest accepts `supplyChain`, `reservation`|`reservations`, and `chartOfAccounts` on PUT (Reach sends `reservation` only — no extra aliases, Nest rejects unknown keys). GET may expose offer flags as `enterprise*Enabled` and/or short keys (`supplyChain`, …), and live mirrors as `currentEnterprise*Enabled` and/or `currentSupplyChain` / `currentReservation`(s) / `currentChartOfAccounts`. Reach prefers the `enterprise*` / `currentEnterprise*` fields so short keys that mirror live/product state cannot keep the New column stuck on Yes. `null` = product default. Yes/No comes from Nest booleans only — Reach `*Fee` fields stay Reach-only and never decide the toggle.
+Feature booleans are identical end-to-end (Reach follows Nest names):
+
+| PUT | GET offer | GET live |
+|---|---|---|
+| `callCenter` | `enterpriseCallcenterEnabled` | `currentEnterpriseCallcenterEnabled` |
+| `kds` | `enterpriseKdsEnabled` | `currentEnterpriseKdsEnabled` |
+| `inventory` | `enterpriseInventoryEnabled` | `currentEnterpriseInventoryEnabled` |
+| `support` | `addonSupportEnabled` / … | `currentEnterpriseSupportEnabled` |
+| `supplyChain` | `enterpriseSupplyChainEnabled` | `currentEnterpriseSupplyChainEnabled` |
+| `reservations` | `enterpriseReservationsEnabled` | `currentEnterpriseReservationsEnabled` |
+| `chartOfAccounts` | `enterpriseChartOfAccountsEnabled` | `currentEnterpriseChartOfAccountsEnabled` |
+| `webOrdering` | `addonWebOrderingEnabled` / … | `currentEnterpriseWebOrderingEnabled` |
+
+Reach Yes only when Nest returns explicit `true`. `*Fee` fields stay Reach-only. Nest must round-trip `supplyChain` / `chartOfAccounts` the same way as `inventory` (always return boolean, including `false`).
 
 Reach Ops UI now:
 - Sends `paidTrialDays: null` always (trial length not collected).
@@ -71,7 +84,7 @@ Reach Ops Subscription UI collects these for parity with CRM Deal Values, but **
 | `inventoryFee` | Monthly $ add-on when inventory is on |
 | `supportFee` | Monthly $ add-on when ops/operation support is on |
 | `supplyChainFee` | Monthly $ add-on when supply chain is on |
-| `reservationFee` | Monthly $ add-on when reservation is on |
+| `reservationsFee` | Monthly $ add-on when reservations is on (Reach UI; Nest has no fee field) |
 | `chartOfAccountsFee` | Monthly $ add-on when chart of accounts is on |
 | `webOrderingFee` | Monthly $ add-on when web ordering is on |
 | `webOrderingRevenuePercent` | % of revenue on month-end invoice (web ordering) |
