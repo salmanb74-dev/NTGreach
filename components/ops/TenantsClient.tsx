@@ -20,6 +20,8 @@ import type {
 } from '@/lib/resto-admin/types'
 import {
   restoBillingCycleLabel,
+  restoFeaturesLabel,
+  restoFeaturesTitle,
   restoPlanBucket,
   restoPlanLabel,
   restoUsageLabel,
@@ -105,6 +107,10 @@ function copyFields(product: OpsNestProduct): {
     {
       label: 'Usage',
       value: t => restoUsageLabel(t as RestoTenant) || '—',
+    },
+    {
+      label: 'Features',
+      value: t => restoFeaturesLabel(t as RestoTenant) || '—',
     },
     {
       label: 'Last order',
@@ -516,6 +522,11 @@ export default function TenantsClient({ initialEnv }: Props) {
                 <th title="Current subscription start">Current</th>
                 <th>Billing cycle</th>
                 <th>Usage</th>
+                {!isAlma && (
+                  <th title="CC Call center · KDS · Inv Inventory · Sup Support · Res Reservations · Fin Finance · Web Web ordering">
+                    Features
+                  </th>
+                )}
                 {!isAlma && <th>Last order</th>}
                 {isProduction && <th>Cash due</th>}
                 <th className={styles.actionsCol}>
@@ -666,6 +677,22 @@ export default function TenantsClient({ initialEnv }: Props) {
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
+                    {!isAlma && (
+                      <td className={styles.usageCell}>
+                        {(() => {
+                          const resto = tenant as RestoTenant
+                          const label = restoFeaturesLabel(resto)
+                          const title = restoFeaturesTitle(resto)
+                          return label ? (
+                            <span title={title ?? undefined}>{label}</span>
+                          ) : (
+                            <span className={styles.muted} title={title ?? undefined}>
+                              —
+                            </span>
+                          )
+                        })()}
+                      </td>
+                    )}
                     {!isAlma && (
                       <td className={styles.dateCell}>
                         {(tenant as RestoTenant).lastOrderAt || (

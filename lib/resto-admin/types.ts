@@ -34,6 +34,18 @@ export type RestoTenant = {
   lastOrderAt: string | null
   /** Nest indefinite order-placement lock (ops). Missing → false. */
   ordersPlacementLocked: boolean
+  /**
+   * Live enterprise / product feature flags (Nest `currentEnterprise*Enabled`
+   * or short aliases). Null when Nest has not sent the field.
+   */
+  callCenterEnabled: boolean | null
+  kdsEnabled: boolean | null
+  inventoryEnabled: boolean | null
+  supportEnabled: boolean | null
+  reservationsEnabled: boolean | null
+  /** Nest key remains chartOfAccounts — Ops label is Finance. */
+  chartOfAccountsEnabled: boolean | null
+  webOrderingEnabled: boolean | null
 }
 
 /** GET/PUT /api/v1/admin/tenants/:id/orders-lock */
@@ -173,6 +185,62 @@ export function restoUsageLabel(
     `U ${formatUsagePart(tenant.usersUsed, tenant.usersLimit)}`,
     `O ${formatUsagePart(tenant.ordersUsed, tenant.ordersLimit)}`,
   ].join(' · ')
+}
+
+/** Compact codes for Ops tenants Features column (Supply Chain intentionally omitted). */
+const RESTO_FEATURE_LABELS = [
+  { key: 'callCenterEnabled' as const, code: 'CC', name: 'Call center' },
+  { key: 'kdsEnabled' as const, code: 'KDS', name: 'KDS' },
+  { key: 'inventoryEnabled' as const, code: 'Inv', name: 'Inventory' },
+  { key: 'supportEnabled' as const, code: 'Sup', name: 'Operation Support' },
+  { key: 'reservationsEnabled' as const, code: 'Res', name: 'Table Reservations' },
+  { key: 'chartOfAccountsEnabled' as const, code: 'Fin', name: 'Finance' },
+  { key: 'webOrderingEnabled' as const, code: 'Web', name: 'Web ordering' },
+] as const
+
+/**
+ * Compact enabled features: `CC · KDS · Inv · Fin`
+ * Only lists features that are explicitly true. Null when Nest sent no flags.
+ */
+export function restoFeaturesLabel(
+  tenant: Pick<
+    RestoTenant,
+    | 'callCenterEnabled'
+    | 'kdsEnabled'
+    | 'inventoryEnabled'
+    | 'supportEnabled'
+    | 'reservationsEnabled'
+    | 'chartOfAccountsEnabled'
+    | 'webOrderingEnabled'
+  >
+): string | null {
+  const known = RESTO_FEATURE_LABELS.some(({ key }) => tenant[key] != null)
+  if (!known) return null
+  const parts = RESTO_FEATURE_LABELS.filter(({ key }) => tenant[key] === true).map(
+    ({ code }) => code
+  )
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+/** Full names for Features cell tooltip. */
+export function restoFeaturesTitle(
+  tenant: Pick<
+    RestoTenant,
+    | 'callCenterEnabled'
+    | 'kdsEnabled'
+    | 'inventoryEnabled'
+    | 'supportEnabled'
+    | 'reservationsEnabled'
+    | 'chartOfAccountsEnabled'
+    | 'webOrderingEnabled'
+  >
+): string | null {
+  const known = RESTO_FEATURE_LABELS.some(({ key }) => tenant[key] != null)
+  if (!known) return null
+  const names = RESTO_FEATURE_LABELS.filter(({ key }) => tenant[key] === true).map(
+    ({ name }) => name
+  )
+  return names.length > 0 ? names.join(', ') : 'No enterprise features enabled'
 }
 
 /** One HTTP request row from Nest `api_hits` (admin logs API). */

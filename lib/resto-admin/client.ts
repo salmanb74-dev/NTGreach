@@ -205,6 +205,107 @@ function asDateOnly(value: unknown): string | null {
   return raw ? raw.slice(0, 10) : null
 }
 
+type RestoTenantFeatureFlags = Pick<
+  RestoTenant,
+  | 'callCenterEnabled'
+  | 'kdsEnabled'
+  | 'inventoryEnabled'
+  | 'supportEnabled'
+  | 'reservationsEnabled'
+  | 'chartOfAccountsEnabled'
+  | 'webOrderingEnabled'
+>
+
+/** Live features first (`currentEnterprise*`), then short aliases Nest may echo. */
+function featureFlagsFromRecord(
+  raw: Record<string, unknown>
+): RestoTenantFeatureFlags {
+  return {
+    callCenterEnabled: pickBoolean(
+      raw,
+      'callCenterEnabled',
+      'currentEnterpriseCallcenterEnabled',
+      'current_enterprise_callcenter_enabled',
+      'currentCallCenter',
+      'current_call_center',
+      'callCenter',
+      'call_center'
+    ),
+    kdsEnabled: pickBoolean(
+      raw,
+      'kdsEnabled',
+      'currentEnterpriseKdsEnabled',
+      'current_enterprise_kds_enabled',
+      'currentKds',
+      'current_kds',
+      'kds'
+    ),
+    inventoryEnabled: pickBoolean(
+      raw,
+      'inventoryEnabled',
+      'currentEnterpriseInventoryEnabled',
+      'current_enterprise_inventory_enabled',
+      'currentInventory',
+      'current_inventory',
+      'inventory'
+    ),
+    supportEnabled: pickBoolean(
+      raw,
+      'supportEnabled',
+      'currentEnterpriseSupportEnabled',
+      'current_enterprise_support_enabled',
+      'currentSupport',
+      'current_support',
+      'support',
+      'addonSupportEnabled',
+      'addon_support_enabled'
+    ),
+    reservationsEnabled: pickBoolean(
+      raw,
+      'reservationsEnabled',
+      'currentEnterpriseReservationsEnabled',
+      'current_enterprise_reservations_enabled',
+      'currentReservations',
+      'current_reservations',
+      'reservations'
+    ),
+    chartOfAccountsEnabled: pickBoolean(
+      raw,
+      'chartOfAccountsEnabled',
+      'currentEnterpriseChartOfAccountsEnabled',
+      'current_enterprise_chart_of_accounts_enabled',
+      'currentChartOfAccounts',
+      'current_chart_of_accounts',
+      'chartOfAccounts',
+      'chart_of_accounts'
+    ),
+    webOrderingEnabled: pickBoolean(
+      raw,
+      'webOrderingEnabled',
+      'currentEnterpriseWebOrderingEnabled',
+      'current_enterprise_web_ordering_enabled',
+      'currentWebOrdering',
+      'current_web_ordering',
+      'webOrdering',
+      'web_ordering',
+      'addonWebOrderingEnabled',
+      'addon_web_ordering_enabled'
+    ),
+  }
+}
+
+function tenantHasFeaturePayload(tenant: RestoTenantFeatureFlags): boolean {
+  return (
+    tenant.callCenterEnabled != null ||
+    tenant.kdsEnabled != null ||
+    tenant.inventoryEnabled != null ||
+    tenant.supportEnabled != null ||
+    tenant.reservationsEnabled != null ||
+    tenant.chartOfAccountsEnabled != null ||
+    tenant.webOrderingEnabled != null
+  )
+}
+
 function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
   const id = asTrimmedString(raw.id)
   if (!id) return null
@@ -259,7 +360,53 @@ function normalizeTenant(raw: Record<string, unknown>): RestoTenant | null {
       asBoolean(
         raw.ordersPlacementLocked ?? raw.orders_placement_locked
       ) === true,
+    ...featureFlagsFromRecord(raw),
   }
+}
+
+/**
+ * Nest tenants list does not yet include live feature flags. Fill from each
+ * tenant's subscription GET (batched). Skips tenants that already have flags.
+ */
+async function enrichTenantsWithFeatures(
+  env: RestoAdminEnv,
+  tenants: RestoTenant[]
+): Promise<RestoTenant[]> {
+  const needs = tenants.filter(t => !tenantHasFeaturePayload(t))
+  if (needs.length === 0) return tenants
+
+  const byId = new Map<string, RestoTenantFeatureFlags>()
+  const concurrency = 8
+
+  for (let i = 0; i < needs.length; i += concurrency) {
+    const chunk = needs.slice(i, i + concurrency)
+    await Promise.all(
+      chunk.map(async tenant => {
+        try {
+          const { body } = await fetchAdminJson(
+            env,
+            `/api/v1/admin/tenants/${encodeURIComponent(tenant.id)}/subscription`
+          )
+          if (!body || typeof body !== 'object') return
+          const record = body as Record<string, unknown>
+          const subRaw =
+            record.subscription && typeof record.subscription === 'object'
+              ? (record.subscription as Record<string, unknown>)
+              : record
+          byId.set(tenant.id, featureFlagsFromRecord(subRaw))
+        } catch {
+          // Leave nulls — Features column shows —
+        }
+      })
+    )
+  }
+
+  if (byId.size === 0) return tenants
+
+  return tenants.map(tenant => {
+    const flags = byId.get(tenant.id)
+    return flags ? { ...tenant, ...flags } : tenant
+  })
 }
 
 /** Nest returns `{ data: [...] }`; also accept a bare array or `{ tenants: [...] }`. */
@@ -317,7 +464,7 @@ export async function fetchRestoTenants(env: RestoAdminEnv): Promise<RestoTenant
     throw new RestoAdminApiError('Resto admin API returned an unexpected payload', 502)
   }
 
-  return rows
+  const tenants = rows
     .map(row =>
       row && typeof row === 'object'
         ? normalizeTenant(row as Record<string, unknown>)
@@ -325,6 +472,8 @@ export async function fetchRestoTenants(env: RestoAdminEnv): Promise<RestoTenant
     )
     .filter((row): row is RestoTenant => Boolean(row))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+
+  return enrichTenantsWithFeatures(env, tenants)
 }
 
 function clampLimit(value: number | undefined): number {

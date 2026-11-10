@@ -353,7 +353,8 @@ export function formToOffer(
     kds: form.kds,
     inventory: form.inventory,
     support: form.support,
-    supplyChain: form.supplyChain,
+    // Hidden in Ops UI; still sent for Nest API compat (Inventory covers the product).
+    supplyChain: null,
     reservations: form.reservations,
     chartOfAccounts: form.chartOfAccounts,
     webOrdering: form.webOrdering,
@@ -879,7 +880,8 @@ export function formDiffs(
     kds: form.kds !== plan.kds,
     inventory: form.inventory !== plan.inventory,
     support: form.support !== plan.support,
-    supplyChain: form.supplyChain !== plan.supplyChain,
+    // Supply Chain is hidden in Ops — never flag as a visible offer diff.
+    supplyChain: false,
     reservations: form.reservations !== plan.reservations,
     chartOfAccounts: form.chartOfAccounts !== plan.chartOfAccounts,
     webOrdering: form.webOrdering !== plan.webOrdering,
