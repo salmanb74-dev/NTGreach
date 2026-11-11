@@ -1,14 +1,18 @@
 import type {
   RestoAdminEnv,
+  RestoAgentVersionsQuery,
+  RestoAgentVersionsResult,
   RestoApiHit,
   RestoApiHitMetadata,
   RestoEnterpriseOfferInput,
   RestoEnterprisePutResult,
   RestoEnterpriseClearResult,
+  RestoLanTerminal,
   RestoLogsPage,
   RestoLogsQuery,
   RestoOrdersLockPutResult,
   RestoOrdersLockStatus,
+  RestoPrintDevice,
   RestoSubscriptionGetResult,
   RestoSubscriptionSnapshot,
   RestoSubscriptionTenant,
@@ -527,6 +531,133 @@ export async function fetchRestoLogs(
       : null
 
   return { logs, nextCursor }
+}
+
+function normalizeLanTerminal(
+  raw: Record<string, unknown>
+): RestoLanTerminal | null {
+  const tenantId =
+    asTrimmedString(raw.tenantId) ?? asTrimmedString(raw.tenant_id)
+  if (!tenantId) return null
+
+  return {
+    tenantId,
+    tenantName:
+      asTrimmedString(raw.tenantName) ?? asTrimmedString(raw.tenant_name),
+    branchId: asTrimmedString(raw.branchId) ?? asTrimmedString(raw.branch_id),
+    branchName:
+      asTrimmedString(raw.branchName) ?? asTrimmedString(raw.branch_name),
+    deviceId: asTrimmedString(raw.deviceId) ?? asTrimmedString(raw.device_id),
+    deviceName:
+      asTrimmedString(raw.deviceName) ??
+      asTrimmedString(raw.device_name) ??
+      asTrimmedString(raw.name),
+    hostsAgent:
+      asBoolean(raw.hostsAgent ?? raw.hosts_agent) === true,
+    agentVersion:
+      asTrimmedString(raw.agentVersion) ?? asTrimmedString(raw.agent_version),
+    isServer: asBoolean(raw.isServer ?? raw.is_server) === true,
+    lastSeenAt:
+      asTrimmedString(raw.lastSeenAt) ?? asTrimmedString(raw.last_seen_at),
+    registeredAt:
+      asTrimmedString(raw.registeredAt) ?? asTrimmedString(raw.registered_at),
+  }
+}
+
+function normalizePrintDevice(
+  raw: Record<string, unknown>
+): RestoPrintDevice | null {
+  const tenantId =
+    asTrimmedString(raw.tenantId) ?? asTrimmedString(raw.tenant_id)
+  if (!tenantId) return null
+
+  return {
+    tenantId,
+    tenantName:
+      asTrimmedString(raw.tenantName) ?? asTrimmedString(raw.tenant_name),
+    branchId: asTrimmedString(raw.branchId) ?? asTrimmedString(raw.branch_id),
+    branchName:
+      asTrimmedString(raw.branchName) ?? asTrimmedString(raw.branch_name),
+    deviceId: asTrimmedString(raw.deviceId) ?? asTrimmedString(raw.device_id),
+    deviceName:
+      asTrimmedString(raw.deviceName) ??
+      asTrimmedString(raw.device_name) ??
+      asTrimmedString(raw.name),
+    agentVersion:
+      asTrimmedString(raw.agentVersion) ?? asTrimmedString(raw.agent_version),
+    lastSeenAt:
+      asTrimmedString(raw.lastSeenAt) ?? asTrimmedString(raw.last_seen_at),
+    registeredAt:
+      asTrimmedString(raw.registeredAt) ?? asTrimmedString(raw.registered_at),
+  }
+}
+
+function extractAgentArrays(body: unknown): {
+  lanTerminals: unknown[]
+  printDevices: unknown[]
+} {
+  if (!body || typeof body !== 'object') {
+    return { lanTerminals: [], printDevices: [] }
+  }
+  const record = body as Record<string, unknown>
+  const data =
+    record.data && typeof record.data === 'object' && !Array.isArray(record.data)
+      ? (record.data as Record<string, unknown>)
+      : record
+
+  const lanTerminals = Array.isArray(data.lanTerminals)
+    ? data.lanTerminals
+    : Array.isArray(data.lan_terminals)
+      ? data.lan_terminals
+      : []
+  const printDevices = Array.isArray(data.printDevices)
+    ? data.printDevices
+    : Array.isArray(data.print_devices)
+      ? data.print_devices
+      : []
+
+  return { lanTerminals, printDevices }
+}
+
+/**
+ * Server-only: cloud-reported LAN Sync + Print Agent versions.
+ * GET /api/v1/admin/agent-versions — never invent versions from manifests.
+ * Never import this into client components.
+ */
+export async function fetchRestoAgentVersions(
+  env: RestoAdminEnv,
+  query: RestoAgentVersionsQuery = {}
+): Promise<RestoAgentVersionsResult> {
+  const params = new URLSearchParams()
+  if (query.tenantId?.trim()) params.set('tenantId', query.tenantId.trim())
+  if (query.q?.trim()) params.set('q', query.q.trim())
+
+  const qs = params.toString()
+  const { body } = await fetchAdminJson(
+    env,
+    `/api/v1/admin/agent-versions${qs ? `?${qs}` : ''}`
+  )
+
+  const { lanTerminals: lanRaw, printDevices: printRaw } =
+    extractAgentArrays(body)
+
+  const lanTerminals = lanRaw
+    .map(row =>
+      row && typeof row === 'object'
+        ? normalizeLanTerminal(row as Record<string, unknown>)
+        : null
+    )
+    .filter((row): row is RestoLanTerminal => Boolean(row))
+
+  const printDevices = printRaw
+    .map(row =>
+      row && typeof row === 'object'
+        ? normalizePrintDevice(row as Record<string, unknown>)
+        : null
+    )
+    .filter((row): row is RestoPrintDevice => Boolean(row))
+
+  return { lanTerminals, printDevices }
 }
 
 function asNumber(value: unknown): number | null {

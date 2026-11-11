@@ -130,7 +130,7 @@ const NAV_DEFS: ItemDef[] = [
   },
   {
     section: 'management',
-    label: 'Tenants',
+    label: 'Management',
     svgPath:
       'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z m13 10v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
     families: ['ops_product'],

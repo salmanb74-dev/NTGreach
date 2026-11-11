@@ -4,8 +4,8 @@ import ModuleTopbar from '@/components/layout/ModuleTopbar'
 import type { Module } from '@/lib/roles'
 
 const OPS_TITLES = [
-  { match: '/management', title: 'Tenants' },
-  { match: '/tenants', title: 'Tenants' },
+  { match: '/management', title: 'Management' },
+  { match: '/tenants', title: 'Management' },
   { match: '/logs', title: 'Logs' },
   { match: '/users', title: 'Users' },
   { match: '/docs', title: 'Docs' },

@@ -289,6 +289,54 @@ export type RestoLogsPage = {
   nextCursor: string | null
 }
 
+/** LAN Sync Agent till from Nest GET /api/v1/admin/agent-versions. */
+export type RestoLanTerminal = {
+  tenantId: string
+  tenantName: string | null
+  branchId: string | null
+  branchName: string | null
+  deviceId: string | null
+  deviceName: string | null
+  hostsAgent: boolean
+  agentVersion: string | null
+  isServer: boolean
+  lastSeenAt: string | null
+  registeredAt: string | null
+}
+
+/** Print Agent POS device from Nest GET /api/v1/admin/agent-versions. */
+export type RestoPrintDevice = {
+  tenantId: string
+  tenantName: string | null
+  branchId: string | null
+  branchName: string | null
+  deviceId: string | null
+  deviceName: string | null
+  agentVersion: string | null
+  lastSeenAt: string | null
+  registeredAt: string | null
+}
+
+export type RestoAgentVersionsQuery = {
+  tenantId?: string
+  /** Search string forwarded to Nest (`q`). */
+  q?: string
+}
+
+export type RestoAgentVersionsResult = {
+  lanTerminals: RestoLanTerminal[]
+  printDevices: RestoPrintDevice[]
+}
+
+/** Management page tabs: General (tenant list) | Agents (versions). */
+export type RestoManagementTab = 'general' | 'agents'
+
+export function parseManagementTab(
+  value: string | null | undefined
+): RestoManagementTab {
+  return value === 'agents' ? 'agents' : 'general'
+}
+
 /** Nest DELETE /api/v1/admin/tenants/:id summary fields (flexible). */
 export type RestoTenantDeleteSummary = {
   tenantId: string | null

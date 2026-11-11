@@ -144,13 +144,28 @@ export default function TenantDetailClient({
         : (state.tenant as RestoTenant).ordersPlacementLocked
       : false
 
+  const [backHref, setBackHref] = useState(
+    () => `${managementHref}?env=${encodeURIComponent(env)}`
+  )
+
+  useEffect(() => {
+    const params = new URLSearchParams({ env })
+    if (!isAlma) {
+      try {
+        if (window.localStorage.getItem('ops_resto_management_tab') === 'agents') {
+          params.set('tab', 'agents')
+        }
+      } catch {
+        // ignore
+      }
+    }
+    setBackHref(`${managementHref}?${params.toString()}`)
+  }, [env, isAlma, managementHref])
+
   return (
     <div className={styles.page}>
       <div className={styles.backRow}>
-        <Link
-          href={`${managementHref}?env=${env}`}
-          className={styles.backLink}
-        >
+        <Link href={backHref} className={styles.backLink}>
           ← All tenants
         </Link>
         <span

@@ -21,8 +21,8 @@ share Nest keys or `/api/ops` proxies between products.
 
 ## What v1 does
 
-- Sidebar: **Home** (blank), **Tenants**
-- **Tenants:** Staging/Production toggle; searchable tenant list; open a tenant for Overview, Subscription, Logs, Delete (tabs)
+- Sidebar: **Home** (blank), **Management**
+- **Management:** Staging/Production toggle; tabs **General** (searchable tenant list) and **Agents** (LAN Sync + Print versions, one row per tenant); open a tenant for Overview, Subscription, Logs, Delete (tabs)
 - Tenant **Delete** tab: Nest hard-delete (`DELETE /api/v1/admin/tenants/:id`) with name + id confirmation
 - Tenant **Overview**: indefinite **order-placement lock** (Lock / Unlock Orders)
 - Global Reports / Logs / Subscription nav items removed — those actions belong on the tenant detail page
@@ -103,6 +103,7 @@ Authenticated Reach ops users call:
 | `PUT /api/ops/tenants/:id/orders-lock?env=…` | `PUT /api/v1/admin/tenants/:id/orders-lock` |
 | `DELETE /api/ops/tenants/:id?env=…` body `{ confirmTenantId }` | `DELETE /api/v1/admin/tenants/:tenantId` |
 | `GET /api/ops/logs?env=…&tenantId=&method=&statusCode=&actionType=&cursor=&limit=` | `GET /api/v1/admin/logs` (`api_hits`) |
+| `GET /api/ops/agent-versions?env=…&tenantId=&q=` | `GET /api/v1/admin/agent-versions` (LAN Sync + Print installed versions) |
 
 Those routes check the Reach session (`ops_admin` or `ops_user` for reads;
 mutating Nest proxies require `ops_admin`), then call Nest with the matching env key.
@@ -125,7 +126,7 @@ If env vars are missing, the UI shows **Resto admin API not configured** (HTTP 5
 
 1. Assign the user role `ops_admin` and product `resto` (see SQL below).
 2. Switch module to **Ops Resto** in the top-right module selector.
-3. Open **Tenants** in the sidebar (`/ops/management`) for the tenant list.
+3. Open **Management** in the sidebar (`/ops/management`) for General / Agents.
 
 ## SQL — migrate roles to Ops
 
