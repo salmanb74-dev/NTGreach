@@ -20,10 +20,12 @@ function formatDate(iso: string | null) {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString(undefined, {
+  // Fixed locale + UTC so SSR and browser match (avoids hydration errors)
+  return d.toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
   })
 }
 

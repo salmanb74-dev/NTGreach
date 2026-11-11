@@ -61,6 +61,51 @@
   color: var(--color-text-3);
 }
 
+.listWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchRow {
+  margin-bottom: 12px;
+}
+
+.searchLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--page-bg) 70%, white);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-3);
+}
+
+.searchInput:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--color-border, #e5e7eb));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
 .list {
   list-style: none;
   margin: 0;
@@ -73,6 +118,7 @@
 .item {
   padding: 4px 0 8px;
   border-top: 1px solid var(--color-border, #e5e7eb);
+  scroll-margin-top: 24px;
 }
 
 .item:first-child {
@@ -80,8 +126,15 @@
   padding-top: 0;
 }
 
+.itemHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .toggle {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -93,6 +146,27 @@
   cursor: pointer;
   font-family: inherit;
   color: inherit;
+}
+
+.shareBtn {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-3);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.shareBtn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .toggle:hover .itemTitle {
